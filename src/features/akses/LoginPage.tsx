@@ -1,0 +1,348 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  ShieldCheck,
+  AlertCircle,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  ArrowLeft,
+  KeyRound,
+  RefreshCw,
+} from 'lucide-react';
+import { SEED_USERS, UserAccount } from '../../data/seed/pondokData.ts';
+import { useAppStore } from '../../lib/store.ts';
+
+interface LoginPageProps {
+  onLoginSuccess: () => void;
+  onBackToLanding: () => void;
+}
+
+export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLanding }) => {
+  const { loginAs } = useAppStore();
+
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Rate Limiting (5 failed attempts -> lockout 60s)
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutRemaining, setLockoutRemaining] = useState(0);
+
+  // Akun Demo drawer
+  const [showDemoAccounts, setShowDemoAccounts] = useState(true);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (lockoutRemaining > 0) {
+      timer = setInterval(() => {
+        setLockoutRemaining((prev) => {
+          if (prev <= 1) {
+            setFailedAttempts(0);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [lockoutRemaining]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+
+    if (lockoutRemaining > 0) {
+      setErrorMessage(`Terlalu banyak percobaan gagal. Silakan tunggu ${lockoutRemaining} detik.`);
+      return;
+    }
+
+    if (!identifier.trim()) {
+      setErrorMessage('Harap masukkan username atau email Anda.');
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage('Harap masukkan kata sandi Anda.');
+      return;
+    }
+
+    setLoading(true);
+
+    setTimeout(() => {
+      // Find matching user by username or email
+      const matched = SEED_USERS.find(
+        (u) =>
+          u.username.toLowerCase() === identifier.trim().toLowerCase() ||
+          u.email.toLowerCase() === identifier.trim().toLowerCase()
+      );
+
+      // Default password accepted for demo: 'darussalam2026' or 'admin123' or '123456'
+      const validPass = password === 'darussalam2026' || password === '123456' || password === 'admin123';
+
+      if (matched && validPass) {
+        loginAs(matched.id);
+        setLoading(false);
+        onLoginSuccess();
+      } else {
+        const newFails = failedAttempts + 1;
+        setFailedAttempts(newFails);
+        setLoading(false);
+
+        if (newFails >= 5) {
+          setLockoutRemaining(60);
+          setErrorMessage('Akun terkunci sementara karena 5 kali percobaan gagal. Tunggu 60 detik.');
+        } else {
+          setErrorMessage(
+            `Kredensial tidak cocok (${newFails}/5). Kata sandi akun demo adalah 'darussalam2026' atau '123456'.`
+          );
+        }
+      }
+    }, 450);
+  };
+
+  const handleFillDemo = (user: UserAccount) => {
+    setIdentifier(user.username);
+    setPassword('darussalam2026');
+    setErrorMessage('');
+  };
+
+  return (
+    <div className="min-h-screen flex bg-slate-50 font-sans">
+      {/* Left Panel: Islamic Green with Pattern (Desktop only) */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-[#07432A] text-white flex-col justify-between p-12 overflow-hidden">
+        {/* Subtle geometric circles */}
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-emerald-600/10 blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-amber-500/10 blur-3xl" />
+
+        <div className="relative z-10">
+          <button
+            onClick={onBackToLanding}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-200 hover:text-white transition bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/10"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Kembali ke Halaman Publik</span>
+          </button>
+        </div>
+
+        <div className="relative z-10 max-w-md space-y-6">
+          <div className="w-20 h-20 rounded-3xl bg-white/10 p-3 border border-white/20 backdrop-blur-xs flex items-center justify-center">
+            <img
+              src="/assets/aistudio/preview__14__3b7f388f.webp"
+              alt="Logo Pondok"
+              className="w-16 h-16 object-contain"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-bold border border-amber-400/30">
+              Sistem Informasi Terpadu ERP
+            </span>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white leading-tight">
+              Pondok Pesantren NU Darussalam Karangdadap
+            </h1>
+            <p className="font-arabic text-lg text-emerald-200 pt-1 leading-relaxed">
+              بالمعهد الإسلامي النهضي دار السلام كاراغداداف فكالوغان
+            </p>
+          </div>
+
+          <p className="text-xs text-emerald-100 leading-relaxed">
+            Portal ERP terpadu untuk dewan asatidz, panitia imtihan, bendahara, staf administrasi, serta wali santri dalam memantau nilai, absensi, dan transaksi santri secara real-time.
+          </p>
+
+          <div className="pt-4 border-t border-emerald-700/60 flex items-center gap-6 text-xs text-emerald-200">
+            <div>
+              <p className="text-lg font-bold text-amber-300 tabular-nums">100%</p>
+              <p className="text-[10px] text-emerald-300">Aman & Terenkripsi</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-amber-300 tabular-nums">PWA</p>
+              <p className="text-[10px] text-emerald-300">Siap Pasang di HP</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-amber-300 tabular-nums">24 Jam</p>
+              <p className="text-[10px] text-emerald-300">Server Pondok</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10 text-[11px] text-emerald-300/80">
+          © {new Date().getFullYear()} PP NU Darussalam Karangdadap Pekalongan. All rights reserved.
+        </div>
+      </div>
+
+      {/* Right Panel: Login Form & Demo Selector */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12 overflow-y-auto">
+        <div className="max-w-md w-full mx-auto space-y-6">
+          {/* Mobile Back Button */}
+          <div className="flex lg:hidden items-center justify-between">
+            <button
+              onClick={onBackToLanding}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-800"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Kembali</span>
+            </button>
+            <img
+              src="/assets/aistudio/preview__14__3b7f388f.webp"
+              alt="Logo"
+              className="w-10 h-10 object-contain"
+            />
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Masuk ke Portal ERP</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Gunakan akun resmi pesantren atau pilih akun demo di bawah untuk mencoba.
+            </p>
+          </div>
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+              <div className="flex-1 leading-relaxed">{errorMessage}</div>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Username atau Email
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Contoh: pengasuh atau bendahara@darussalam.id"
+                  disabled={loading || lockoutRemaining > 0}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 pl-10 text-xs text-slate-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20 focus:outline-hidden transition"
+                />
+                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">Kata Sandi</label>
+                <button
+                  type="button"
+                  onClick={() => alert("Silakan hubungi Administrator Sistem atau gunakan kata sandi demo: 'darussalam2026'")}
+                  className="text-[11px] font-semibold text-emerald-800 hover:underline"
+                >
+                  Lupa kata sandi?
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi..."
+                  disabled={loading || lockoutRemaining > 0}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 pl-10 pr-10 text-xs text-slate-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20 focus:outline-hidden transition"
+                />
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs pt-1">
+              <label className="flex items-center gap-2 cursor-pointer text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-slate-300 text-emerald-800 focus:ring-emerald-700 w-4 h-4"
+                />
+                <span>Ingat saya di perangkat ini</span>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || lockoutRemaining > 0}
+              className="w-full rounded-xl bg-emerald-800 hover:bg-emerald-900 py-3 text-xs font-bold text-white shadow-md transition flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Memverifikasi Akun...</span>
+                </>
+              ) : lockoutRemaining > 0 ? (
+                <span>Terkunci ({lockoutRemaining}s)</span>
+              ) : (
+                <>
+                  <span>Masuk ke Dashboard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Collapsible Akun Demo Box (Fills form, NOT auto-login) */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowDemoAccounts(!showDemoAccounts)}
+              className="w-full flex items-center justify-between text-xs font-bold text-slate-800"
+            >
+              <div className="flex items-center gap-2 text-emerald-900">
+                <KeyRound className="w-4 h-4 text-emerald-700" />
+                <span>Pilih Akun Demo (Klik untuk Mengisi Form)</span>
+              </div>
+              {showDemoAccounts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {showDemoAccounts && (
+              <div className="pt-2 border-t border-slate-100 space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                <p className="text-[11px] text-slate-500 mb-2">
+                  Klik salah satu peran di bawah untuk mengisi form login, lalu tekan tombol "Masuk":
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {SEED_USERS.map((usr) => (
+                    <button
+                      key={usr.id}
+                      type="button"
+                      onClick={() => handleFillDemo(usr)}
+                      className="p-2 rounded-xl text-left border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/60 transition group flex items-start gap-2"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                        {usr.peran.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-bold text-slate-900 truncate group-hover:text-emerald-800">
+                          {usr.nama}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate">{usr.peranLabel}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="text-center text-xs text-slate-500 pt-2">
+            Peran diatur secara otomatis dari kredensial akun. Pengguna dengan multi-peran dapat berganti peran di header setelah masuk.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

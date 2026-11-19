@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: erp_darussalam_app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://darussalam_user:darussalam_pwd@postgres:5432/erp_darussalam
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pondok_network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: erp_darussalam_db
+    restart: always
+    environment:
+      POSTGRES_USER: darussalam_user
+      POSTGRES_PASSWORD: darussalam_pwd
+      POSTGRES_DB: erp_darussalam
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./backup:/backup
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U darussalam_user -d erp_darussalam"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pondok_network
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  pondok_network:
+    driver: bridge

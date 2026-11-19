@@ -1,0 +1,6 @@
+{
+  "name": "ERP Pondok Pesantren NU Darussalam Karangdadap",
+  "description": "Sistem Informasi Terpadu dan ERP Modern Pondok Pesantren NU Darussalam Karangdadap Pekalongan dengan modul Imtihan, Ma'arifan, Sekretariat, Keuangan, Kema'hadiyahan, BK, PSB, dan Transaksi Santri.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

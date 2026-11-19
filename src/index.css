@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary: #0B5D3B;
+    --color-primary-dark: #07432A;
+    --color-primary-light: #E8F5EE;
+    --color-gold: #B8893B;
+    --color-gold-light: #FBF4E6;
+    --color-cream: #F6F3EA;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #F8FAFC;
+    color: #1E293B;
+  }
+}
+
+.font-arabic {
+  font-family: 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif;
+  font-feature-settings: "cv01", "cv02";
+}
+
+.font-naskh {
+  font-family: 'Amiri', 'Scheherazade New', serif;
+}
+
+/* Tabular nums for clean aligned financial & KPI tables */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Islamic Geometric Pattern Subtle SVG Background */
+.bg-islamic-pattern {
+  background-image: radial-gradient(#0B5D3B 0.75px, transparent 0.75px), radial-gradient(#0B5D3B 0.75px, #F6F3EA 0.75px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+  background-opacity: 0.05;
+}
+
+.bg-islamic-dark {
+  background-color: #07432A;
+  background-image: radial-gradient(rgba(184, 137, 59, 0.25) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Print CSS */
+@media print {
+  @page {
+    size: 215mm 330mm;
+    margin: 8mm 10mm;
+  }
+
+  html,
+  body,
+  #root {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 10.5pt !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure scrollable/flex main containers never clip or stop after page 1 */
+  .print-root-shell,
+  .print-main-col,
+  .print-main-scroll,
+  .h-screen,
+  .overflow-hidden,
+  .overflow-y-auto,
+  .overflow-x-auto,
+  [class*="max-h-"] {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
+  main {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .no-print,
+  nav,
+  aside,
+  header,
+  .pwa-prompt,
+  .ai-assistant-bubble,
+  button:not(.print-include) {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .printable-area {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .printable-card-sheet {
+    width: 100% !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Diagonal hatching pattern for unused schedule slots in kartu imtihan */
+  .bg-diagonal-hatch {
+    background: repeating-linear-gradient(
+      -45deg,
+      #000000,
+      #000000 1px,
+      transparent 1px,
+      transparent 5px
+    ) !important;
+  }
+}
+
+.print-only {
+  display: none;
+}
+
+.bg-diagonal-hatch {
+  background: repeating-linear-gradient(
+    -45deg,
+    #475569,
+    #475569 1px,
+    transparent 1px,
+    transparent 5px
+  );
+}
