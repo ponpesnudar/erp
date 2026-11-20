@@ -25,6 +25,7 @@ export const HakAksesModule: React.FC = () => {
     simulateRole,
     simulatedRole,
     userAccounts,
+    ustadzList,
     addUserAccount,
     updateUserAccount,
     deleteUserAccount,
@@ -558,25 +559,75 @@ export const HakAksesModule: React.FC = () => {
                 Setiap pengajar &amp; staf memiliki akun login pribadi dan nomor WhatsApp aktif untuk reset kata sandi OTP.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setIsNewUser(true);
-                setEditingUser({
-                  nama: '',
-                  username: '',
-                  email: '',
-                  noWa: '08',
-                  password: 'darussalam2026',
-                  peran: 'guru_pengampu',
-                  peranLabel: 'Guru Pengampu MDS',
-                });
-              }}
-              className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Akun Baru</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {(() => {
+                const missingUstadz = ustadzList.filter(
+                  (ust) =>
+                    !userAccounts.some(
+                      (acc) =>
+                        acc.ustadzId === ust.id ||
+                        acc.nama.toLowerCase() === ust.nama.toLowerCase()
+                    )
+                );
+                if (missingUstadz.length === 0) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      missingUstadz.forEach((ust) => {
+                        const slug = ust.nama
+                          .replace(/^(KH\.|Ust\.|Usth\.|M\.|H\.)\s*/i, '')
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, '.')
+                          .replace(/^\.+|\.+$/g, '')
+                          .slice(0, 18);
+                        addUserAccount({
+                          nama: ust.nama,
+                          username: slug || ust.id,
+                          email: `${slug || ust.id}@darussalam.id`,
+                          noWa: ust.noHP || '',
+                          password: 'darussalam2026',
+                          peran: 'guru_pengampu',
+                          peranLabel: ust.jabatanUtama || 'Guru Pengampu MDS',
+                          avatar: ust.nama
+                            .split(/\s+/)
+                            .slice(0, 2)
+                            .map((w) => w.charAt(0).toUpperCase())
+                            .join(''),
+                          rolesAvailable: ['guru_pengampu'],
+                          keterangan: `Akun guru ${ust.nama} (${ust.jabatanUtama})`,
+                          ustadzId: ust.id,
+                        });
+                      });
+                      notify(`${missingUstadz.length} akun ustadz/ustadzah baru berhasil dibuat.`);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Buat Akun {missingUstadz.length} Ustadz Belum Terdaftar</span>
+                  </button>
+                );
+              })()}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNewUser(true);
+                  setEditingUser({
+                    nama: '',
+                    username: '',
+                    email: '',
+                    noWa: '08',
+                    password: 'darussalam2026',
+                    peran: 'guru_pengampu',
+                    peranLabel: 'Guru Pengampu MDS',
+                  });
+                }}
+                className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Akun Baru</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -648,7 +699,7 @@ export const HakAksesModule: React.FC = () => {
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
-                        {usr.id !== 'usr-admin' && (
+                        {usr.id !== 'u-admin' && usr.username !== 'admin' && (
                           <button
                             type="button"
                             onClick={() => {
@@ -758,6 +809,45 @@ export const HakAksesModule: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {isNewUser && (
+              <div>
+                <label className="block font-bold mb-1 text-emerald-900">
+                  Isi Cepat dari Data Ustadz / Ustadzah (Opsional)
+                </label>
+                <select
+                  value={editingUser.ustadzId || ''}
+                  onChange={(e) => {
+                    const ust = ustadzList.find((u) => u.id === e.target.value);
+                    if (!ust) return;
+                    const slug = ust.nama
+                      .replace(/^(KH\.|Ust\.|Usth\.|M\.|H\.)\s*/i, '')
+                      .toLowerCase()
+                      .replace(/[^a-z0-9]+/g, '.')
+                      .replace(/^\.+|\.+$/g, '')
+                      .slice(0, 18);
+                    setEditingUser({
+                      ...editingUser,
+                      ustadzId: ust.id,
+                      nama: ust.nama,
+                      username: slug,
+                      email: `${slug}@darussalam.id`,
+                      noWa: ust.noHP || editingUser.noWa || '08',
+                      peran: 'guru_pengampu',
+                      peranLabel: ust.jabatanUtama || 'Guru Pengampu MDS',
+                    });
+                  }}
+                  className="w-full rounded-xl border border-emerald-300 bg-emerald-50/50 p-2 font-semibold"
+                >
+                  <option value="">-- Pilih Ustadz/Ustadzah untuk Auto-Isi --</option>
+                  {ustadzList.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nama} ({u.jabatanUtama})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block font-bold mb-1">Nama Lengkap</label>

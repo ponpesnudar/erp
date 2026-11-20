@@ -141,6 +141,148 @@ export const PONDOK_CONFIG: PondokConfig = {
   ],
 };
 
+export interface LandingAlurStep {
+  no: string;
+  title: string;
+  desc: string;
+}
+
+export interface LandingFaqItem {
+  q: string;
+  a: string;
+}
+
+export interface LandingPageConfig {
+  tahunAjaranLabel: string;
+  heroJudul: string;
+  heroDeskripsi: string;
+  visiJudul: string;
+  visiDeskripsi: string;
+  misiList: string[];
+  pengasuh: {
+    nama: string;
+    gelar: string;
+    biografi: string;
+  };
+  statistik: {
+    totalSantri: number;
+    santriPutra: number;
+    santriPutri: number;
+    asatidz: number;
+    kamarPutra: number;
+    kamarPutri: number;
+    ruangKelas: number;
+  };
+  kontak: {
+    alamat: string;
+    kecamatan: string;
+    kabupaten: string;
+    kodePos: string;
+    email: string;
+    telepon: string;
+  };
+  kegiatanHarian: {
+    waktu: string;
+    kegiatan: string;
+    keterangan: string;
+  }[];
+  fasilitas: {
+    judul: string;
+    deskripsi: string;
+    detail: string[];
+  }[];
+  biayaPSB: {
+    komponen: string;
+    nominal: number;
+    keterangan: string;
+  }[];
+  catatanBiaya: string;
+  syaratPerlengkapan: {
+    kategori: string;
+    items: string[];
+  }[];
+  alurJudulSection: string;
+  alurDaftar: LandingAlurStep[];
+  faqs: LandingFaqItem[];
+}
+
+export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
+  tahunAjaranLabel: 'Penerimaan Santri Baru Tahun Ajaran 2026/2027 Telah Dibuka',
+  heroJudul: 'Mendidik Generasi Santri Berakhlaq Mulia & Mendalam Kitab Kuning',
+  heroDeskripsi:
+    "Pondok Pesantren NU Darussalam Karangdadap membina santri putra dan putri dalam tradisi salafiyah Ahlussunnah wal Jama'ah An-Nahdliyyah dengan sistem Madrasah Diniyah Salafiyah berjenjang serta fasilitas modern terpadu.",
+  visiJudul:
+    "Terwujudnya Santri yang 'Alim, Berakhlak Karimah, Mandiri, dan Teguh Berpegang pada Sunnah Wal Jama'ah.",
+  visiDeskripsi:
+    'Mempersiapkan kader ulama dan cendekiawan muslim yang memiliki kedalaman ilmu agama, kepekaan sosial, serta kesiapan menghadapi tantangan zaman.',
+  misiList: [
+    "Menyelenggarakan pendidikan madrasah diniyah salafiyah dengan standar muthala'ah kitab kuning yang kokoh.",
+    'Membiasakan amaliyah ubudiyah, wirid harian, dan keteladanan akhlakul karimah dalam keseharian santri.',
+    "Menyediakan lingkungan asrama yang bersih, tertib, dan kondusif untuk tholabul 'ilmi.",
+  ],
+  pengasuh: { ...PONDOK_CONFIG.pengasuh },
+  statistik: { ...PONDOK_CONFIG.statistik },
+  kontak: {
+    alamat: PONDOK_CONFIG.alamat,
+    kecamatan: PONDOK_CONFIG.kecamatan,
+    kabupaten: PONDOK_CONFIG.kabupaten,
+    kodePos: PONDOK_CONFIG.kodePos,
+    email: PONDOK_CONFIG.email,
+    telepon: PONDOK_CONFIG.telepon,
+  },
+  kegiatanHarian: PONDOK_CONFIG.kegiatanHarian.map((k) => ({ ...k })),
+  fasilitas: PONDOK_CONFIG.fasilitas.map((f) => ({ ...f, detail: [...f.detail] })),
+  biayaPSB: PONDOK_CONFIG.biayaPSB.map((b) => ({ ...b })),
+  catatanBiaya:
+    'Syahriyah bulanan (Rp 650.000) sudah mencakup makan santri 3x sehari, asrama, dan iuran madrasah diniyah. Laundry pondok adalah unit usaha terpisah Rp 80.000/bulan.',
+  syaratPerlengkapan: PONDOK_CONFIG.syaratPerlengkapan.map((s) => ({ ...s, items: [...s.items] })),
+  alurJudulSection: '4 Langkah Mudah Menjadi Santri NU Darussalam',
+  alurDaftar: [
+    {
+      no: '1',
+      title: 'Registrasi Akun',
+      desc: "Klik tombol 'Daftar Santri Baru' dan buat akun calon santri online.",
+    },
+    {
+      no: '2',
+      title: 'Lengkapi Formulir',
+      desc: 'Isi data diri, data wali, riwayat sekolah, dan pilihan kelas madin.',
+    },
+    {
+      no: '3',
+      title: 'Infaq & Berkas',
+      desc: 'Transfer infaq pendaftaran Rp 150.000 dan unggah foto KK serta akta kelahiran.',
+    },
+    {
+      no: '4',
+      title: 'Sowan & Masuk Asrama',
+      desc: 'Verifikasi administrasi, sowan Pengasuh, penetapan kamar dan NIS santri.',
+    },
+  ],
+  faqs: [
+    {
+      q: 'Apakah santri diizinkan mencuci pakaian sendiri?',
+      a: "Di Pondok Pesantren NU Darussalam, santri tidak mencuci pakaian sendiri agar dapat mencurahkan waktu dan energinya untuk menghafal nadhom dan muthala'ah kitab kuning. Pakaian santri dikelola oleh Unit Usaha Laundry Pondok yang bersih, suci, dan wangi dengan biaya terjangkau.",
+    },
+    {
+      q: 'Berapa kapasitas dan pembagian kamar santri?',
+      a: 'Asrama pondok memiliki 9 kamar untuk santri putra (komplek Al-Falah, An-Nur, dll.) dan 10 kamar untuk santri putri (komplek Fatimah, Aisyah, dll.). Setiap kamar memiliki ventilasi alami yang baik dan almari pribadi santri.',
+    },
+    {
+      q: 'Bagaimana sistem pengelolaan uang jajan santri di kantin?',
+      a: 'Kantin pondok menerapkan sistem non-tunai (cashless) menggunakan Kartu Santri Digital RFID. Wali santri dapat membatasi kuota belanja harian anak dari rumah melalui portal wali santri dan melakukan top up saldo kapan saja.',
+    },
+    {
+      q: 'Apakah santri boleh membawa telepon genggam (smartphone)?',
+      a: 'Santri mukim reguler tidak diperkenankan membawa smartphone pribadi demi menjaga kekhusyukan belajar. Komunikasi dengan wali santri difasilitasi melalui wartel pondok dan nomor resmi pengasuh/pengurus asrama.',
+    },
+    {
+      q: 'Bagaimana dengan jenjang pendidikan formal?',
+      a: 'Santri mukim di Darussalam dapat bersekolah formal di lembaga pendidikan mitra sekitar pesantren (SMP / MTs / SMA / SMK) pada pagi hari, kemudian mengikuti Madrasah Diniyah Salafiyah (MDS) pada sore dan malam hari.',
+    },
+  ],
+};
+
 export interface UserAccount {
   id: string;
   username: string;
@@ -302,7 +444,7 @@ export const CORE_SEED_USERS: UserAccount[] = [
     nama: "Administrator Sistem ERP",
     email: "admin@darussalam.id",
     noWa: "081128009999",
-    password: "darussalam2026",
+    password: "admin",
     peran: "admin_sistem",
     peranLabel: "Administrator Sistem ERP",
     avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
@@ -2331,6 +2473,8 @@ export interface ImtihanRoomConfig {
   kode: string;
   nama: string;
   lokasi: string;
+  gedung?: string;
+  lantai?: 1 | 2 | 3;
   gender: 'L' | 'P';
   baris: number;
   kolom: number;
@@ -2361,13 +2505,13 @@ export const DEFAULT_IMTIHAN_MASTER: ImtihanMasterConfig = {
   jumlahPutriAktif: 206,
   pesertaSusulanIds: [],
   roomConfigs: [
-    { id: 'ruang-1', kode: 'R1', nama: 'Ruang 01 (Putra)', lokasi: 'Aula Utama Lt. 1', gender: 'L', baris: 5, kolom: 4 },
-    { id: 'ruang-2', kode: 'R2', nama: 'Ruang 02 (Putra)', lokasi: 'Kelas 2 A PUTRA', gender: 'L', baris: 5, kolom: 4 },
-    { id: 'ruang-3', kode: 'R3', nama: 'Ruang 03 (Putra)', lokasi: 'Kelas 3 A PUTRA', gender: 'L', baris: 5, kolom: 4 },
-    { id: 'ruang-4', kode: 'R4', nama: 'Ruang 04 (Putra)', lokasi: 'Serambi Masjid Timur', gender: 'L', baris: 5, kolom: 4 },
-    { id: 'ruang-5', kode: 'R5', nama: 'Ruang 05 (Putri)', lokasi: 'Aula Putri Barat', gender: 'P', baris: 5, kolom: 5 },
-    { id: 'ruang-6', kode: 'R6', nama: 'Ruang 06 (Putri)', lokasi: 'Kelas 2 A PUTRI', gender: 'P', baris: 5, kolom: 5 },
-    { id: 'ruang-7', kode: 'R7', nama: 'Ruang 07 (Putri)', lokasi: 'Kelas 3 A PUTRI', gender: 'P', baris: 5, kolom: 5 },
+    { id: 'ruang-1', kode: 'R1', nama: 'Ruang 01 (Putra)', lokasi: 'Aula Utama Lt. 1', gedung: 'Gedung Madrasah Utama (GD-A)', lantai: 1, gender: 'L', baris: 5, kolom: 4 },
+    { id: 'ruang-2', kode: 'R2', nama: 'Ruang 02 (Putra)', lokasi: 'Kelas 2 A PUTRA', gedung: 'Gedung Madrasah Utama (GD-A)', lantai: 1, gender: 'L', baris: 5, kolom: 4 },
+    { id: 'ruang-3', kode: 'R3', nama: 'Ruang 03 (Putra)', lokasi: 'Kelas 3 A PUTRA', gedung: 'Gedung Madrasah Utama (GD-A)', lantai: 2, gender: 'L', baris: 5, kolom: 4 },
+    { id: 'ruang-4', kode: 'R4', nama: 'Ruang 04 (Putra)', lokasi: 'Serambi Masjid Timur', gedung: 'Masjid Darussalam (Pusat)', lantai: 1, gender: 'L', baris: 5, kolom: 4 },
+    { id: 'ruang-5', kode: 'R5', nama: 'Ruang 05 (Putri)', lokasi: 'Aula Putri Barat', gedung: 'Gedung Madrasah & Asrama Putri (GD-C)', lantai: 1, gender: 'P', baris: 5, kolom: 5 },
+    { id: 'ruang-6', kode: 'R6', nama: 'Ruang 06 (Putri)', lokasi: 'Kelas 2 A PUTRI', gedung: 'Gedung Madrasah & Asrama Putri (GD-C)', lantai: 1, gender: 'P', baris: 5, kolom: 5 },
+    { id: 'ruang-7', kode: 'R7', nama: 'Ruang 07 (Putri)', lokasi: 'Kelas 3 A PUTRI', gedung: 'Gedung Madrasah & Asrama Putri (GD-C)', lantai: 2, gender: 'P', baris: 5, kolom: 5 },
   ],
 };
 

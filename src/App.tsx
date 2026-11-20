@@ -23,6 +23,7 @@ import { HakAksesModule } from './features/akses/HakAksesModule.tsx';
 import { PanduanModule } from './features/panduan/PanduanModule.tsx';
 import { SdmAbsensiModule } from './features/sdm/SdmAbsensiModule.tsx';
 import { AIAssistantModal } from './components/common/AIAssistantModal.tsx';
+import { PrintPreviewModal } from './components/common/PrintPreviewModal.tsx';
 import { useOnlineStatus } from './components/pwa/usePWAInstall.ts';
 import { Search, X, WifiOff } from 'lucide-react';
 
@@ -260,6 +261,9 @@ export default function App() {
           />
         </div>
       )}
+
+      {/* Print Studio Modal */}
+      <PrintPreviewModal />
 
       {/* Offline Toast Banner */}
       {!isOnline && (

@@ -11,6 +11,7 @@ import {
   Printer,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
+import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import type { JadwalKeamananItem, TitipanWaliRecord } from '../../data/seed/pondokData.ts';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
@@ -29,6 +30,7 @@ export const BKModule: React.FC = () => {
     titipanWali,
     addTitipanWali,
     updateStatusTitipanWali,
+    printOrientation,
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<
@@ -376,7 +378,13 @@ export const BKModule: React.FC = () => {
               <PrintOrientationControl recommended="portrait" compact />
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() =>
+                  triggerReliablePrint({
+                    title: 'Jadwal Piket Keamanan & Ronda Asrama',
+                    orientation: printOrientation,
+                    paperSize: 'F4',
+                  })
+                }
                 className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
               >
                 <Printer className="w-3.5 h-3.5" />

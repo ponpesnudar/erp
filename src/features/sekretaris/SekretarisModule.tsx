@@ -12,10 +12,12 @@ import {
   X,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
+import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import { formatNIS } from '../../lib/rules.ts';
 import { DetailSantriForm } from '../../components/common/DetailSantriForm.tsx';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
+import { LandingEditorTab } from './LandingEditorTab.tsx';
 import type { SantriRecord } from '../../data/seed/pondokData.ts';
 
 export const SekretarisModule: React.FC = () => {
@@ -43,10 +45,11 @@ export const SekretarisModule: React.FC = () => {
     sarprasPerlengkapan,
     addSarprasPerlengkapan,
     deleteSarprasPerlengkapan,
+    printOrientation,
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<
-    'santri' | 'surat' | 'pengurus' | 'sarpras' | 'pengaturan_nis'
+    'santri' | 'surat' | 'pengurus' | 'sarpras' | 'pengaturan_nis' | 'landing_cms'
   >('santri');
   const [searchSantri, setSearchSantri] = useState<string>('');
   const [filterGender, setFilterGender] = useState<string>('Semua');
@@ -237,6 +240,7 @@ export const SekretarisModule: React.FC = () => {
             { id: 'pengurus', label: 'Kepengurusan Putra/Putri' },
             { id: 'sarpras', label: 'Sarana & Prasarana' },
             { id: 'pengaturan_nis', label: 'Pengaturan NIS' },
+            { id: 'landing_cms', label: 'Info Landing Page' },
           ].map((tb) => (
             <button
               key={tb.id}
@@ -311,7 +315,13 @@ export const SekretarisModule: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() =>
+                  triggerReliablePrint({
+                    title: 'Buku Induk Master Santri (EMIS)',
+                    orientation: printOrientation,
+                    paperSize: 'F4',
+                  })
+                }
                 className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5"
               >
                 <Printer className="w-3.5 h-3.5" />
@@ -408,7 +418,13 @@ export const SekretarisModule: React.FC = () => {
               <PrintOrientationControl recommended="portrait" compact />
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() =>
+                  triggerReliablePrint({
+                    title: 'Buku Agenda Surat Keluar & Masuk',
+                    orientation: printOrientation,
+                    paperSize: 'F4',
+                  })
+                }
                 className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5"
               >
                 <Printer className="w-3.5 h-3.5" />
@@ -452,7 +468,14 @@ export const SekretarisModule: React.FC = () => {
                     {srt.status}
                   </span>
                   <button
-                    onClick={() => window.print()}
+                    type="button"
+                    onClick={() =>
+                      triggerReliablePrint({
+                        title: `Arsip Surat - ${srt.nomorSurat}`,
+                        orientation: printOrientation,
+                        paperSize: 'F4',
+                      })
+                    }
                     className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600"
                     title="Cetak Surat"
                   >
@@ -1077,6 +1100,9 @@ export const SekretarisModule: React.FC = () => {
           </button>
         </form>
       )}
+
+      {/* TAB 6: KELOLA INFORMASI LANDING PAGE */}
+      {activeTab === 'landing_cms' && <LandingEditorTab onNotify={notify} />}
 
       {/* Modal EMIS DetailSantriForm */}
       {santriFormMode && (

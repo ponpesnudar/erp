@@ -6,17 +6,13 @@ import {
   EyeOff,
   ArrowRight,
   AlertCircle,
-  ChevronDown,
-  ChevronUp,
   ArrowLeft,
-  KeyRound,
   RefreshCw,
   MessageSquare,
   CheckCircle2,
   X,
   UserCheck,
 } from 'lucide-react';
-import type { UserAccount } from '../../data/seed/pondokData.ts';
 import { useAppStore } from '../../lib/store.ts';
 
 interface LoginPageProps {
@@ -31,7 +27,7 @@ function normalizeWaPhone(raw: string): string {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLanding }) => {
-  const { loginAs, userAccounts, isDemoMode, resetPasswordByWa } = useAppStore();
+  const { loginAs, userAccounts, resetPasswordByWa } = useAppStore();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -43,10 +39,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLa
   // Rate Limiting (5 failed attempts -> lockout 60s)
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
-
-  // Akun Demo drawer (visible only when isDemoMode === true)
-  const [showDemoAccounts, setShowDemoAccounts] = useState(true);
-  const [demoSearch, setDemoSearch] = useState('');
 
   // WhatsApp OTP Reset Password Modal (NO window.alert!)
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -107,9 +99,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLa
       );
 
       const expectedPass = matched?.password || 'darussalam2026';
-      const validPass =
-        password === expectedPass ||
-        (isDemoMode && (password === 'darussalam2026' || password === '123456' || password === 'admin123'));
+      const validPass = password === expectedPass;
 
       if (matched && validPass) {
         loginAs(matched.id);
@@ -135,12 +125,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     performLogin();
-  };
-
-  const handleFillDemo = (user: UserAccount) => {
-    setIdentifier(user.username);
-    setPassword(user.password || 'darussalam2026');
-    setErrorMessage('');
   };
 
   const openForgotPasswordModal = () => {
@@ -205,16 +189,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLa
     }
     setOtpStep('done');
   };
-
-  const filteredDemoUsers = userAccounts.filter((usr) => {
-    if (!demoSearch.trim()) return true;
-    const q = demoSearch.toLowerCase();
-    return (
-      usr.nama.toLowerCase().includes(q) ||
-      usr.peranLabel.toLowerCase().includes(q) ||
-      usr.username.toLowerCase().includes(q)
-    );
-  });
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans">
@@ -300,9 +274,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLa
           <div>
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Masuk ke Portal ERP</h2>
             <p className="text-xs text-slate-500 mt-1">
-              {isDemoMode
-                ? 'Gunakan akun resmi pesantren, nomor WA terdaftar, atau pilih akun simulasi di bawah.'
-                : 'Masukkan username, email, atau nomor WhatsApp terdaftar Anda untuk masuk.'}
+              Masukkan username, email, atau nomor WhatsApp akun individu Anda untuk masuk ke sistem pesantren.
             </p>
           </div>
 
@@ -407,61 +379,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLa
             </div>
           </form>
 
-          {/* Collapsible Akun Demo Box (Hidden automatically in Go-Live Mode) */}
-          {isDemoMode && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
-              <button
-                type="button"
-                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
-                className="w-full flex items-center justify-between text-xs font-bold text-slate-800"
-              >
-                <div className="flex items-center gap-2 text-emerald-900">
-                  <KeyRound className="w-4 h-4 text-emerald-700" />
-                  <span>Pilih Akun Demo &amp; Guru ({userAccounts.length} Akun)</span>
-                </div>
-                {showDemoAccounts ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </button>
-
-              {showDemoAccounts && (
-                <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <input
-                    type="text"
-                    value={demoSearch}
-                    onChange={(e) => setDemoSearch(e.target.value)}
-                    placeholder="Cari nama ustadz/ustadzah atau peran..."
-                    className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] focus:outline-hidden"
-                  />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
-                    {filteredDemoUsers.map((usr) => (
-                      <button
-                        key={usr.id}
-                        type="button"
-                        onClick={() => handleFillDemo(usr)}
-                        className="p-2 rounded-xl text-left border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/60 transition group flex items-start gap-2"
-                      >
-                        <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                          {usr.nama.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-bold text-slate-900 truncate group-hover:text-emerald-800">
-                            {usr.nama}
-                          </p>
-                          <p className="text-[10px] text-slate-500 truncate">{usr.peranLabel}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="text-center text-xs text-slate-500 pt-2">
-            Peran diatur secara otomatis dari kredensial akun. Pengguna dengan multi-peran dapat berganti peran di header setelah masuk.
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-center text-[11px] text-emerald-900 space-y-1">
+            <p className="font-bold">Autentikasi Per Akun Individu Aktif (Mode Go-Live)</p>
+            <p className="text-emerald-800/80">
+              Setiap ustadz, ustadzah, bendahara, dan pengurus masuk menggunakan akun masing-masing. Lupa sandi? Gunakan tombol OTP WhatsApp di atas.
+            </p>
           </div>
         </div>
       </div>

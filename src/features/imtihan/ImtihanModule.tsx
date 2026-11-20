@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileCheck,
   Printer,
@@ -24,6 +24,8 @@ import {
   Sparkles,
   Loader2,
   ShieldAlert,
+  Tag,
+  DoorOpen,
 } from 'lucide-react';
 import {
   useAppStore,
@@ -35,6 +37,7 @@ import {
 import { ModuleWorkflowFlowchart, WorkflowNode } from '../../components/common/ModuleWorkflowFlowchart.tsx';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
+import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import { validateRoom } from '../../lib/rules.ts';
 import {
   TemplateBlankoImtihan,
@@ -43,6 +46,10 @@ import {
   SubTabInputNilaiSpreadsheet,
   SubTabRaportSantri,
   SubTabPeringkatParalel,
+  DenahPondok3D,
+  DenahKampus2DSubTab,
+  BlankoNilaiSubTab,
+  KoreksianKitabSubTab,
 } from './components/index.ts';
 import { DAFTAR_KELAS_DINIYAH, type JadwalMaarifanItem, type JagaPiketRecord } from '../../data/seed/pondokData.ts';
 
@@ -60,14 +67,17 @@ export const ImtihanModule: React.FC = () => {
 
   const [activeSubTab, setActiveSubTab] = useState<string>('dashboard');
 
-  // Sub-tabs list (12 dedicated sub-tabs)
+  // Sub-tabs list (14 dedicated sub-tabs)
   const subTabs = [
     { id: 'dashboard', label: 'Dashboard & Alur' },
+    { id: 'koreksian_kitab', label: 'Koreksian Kitab' },
     { id: 'soal_guru', label: 'Naskah Soal Guru' },
     { id: 'review_panitia', label: 'Review Panitia' },
     { id: 'cetak_blanko', label: 'Cetak Blanko Soal' },
+    { id: 'denah_kampus_2d', label: 'Denah Gedung 2D' },
     { id: 'denah_ujian', label: 'Denah & Tempat Duduk' },
     { id: 'kartu_imtihan', label: 'Kartu Imtihan' },
+    { id: 'blanko_nilai', label: 'Blanko Nilai Santri' },
     { id: 'input_nilai', label: 'Input Nilai' },
     { id: 'raport_santri', label: 'Raport Santri' },
     { id: 'peringkat_paralel', label: 'Peringkat & Juara' },
@@ -103,6 +113,14 @@ export const ImtihanModule: React.FC = () => {
   // Alur Workflow Nodes
   const alurNodes: WorkflowNode[] = [
     {
+      id: 'koreksian_kitab',
+      title: 'Koreksian Kitab',
+      keterangan: 'Verifikasi kelengkapan kitab pra-ujian',
+      count: santriList.length - susulanCount,
+      icon: ClipboardList,
+      status: 'aktif',
+    },
+    {
       id: 'soal_guru',
       title: 'Penyusunan Soal',
       keterangan: 'Guru menyusun naskah Pegon/Arab',
@@ -127,9 +145,9 @@ export const ImtihanModule: React.FC = () => {
       status: 'selesai',
     },
     {
-      id: 'denah_ujian',
-      title: 'Denah Acak',
-      keterangan: `${ruangUjianList.length} ruang bebas contek`,
+      id: 'denah_kampus_2d',
+      title: 'Denah Gedung 2D',
+      keterangan: 'Peta gedung, lantai & bangku ujian',
       count: ruangUjianList.length,
       icon: Grid,
       status: 'selesai',
@@ -285,7 +303,10 @@ export const ImtihanModule: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: INPUT NASKAH SOAL GURU */}
+      {/* TAB 2A: KOREKSIAN KITAB SANTRI */}
+      {activeSubTab === 'koreksian_kitab' && <KoreksianKitabSubTab />}
+
+      {/* TAB 2B: INPUT NASKAH SOAL GURU */}
       {activeSubTab === 'soal_guru' && <SubTabSoalGuru />}
 
       {/* TAB 3: REVIEW PANITIA IMTIHAN */}
@@ -294,11 +315,17 @@ export const ImtihanModule: React.FC = () => {
       {/* TAB 4: CETAK BLANKO SOAL RESMI */}
       {activeSubTab === 'cetak_blanko' && <SubTabCetakBlankoSoal />}
 
-      {/* TAB 5: DENAH RUANGAN & TEMPAT DUDUK */}
+      {/* TAB 4B: VISUALISASI DENAH GEDUNG & LANTAI 2D */}
+      {activeSubTab === 'denah_kampus_2d' && <DenahKampus2DSubTab />}
+
+      {/* TAB 5: DENAH RUANGAN & TEMPAT DUDUK (3D + 2D + LABEL BANGKU + TEMPEL KACA) */}
       {activeSubTab === 'denah_ujian' && <SubTabDenahUjian />}
 
       {/* TAB 6: KARTU IMTIHAN RESMI */}
       {activeSubTab === 'kartu_imtihan' && <KartuImtihanSubTab />}
+
+      {/* TAB 6B: CETAK BLANKO NILAI SANTRI */}
+      {activeSubTab === 'blanko_nilai' && <BlankoNilaiSubTab />}
 
       {/* TAB 7: INPUT NILAI SPREADSHEET */}
       {activeSubTab === 'input_nilai' && <SubTabInputNilaiSpreadsheet />}
@@ -1570,7 +1597,7 @@ const SubTabReviewPanitia: React.FC = () => {
    SUB-TAB 4: CETAK BLANKO SOAL RESMI (REPLIKA LAMPIRAN E)
 ========================================================================= */
 const SubTabCetakBlankoSoal: React.FC = () => {
-  const { soalSubmissions, santriList, imtihanMaster } = useAppStore();
+  const { soalSubmissions, santriList, imtihanMaster, printOrientation } = useAppStore();
   const [selectedSoalId, setSelectedSoalId] = useState(soalSubmissions[0]?.id || '');
   const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('F4');
   const [modeBlanko, setModeBlanko] = useState<'blanko' | 'terisi'>('blanko');
@@ -1578,9 +1605,21 @@ const SubTabCetakBlankoSoal: React.FC = () => {
     imtihanMaster.cawu === '2' ? 'genap' : 'gasal'
   );
   const [selectedSantriId, setSelectedSantriId] = useState<string>(santriList[0]?.id || '');
+  const blankoWrapRef = useRef<HTMLDivElement | null>(null);
 
   const activeSoal = soalSubmissions.find((s) => s.id === selectedSoalId) || soalSubmissions[0];
   const activeSantri = santriList.find((s) => s.id === selectedSantriId) || santriList[0];
+
+  const handlePrintBlanko = () => {
+    const targetEl =
+      blankoWrapRef.current?.querySelector<HTMLElement>('.printable-area') || blankoWrapRef.current;
+    triggerReliablePrint({
+      title: `Blanko Soal ${activeSoal?.mapelNama || 'Imtihan'} (${activeSoal?.kelas || ''})`,
+      orientation: printOrientation,
+      paperSize,
+      targetElement: targetEl,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -1599,7 +1638,8 @@ const SubTabCetakBlankoSoal: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <PrintOrientationControl recommended="portrait" />
             <button
-              onClick={() => window.print()}
+              type="button"
+              onClick={handlePrintBlanko}
               className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition shadow-xs flex items-center gap-2"
             >
               <Printer className="w-4 h-4" />
@@ -1699,24 +1739,26 @@ const SubTabCetakBlankoSoal: React.FC = () => {
         )}
       </div>
 
-      <TemplateBlankoImtihan
-        mapelArab={activeSoal?.mapelArab || 'الفقه'}
-        mapelLatin={activeSoal?.mapelNama || 'Fiqih Tingkat 2'}
-        kelas={activeSoal?.kelas || 'الأول للبنين'}
-        guruPengampu={activeSoal?.guruNamaArab || activeSoal?.guruNama || 'عبد الرحمن'}
-        semester={selectedSemester}
-        tahunAjaran={imtihanMaster.tahunHijriyahArab || '١٤٤٧ - ١٤٤٨ هـ'}
-        mode={modeBlanko}
-        santriNama={modeBlanko === 'terisi' ? activeSantri?.nama : ''}
-        noAbsen={modeBlanko === 'terisi' ? '12' : ''}
-        tanggal={modeBlanko === 'terisi' ? 'الأحد، ٧ جمادى الآخرة ١٤٤٨ هـ' : ''}
-        showInstruction={true}
-        instructionText={activeSoal?.instruksiArab || 'أجب هذه الأسئلة بإجابة صحيحة !'}
-        soalList={activeSoal?.soalList}
-        romawiSections={activeSoal?.romawiSections}
-        pilihanGandaList={activeSoal?.pilihanGandaList}
-        paperSize={paperSize}
-      />
+      <div ref={blankoWrapRef}>
+        <TemplateBlankoImtihan
+          mapelArab={activeSoal?.mapelArab || 'الفقه'}
+          mapelLatin={activeSoal?.mapelNama || 'Fiqih Tingkat 2'}
+          kelas={activeSoal?.kelas || 'الأول للبنين'}
+          guruPengampu={activeSoal?.guruNamaArab || activeSoal?.guruNama || 'عبد الرحمن'}
+          semester={selectedSemester}
+          tahunAjaran={imtihanMaster.tahunHijriyahArab || '١٤٤٧ - ١٤٤٨ هـ'}
+          mode={modeBlanko}
+          santriNama={modeBlanko === 'terisi' ? activeSantri?.nama : ''}
+          noAbsen={modeBlanko === 'terisi' ? '12' : ''}
+          tanggal={modeBlanko === 'terisi' ? 'الأحد، ٧ جمادى الآخرة ١٤٤٨ هـ' : ''}
+          showInstruction={true}
+          instructionText={activeSoal?.instruksiArab || 'أجب هذه الأسئلة بإجابة صحيحة !'}
+          soalList={activeSoal?.soalList}
+          romawiSections={activeSoal?.romawiSections}
+          pilihanGandaList={activeSoal?.pilihanGandaList}
+          paperSize={paperSize}
+        />
+      </div>
     </div>
   );
 };
@@ -1736,14 +1778,17 @@ const SubTabDenahUjian: React.FC = () => {
     addRoomConfig,
     updateRoomConfig,
     deleteRoomConfig,
+    printOrientation,
   } = useAppStore();
 
   const [activeRoomId, setActiveRoomId] = useState<string>(ruangUjianList[0]?.id || 'ruang-1');
   const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
+  const [denahViewMode, setDenahViewMode] = useState<'denah_3d_2d' | 'label_bangku' | 'tempel_kaca'>('denah_3d_2d');
   const [conflictReport, setConflictReport] = useState<{ totalConflicts: number; score: number }>({
     totalConflicts: 0,
     score: 100,
   });
+  const denahSheetRef = useRef<HTMLDivElement | null>(null);
 
   // Modals for Master Data Denah
   const [showSusulanModal, setShowSusulanModal] = useState(false);
@@ -1759,6 +1804,11 @@ const SubTabDenahUjian: React.FC = () => {
   const [newKolom, setNewKolom] = useState(4);
 
   const activeRoom = ruangUjianList.find((r) => r.id === activeRoomId) || ruangUjianList[0];
+  const activeRoomConfig = imtihanMaster.roomConfigs.find(
+    (rc) => rc.id === activeRoom?.id || rc.kode === activeRoom?.kode
+  );
+  const activeRoomLokasi = activeRoomConfig?.lokasi || activeRoom?.nama || 'Gedung Madrasah';
+  const occupiedSeats = (activeRoom?.kursiList || []).filter((k) => Boolean(k.santri));
 
   useEffect(() => {
     if (activeRoom) {
@@ -1918,6 +1968,8 @@ const SubTabDenahUjian: React.FC = () => {
                   <tr>
                     <th className="p-2 text-left">Kode</th>
                     <th className="p-2 text-left">Nama Ruang</th>
+                    <th className="p-2 text-left">Gedung</th>
+                    <th className="p-2 text-center">Lt</th>
                     <th className="p-2 text-left">Lokasi Dipakai (Aula/Kelas)</th>
                     <th className="p-2 text-center">Gender</th>
                     <th className="p-2 text-center">Baris</th>
@@ -1942,15 +1994,38 @@ const SubTabDenahUjian: React.FC = () => {
                           type="text"
                           value={rc.nama}
                           onChange={(e) => updateRoomConfig(rc.id, { nama: e.target.value })}
-                          className="w-36 rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                          className="w-32 rounded-lg border border-slate-300 px-2 py-1 text-xs"
                         />
+                      </td>
+                      <td className="p-1.5">
+                        <input
+                          type="text"
+                          value={rc.gedung || (rc.gender === 'P' ? 'Gedung Madrasah & Asrama Putri (GD-C)' : 'Gedung Madrasah Utama (GD-A)')}
+                          onChange={(e) => updateRoomConfig(rc.id, { gedung: e.target.value })}
+                          className="w-40 rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                        />
+                      </td>
+                      <td className="p-1.5 text-center">
+                        <select
+                          value={rc.lantai || 1}
+                          onChange={(e) =>
+                            updateRoomConfig(rc.id, {
+                              lantai: (parseInt(e.target.value) as 1 | 2 | 3) || 1,
+                            })
+                          }
+                          className="rounded-lg border border-slate-300 px-1.5 py-1 text-xs font-bold"
+                        >
+                          <option value={1}>Lt 1</option>
+                          <option value={2}>Lt 2</option>
+                          <option value={3}>Lt 3</option>
+                        </select>
                       </td>
                       <td className="p-1.5">
                         <input
                           type="text"
                           value={rc.lokasi}
                           onChange={(e) => updateRoomConfig(rc.id, { lokasi: e.target.value })}
-                          className="w-44 rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold"
+                          className="w-40 rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold"
                         />
                       </td>
                       <td className="p-1.5 text-center">
@@ -2072,6 +2147,13 @@ const SubTabDenahUjian: React.FC = () => {
                     kode: newKode,
                     nama: newNama,
                     lokasi: newLokasi,
+                    gedung:
+                      newGender === 'P'
+                        ? 'Gedung Madrasah & Asrama Putri (GD-C)'
+                        : newLokasi.toLowerCase().includes('masjid')
+                        ? 'Masjid Darussalam (Pusat)'
+                        : 'Gedung Madrasah Utama (GD-A)',
+                    lantai: newLokasi.toLowerCase().includes('2') ? 2 : 1,
                     gender: newGender,
                     baris: newBaris,
                     kolom: newKolom,
@@ -2086,22 +2168,23 @@ const SubTabDenahUjian: React.FC = () => {
         )}
       </div>
 
-      {/* Room Switcher & Print Controls (no-print) */}
+      {/* Room Switcher, Mode Selector & Print Controls (no-print) */}
       <div className="rounded-2xl bg-white p-4 border border-slate-200 shadow-2xs space-y-3 no-print">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
               <Grid className="w-4 h-4 text-emerald-700" />
-              <span>Denah Tempat Duduk Ruang Imtihan (Cawu {imtihanMaster.cawu})</span>
+              <span>Denah Pondok 3D, Denah Ruang 2D, Label Bangku &amp; Tempel Kaca Kelas (Cawu {imtihanMaster.cawu})</span>
             </h3>
             <p className="text-xs text-slate-500">
-              Klik 2 kursi untuk menukar posisi. Tombol Cetak otomatis menampilkan Kop Resmi Pondok & judul ruang.
+              Cek tata letak gedung &amp; lantai secara interaktif 3D (otomatis berubah jadi denah 2D resmi saat dicetak), plus cetak stiker tempat duduk &amp; daftar peserta kaca kelas.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <PrintOrientationControl recommended="portrait" />
             <button
+              type="button"
               onClick={handleAcakUlang}
               className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5"
             >
@@ -2109,19 +2192,80 @@ const SubTabDenahUjian: React.FC = () => {
               <span>Acak Ulang Denah</span>
             </button>
             <button
-              onClick={() => window.print()}
+              type="button"
+              onClick={() => {
+                const modeTitle =
+                  denahViewMode === 'label_bangku'
+                    ? `Label Tempat Duduk Bangku - ${activeRoom?.kode || ''}`
+                    : denahViewMode === 'tempel_kaca'
+                    ? `Daftar Peserta Tempel Kaca - ${activeRoom?.kode || ''}`
+                    : `Denah Resmi 2D ${activeRoom?.kode || ''} - ${activeRoom?.nama || ''}`;
+                triggerReliablePrint({
+                  title: modeTitle,
+                  orientation: printOrientation,
+                  paperSize: 'F4',
+                  targetElement: denahSheetRef.current,
+                });
+              }}
               className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Cetak Denah Resmi</span>
+              <span>
+                {denahViewMode === 'label_bangku'
+                  ? 'Cetak Label Bangku'
+                  : denahViewMode === 'tempel_kaca'
+                  ? 'Cetak Tempel Kaca Kelas'
+                  : 'Cetak Denah 2D Resmi'}
+              </span>
             </button>
           </div>
+        </div>
+
+        {/* 3 Printable Layout Switcher */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setDenahViewMode('denah_3d_2d')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+              denahViewMode === 'denah_3d_2d'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Grid className="w-3.5 h-3.5" />
+            <span>Denah Pondok 3D &amp; Ruang 2D</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDenahViewMode('label_bangku')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+              denahViewMode === 'label_bangku'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Tag className="w-3.5 h-3.5" />
+            <span>Label Tempat Duduk (Tempel Bangku)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDenahViewMode('tempel_kaca')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+              denahViewMode === 'tempel_kaca'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <DoorOpen className="w-3.5 h-3.5" />
+            <span>Daftar Peserta (Tempel Kaca Kelas)</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-t border-slate-100 pt-3">
           {ruangUjianList.map((r) => (
             <button
               key={r.id}
+              type="button"
               onClick={() => {
                 setActiveRoomId(r.id);
                 setSelectedSeatId(null);
@@ -2143,9 +2287,22 @@ const SubTabDenahUjian: React.FC = () => {
         </div>
       </div>
 
-      {/* Printable Room Seating Sheet */}
+      {/* Interactive 3D Campus + Buildings + Floors Visualization (Hidden automatically when printing) */}
+      {denahViewMode === 'denah_3d_2d' && (
+        <DenahPondok3D
+          ruangUjianList={ruangUjianList}
+          roomConfigs={imtihanMaster.roomConfigs}
+          activeRoomId={activeRoom?.id || ''}
+          onSelectRoom={(id) => {
+            setActiveRoomId(id);
+            setSelectedSeatId(null);
+          }}
+        />
+      )}
+
+      {/* Printable Room Sheet: 2D Denah / Desk Stickers / Window Roster */}
       {activeRoom && (
-        <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-5 printable-area">
+        <div ref={denahSheetRef} className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-5 printable-area">
           {/* OFFICIAL PRINT-ONLY KOP SURAT DENAH */}
           <div className="print-only pb-3 border-b-2 border-black space-y-2">
             <div className="flex items-center justify-between gap-4">
@@ -2153,6 +2310,9 @@ const SubTabDenahUjian: React.FC = () => {
                 src="/assets/aistudio/ChatGPT_Image_Nov_6__2025__01_32_08_PM_64f70724.png"
                 alt="Logo PP NU Darussalam"
                 className="w-16 h-16 object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = '/assets/aistudio/preview__14__3b7f388f.webp';
+                }}
               />
               <div className="flex-1 text-center">
                 <p className="text-[11px] font-bold uppercase tracking-wider">
@@ -2169,10 +2329,14 @@ const SubTabDenahUjian: React.FC = () => {
             </div>
             <div className="text-center pt-1 border-t border-black">
               <h3 className="text-sm font-black uppercase tracking-wide">
-                DENAH IMTIHAN CAWU {imtihanMaster.cawu}
+                {denahViewMode === 'label_bangku'
+                  ? `LABEL TEMPAT DUDUK (TEMPEL BANGKU) IMTIHAN CAWU ${imtihanMaster.cawu}`
+                  : denahViewMode === 'tempel_kaca'
+                  ? `DAFTAR PESERTA RUANG (TEMPEL KACA KELAS) IMTIHAN CAWU ${imtihanMaster.cawu}`
+                  : `DENAH TEMPAT DUDUK IMTIHAN CAWU ${imtihanMaster.cawu}`}
               </h3>
               <p className="text-xs font-bold uppercase">
-                {activeRoom.kode} — {activeRoom.nama} ({activeRoom.gender === 'L' ? 'PUTRA' : 'PUTRI'})
+                {activeRoom.kode} — {activeRoom.nama} · {activeRoomLokasi} ({activeRoom.gender === 'L' ? 'PUTRA' : 'PUTRI'})
               </p>
             </div>
           </div>
@@ -2181,10 +2345,10 @@ const SubTabDenahUjian: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 no-print">
             <div>
               <h4 className="font-extrabold text-base text-slate-900">
-                {activeRoom.nama} ({activeRoom.kode}) · {activeRoom.gender === 'L' ? 'Putra' : 'Putri'}
+                {activeRoom.nama} ({activeRoom.kode}) · {activeRoomLokasi} · {activeRoom.gender === 'L' ? 'Putra' : 'Putri'}
               </h4>
               <p className="text-xs text-slate-500">
-                Kapasitas: {activeRoom.kapasitas} Kursi ({activeRoom.baris} Baris × {activeRoom.kolom} Kolom)
+                Kapasitas: {activeRoom.kapasitas} Kursi ({activeRoom.baris} Baris × {activeRoom.kolom} Kolom) · Terisi {occupiedSeats.length} Santri
               </p>
             </div>
 
@@ -2209,77 +2373,197 @@ const SubTabDenahUjian: React.FC = () => {
             </div>
           </div>
 
-          <div className="w-full py-2 bg-slate-800 text-white text-center font-bold text-xs uppercase tracking-widest rounded-xl">
-            Papan Tulis / Meja Pengawas Ujian (Depan)
-          </div>
+          {denahViewMode === 'denah_3d_2d' && (
+            <>
+              <div className="w-full py-2 bg-slate-800 text-white text-center font-bold text-xs uppercase tracking-widest rounded-xl">
+                Papan Tulis / Meja Pengawas Ujian (Depan)
+              </div>
 
-          <div
-            className="grid gap-3 pt-2"
-            style={{
-              gridTemplateColumns: `repeat(${activeRoom.kolom}, minmax(0, 1fr))`,
-            }}
-          >
-            {activeRoom.kursiList.map((kursi) => {
-              const isSelected = selectedSeatId === kursi.id;
-              const student = kursi.santri;
-              const colorClass = student
-                ? classColors[student.kelas] || 'bg-slate-100 text-slate-700'
-                : 'bg-slate-50 text-slate-400';
+              <div
+                className="grid gap-3 pt-2"
+                style={{
+                  gridTemplateColumns: `repeat(${activeRoom.kolom}, minmax(0, 1fr))`,
+                }}
+              >
+                {activeRoom.kursiList.map((kursi) => {
+                  const isSelected = selectedSeatId === kursi.id;
+                  const student = kursi.santri;
+                  const colorClass = student
+                    ? classColors[student.kelas] || 'bg-slate-100 text-slate-700'
+                    : 'bg-slate-50 text-slate-400';
 
-              return (
-                <div
-                  key={kursi.id}
-                  onClick={() => handleSeatClick(kursi.id)}
-                  className={`p-2.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[82px] ${
-                    isSelected
-                      ? 'border-emerald-600 ring-4 ring-emerald-500/30 bg-emerald-50 z-10'
-                      : kursi.bentrok
-                      ? 'border-rose-400 bg-rose-50/70'
-                      : 'border-slate-300 bg-white hover:border-slate-400'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
-                    <span className="font-bold">
-                      B{kursi.baris + 1}-K{kursi.kolom + 1}
-                    </span>
-                    {kursi.bentrok && (
-                      <span className="text-[9px] font-bold text-rose-600 no-print">Sekelas</span>
+                  return (
+                    <div
+                      key={kursi.id}
+                      onClick={() => handleSeatClick(kursi.id)}
+                      className={`p-2.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[82px] ${
+                        isSelected
+                          ? 'border-emerald-600 ring-4 ring-emerald-500/30 bg-emerald-50 z-10'
+                          : kursi.bentrok
+                          ? 'border-rose-400 bg-rose-50/70'
+                          : 'border-slate-300 bg-white hover:border-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px] text-slate-400">
+                        <span className="font-bold">
+                          B{kursi.baris + 1}-K{kursi.kolom + 1}
+                        </span>
+                        {kursi.bentrok && (
+                          <span className="text-[9px] font-bold text-rose-600 no-print">Sekelas</span>
+                        )}
+                      </div>
+
+                      {student ? (
+                        <div>
+                          <p className="font-extrabold text-[11px] text-slate-900 line-clamp-1 leading-tight">
+                            {student.nama}
+                          </p>
+                          <span
+                            className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold border ${colorClass}`}
+                          >
+                            {student.kelas}
+                          </span>
+                          <p className="text-[9px] text-slate-500 tabular-nums mt-0.5">
+                            {student.nomorUjian || student.nis}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center py-2 text-slate-300 text-xs font-semibold">
+                          Kosong
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {selectedSeatId && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between no-print">
+                  <span>Kursi terpilih! Klik kursi lain untuk menukar posisi peserta ujian.</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSeatId(null)}
+                    className="font-bold underline text-xs"
+                  >
+                    Batalkan
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {denahViewMode === 'label_bangku' && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 print:grid-cols-3 gap-3">
+              {occupiedSeats.map((kursi) => {
+                const st = kursi.santri!;
+                return (
+                  <div
+                    key={kursi.id}
+                    className="border-2 border-dashed border-slate-700 rounded-lg p-3 bg-white flex flex-col justify-between min-h-[108px] page-break-inside-avoid"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-1.5">
+                      <span className="text-[10px] font-extrabold uppercase text-emerald-900">
+                        IMTIHAN CAWU {imtihanMaster.cawu} · {activeRoom.kode}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-slate-900 text-white text-[11px] font-black tabular-nums">
+                        B{kursi.baris + 1}-K{kursi.kolom + 1}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-bold text-slate-500 tabular-nums">
+                        No. IMT: <strong className="text-slate-900">{st.nomorUjian || st.nis}</strong>
+                      </p>
+                      <p className="text-xs font-black text-slate-950 uppercase leading-tight">
+                        {st.nama}
+                      </p>
+                      <p className="text-[11px] font-bold text-emerald-900">
+                        Kelas: {st.kelas}
+                      </p>
+                    </div>
+                    <div className="pt-1 mt-1.5 border-t border-slate-200 text-[9px] text-slate-500 flex justify-between">
+                      <span>{activeRoomLokasi}</span>
+                      <span>PP NU Darussalam</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {denahViewMode === 'tempel_kaca' && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border-2 border-slate-900 p-3 bg-slate-50 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div>
+                  <p className="font-black text-sm text-slate-950 uppercase">
+                    {activeRoom.kode} — {activeRoom.nama} ({activeRoom.gender === 'L' ? 'PUTRA' : 'PUTRI'})
+                  </p>
+                  <p className="text-slate-700 font-semibold">
+                    Lokasi Ruang: <strong>{activeRoomLokasi}</strong> · Jumlah Peserta: <strong>{occupiedSeats.length} Santri</strong>
+                  </p>
+                </div>
+                <div className="text-right text-[11px] text-slate-600">
+                  <p className="font-bold">Pelaksanaan: {imtihanMaster.tanggalPelaksanaan}</p>
+                  <p>Waktu: {imtihanMaster.waktuUjian}</p>
+                </div>
+              </div>
+
+              <table className="w-full text-xs border-2 border-slate-900 border-collapse">
+                <thead>
+                  <tr className="bg-emerald-900 text-white font-bold">
+                    <th className="border border-slate-800 py-2 px-2 text-center w-10">NO</th>
+                    <th className="border border-slate-800 py-2 px-2 text-center w-20">KURSI</th>
+                    <th className="border border-slate-800 py-2 px-2 text-center w-28">NO. IMT</th>
+                    <th className="border border-slate-800 py-2 px-3 text-left">NAMA LENGKAP SANTRI</th>
+                    <th className="border border-slate-800 py-2 px-2 text-center w-36">KELAS</th>
+                    <th className="border border-slate-800 py-2 px-2 text-center w-28">PARAF / KET</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-300">
+                  {occupiedSeats.map((kursi, idx) => {
+                    const st = kursi.santri!;
+                    return (
+                      <tr key={kursi.id}>
+                        <td className="border border-slate-400 py-1.5 px-2 text-center font-bold tabular-nums">
+                          {idx + 1}
+                        </td>
+                        <td className="border border-slate-400 py-1.5 px-2 text-center font-black tabular-nums">
+                          B{kursi.baris + 1}-K{kursi.kolom + 1}
+                        </td>
+                        <td className="border border-slate-400 py-1.5 px-2 text-center font-bold tabular-nums text-emerald-950">
+                          {st.nomorUjian || st.nis}
+                        </td>
+                        <td className="border border-slate-400 py-1.5 px-3 font-extrabold text-slate-950 uppercase">
+                          {st.nama}
+                        </td>
+                        <td className="border border-slate-400 py-1.5 px-2 text-center font-bold">
+                          {st.kelas}
+                        </td>
+                        <td className="border border-slate-400 py-1.5 px-2 text-center text-slate-400">
+                          &nbsp;
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              <div className="flex justify-end pt-3 text-xs">
+                <div className="text-center w-56">
+                  <p className="font-semibold">Ketua Panitia Imtihan</p>
+                  <div className="h-12 flex items-center justify-center">
+                    {imtihanMaster.ketuaImtihanTtdUrl && (
+                      <img
+                        src={imtihanMaster.ketuaImtihanTtdUrl}
+                        alt="TTD Ketua Imtihan"
+                        className="max-h-11 object-contain"
+                      />
                     )}
                   </div>
-
-                  {student ? (
-                    <div>
-                      <p className="font-extrabold text-[11px] text-slate-900 line-clamp-1 leading-tight">
-                        {student.nama}
-                      </p>
-                      <span
-                        className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold border ${colorClass}`}
-                      >
-                        {student.kelas}
-                      </span>
-                      <p className="text-[9px] text-slate-500 tabular-nums mt-0.5">
-                        {student.nomorUjian || student.nis}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="text-center py-2 text-slate-300 text-xs font-semibold">
-                      Kosong
-                    </div>
-                  )}
+                  <p className="font-bold border-t border-slate-800 pt-1">
+                    {imtihanMaster.ketuaImtihanNama}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-
-          {selectedSeatId && (
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between no-print">
-              <span>Kursi terpilih! Klik kursi lain untuk menukar posisi peserta ujian.</span>
-              <button
-                onClick={() => setSelectedSeatId(null)}
-                className="font-bold underline text-xs"
-              >
-                Batalkan
-              </button>
+              </div>
             </div>
           )}
         </div>
@@ -2382,10 +2666,12 @@ const SubTabJadwalMapel: React.FC = () => {
     deleteJadwalMaarifan,
     imtihanMaster,
     updateImtihanMaster,
+    printOrientation,
   } = useAppStore();
 
   const [editingItem, setEditingItem] = useState<JadwalMaarifanItem | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const jadwalSheetRef = useRef<HTMLDivElement | null>(null);
   const [formState, setFormState] = useState<Omit<JadwalMaarifanItem, 'id'>>({
     hari: 'Sabtu',
     tanggalUjian: "05-12-'26",
@@ -2470,7 +2756,7 @@ const SubTabJadwalMapel: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-4 printable-area">
+      <div ref={jadwalSheetRef} className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-4 printable-area">
         <PrintKopPondok
           variant="imtihan"
           judulDokumen={`JADWAL RESMI MATA PELAJARAN IMTIHAN CAWU ${imtihanMaster.cawu}`}
@@ -2497,7 +2783,15 @@ const SubTabJadwalMapel: React.FC = () => {
               <span>Tambah Baris</span>
             </button>
             <button
-              onClick={() => window.print()}
+              type="button"
+              onClick={() =>
+                triggerReliablePrint({
+                  title: `Jadwal Mapel Imtihan Cawu ${imtihanMaster.cawu}`,
+                  orientation: printOrientation,
+                  paperSize: 'F4',
+                  targetElement: jadwalSheetRef.current,
+                })
+              }
               className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-900 transition flex items-center gap-1.5 shadow-xs"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -2748,7 +3042,7 @@ const SubTabJadwalMapel: React.FC = () => {
    SUB-TAB 12: JADWAL JAGA RUANG & PIKET KANTOR IMTIHAN
 ========================================================================= */
 const SubTabJagaPiket: React.FC = () => {
-  const { jagaPiketList, addJagaPiket, deleteJagaPiket, ustadzList, imtihanMaster } = useAppStore();
+  const { jagaPiketList, addJagaPiket, deleteJagaPiket, ustadzList, imtihanMaster, printOrientation } = useAppStore();
   const roomOptions = imtihanMaster.roomConfigs.map((r) => `${r.kode} (${r.lokasi})`);
 
   const [hariTanggal, setHariTanggal] = useState('Sabtu, 05 Des 2026');
@@ -2758,6 +3052,7 @@ const SubTabJagaPiket: React.FC = () => {
   const [petugasNama, setPetugasNama] = useState(ustadzList[0]?.nama || 'Ust. Abdur Rahman');
   const [toast, setToast] = useState('');
   const [conflictError, setConflictError] = useState('');
+  const jagaSheetRef = useRef<HTMLDivElement | null>(null);
 
   // Cek apakah ruangan sudah terisi pada hari & jam yang sama untuk Pengawas Ruang
   const getRoomOccupant = (roomLabel: string) =>
@@ -2822,7 +3117,15 @@ const SubTabJagaPiket: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <PrintOrientationControl recommended="portrait" />
             <button
-              onClick={() => window.print()}
+              type="button"
+              onClick={() =>
+                triggerReliablePrint({
+                  title: `Jadwal Jaga & Piket Imtihan Cawu ${imtihanMaster.cawu}`,
+                  orientation: printOrientation,
+                  paperSize: 'F4',
+                  targetElement: jagaSheetRef.current,
+                })
+              }
               className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -2951,7 +3254,7 @@ const SubTabJagaPiket: React.FC = () => {
       </div>
 
       {/* Printable Schedule Table */}
-      <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
+      <div ref={jagaSheetRef} className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
         <PrintKopPondok
           variant="imtihan"
           judulDokumen={`JADWAL PENGAWAS RUANG & PIKET KANTOR IMTIHAN CAWU ${imtihanMaster.cawu}`}

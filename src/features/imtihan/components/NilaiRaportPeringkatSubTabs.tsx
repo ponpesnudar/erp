@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../../../lib/store.ts';
 import { useAuth } from '../../../lib/auth.ts';
+import { triggerReliablePrint } from '../../../lib/printHelper.ts';
 import {
   DAFTAR_KELAS_DINIYAH,
   MAPEL_PER_TINGKAT,
@@ -66,7 +67,10 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
     ustadzList,
     updateNilaiSantri,
     currentTahunAjaran,
+    printOrientation,
   } = useAppStore();
+
+  const legerPrintRef = useRef<HTMLDivElement | null>(null);
 
   const { currentUser } = useAuth();
   const uniqueClasses = useMemo(
@@ -455,7 +459,14 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
             <PrintOrientationControl recommended="landscape" />
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() =>
+                triggerReliablePrint({
+                  title: `Leger Nilai Imtihan - ${selectedKelas}`,
+                  orientation: printOrientation,
+                  paperSize: 'F4',
+                  targetElement: legerPrintRef.current,
+                })
+              }
               className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -594,7 +605,10 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
       </div>
 
       {/* Spreadsheet Table: Mode Per Mapel OR Mode Wali Kelas (Semua Mapel) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 overflow-x-auto printable-area">
+      <div
+        ref={legerPrintRef}
+        className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 overflow-x-auto printable-area"
+      >
         <PrintKopPondok
           variant="imtihan"
           judulDokumen={`REKAPITULASI NILAI IMTIHAN ${semester === '2' ? 'TSANI' : 'AWWAL'} — KELAS ${selectedKelas}`}
@@ -1056,6 +1070,101 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
   );
 };
 
+function processSignatureToTransparentPng(srcDataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        if (!w || !h) {
+          resolve(srcDataUrl);
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(srcDataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const data = imageData.data;
+
+        let minX = w;
+        let minY = h;
+        let maxX = -1;
+        let maxY = -1;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+          if (a < 15) continue;
+
+          // Luminance check + low saturation near-white/gray paper background removal
+          const maxCh = Math.max(r, g, b);
+          const minCh = Math.min(r, g, b);
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          const isNeutral = maxCh - minCh < 32;
+
+          if (lum > 215 || (isNeutral && lum > 188)) {
+            data[i + 3] = 0;
+          } else {
+            // Smooth alpha feather on light edges & boost ink crispness
+            if (isNeutral && lum > 155) {
+              const factor = Math.max(0, (188 - lum) / 33);
+              data[i + 3] = Math.round(a * factor);
+            }
+            if (data[i + 3] > 20) {
+              // Slightly darken neutral grey ink strokes for sharper print output
+              if (isNeutral) {
+                data[i] = Math.max(0, Math.round(r * 0.55));
+                data[i + 1] = Math.max(0, Math.round(g * 0.55));
+                data[i + 2] = Math.max(0, Math.round(b * 0.55));
+              }
+              const pIdx = i / 4;
+              const px = pIdx % w;
+              const py = Math.floor(pIdx / w);
+              if (px < minX) minX = px;
+              if (px > maxX) maxX = px;
+              if (py < minY) minY = py;
+              if (py > maxY) maxY = py;
+            }
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+
+        if (maxX > minX && maxY > minY) {
+          const pad = 8;
+          const sx = Math.max(0, minX - pad);
+          const sy = Math.max(0, minY - pad);
+          const sw = Math.min(w - sx, maxX - minX + 1 + pad * 2);
+          const sh = Math.min(h - sy, maxY - minY + 1 + pad * 2);
+          const trimCanvas = document.createElement('canvas');
+          trimCanvas.width = sw;
+          trimCanvas.height = sh;
+          const tCtx = trimCanvas.getContext('2d');
+          if (tCtx) {
+            tCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+            resolve(trimCanvas.toDataURL('image/png'));
+            return;
+          }
+        }
+        resolve(canvas.toDataURL('image/png'));
+      } catch {
+        resolve(srcDataUrl);
+      }
+    };
+    img.onerror = () => resolve(srcDataUrl);
+    img.src = srcDataUrl;
+  });
+}
+
 /* =========================================================================
    2. RAPORT SANTRI F4 RTL (INDIVIDU, BATCH 1 KELAS, & TTD PENGASUH/WALI KELAS)
 ======================================================================== */
@@ -1069,6 +1178,7 @@ export const SubTabRaportSantri: React.FC = () => {
     setPengasuhTtdUrl,
     waliKelasTtdMap,
     setWaliKelasTtd,
+    printOrientation,
   } = useAppStore();
 
   const { currentUser } = useAuth();
@@ -1085,9 +1195,11 @@ export const SubTabRaportSantri: React.FC = () => {
   const [tahunAjaran, setTahunAjaran] = useState<string>(currentTahunAjaran);
   const [tanggalPenyerahan, setTanggalPenyerahan] = useState<string>('٢١ ديسمبر ٢٠٢٦ م');
   const [activePadTarget, setActivePadTarget] = useState<'pengasuh' | 'walikelas' | null>(null);
+  const [autoTransparentBg, setAutoTransparentBg] = useState<boolean>(true);
   const [ttdToast, setTtdToast] = useState('');
 
   const padCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const raportContainerRef = useRef<HTMLDivElement | null>(null);
   const isDrawingRef = useRef(false);
 
   useEffect(() => {
@@ -1126,19 +1238,43 @@ export const SubTabRaportSantri: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       if (typeof reader.result === 'string') {
+        const finalUrl = autoTransparentBg
+          ? await processSignatureToTransparentPng(reader.result)
+          : reader.result;
         if (target === 'pengasuh') {
-          setPengasuhTtdUrl(reader.result);
-          setTtdToast('TTD Pengasuh (Mudir Ma’had) tersimpan untuk semua raport.');
+          setPengasuhTtdUrl(finalUrl);
+          setTtdToast(
+            autoTransparentBg
+              ? 'TTD Pengasuh diproses transparan (tanpa background) & tersimpan untuk semua raport.'
+              : 'TTD Pengasuh (Mudir Ma’had) tersimpan untuk semua raport.'
+          );
         } else {
-          setWaliKelasTtd(selectedKelas, reader.result);
-          setTtdToast(`TTD Wali Kelas (${selectedKelas}) tersimpan.`);
+          setWaliKelasTtd(selectedKelas, finalUrl);
+          setTtdToast(
+            autoTransparentBg
+              ? `TTD Wali Kelas (${selectedKelas}) diproses transparan & tersimpan.`
+              : `TTD Wali Kelas (${selectedKelas}) tersimpan.`
+          );
         }
-        setTimeout(() => setTtdToast(''), 3000);
+        setTimeout(() => setTtdToast(''), 3500);
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleCleanExistingSignature = async (target: 'pengasuh' | 'walikelas') => {
+    const src = target === 'pengasuh' ? pengasuhTtdUrl : waliKelasTtdMap[selectedKelas];
+    if (!src) return;
+    const cleaned = await processSignatureToTransparentPng(src);
+    if (target === 'pengasuh') {
+      setPengasuhTtdUrl(cleaned);
+    } else {
+      setWaliKelasTtd(selectedKelas, cleaned);
+    }
+    setTtdToast('Background putih/abu pada tanda tangan berhasil dihapus menjadi PNG transparan.');
+    setTimeout(() => setTtdToast(''), 3500);
   };
 
   const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1148,7 +1284,7 @@ export const SubTabRaportSantri: React.FC = () => {
     if (!ctx) return;
     const rect = canvas.getBoundingClientRect();
     ctx.strokeStyle = '#0F172A';
-    ctx.lineWidth = 2.4;
+    ctx.lineWidth = 2.6;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
@@ -1174,15 +1310,16 @@ export const SubTabRaportSantri: React.FC = () => {
     canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  const savePad = () => {
+  const savePad = async () => {
     if (!padCanvasRef.current || !activePadTarget) return;
-    const dataUrl = padCanvasRef.current.toDataURL('image/png');
+    const rawDataUrl = padCanvasRef.current.toDataURL('image/png');
+    const trimmedUrl = await processSignatureToTransparentPng(rawDataUrl);
     if (activePadTarget === 'pengasuh') {
-      setPengasuhTtdUrl(dataUrl);
-      setTtdToast('TTD Pengasuh tersimpan.');
+      setPengasuhTtdUrl(trimmedUrl);
+      setTtdToast('TTD Pengasuh tersimpan (transparan).');
     } else {
-      setWaliKelasTtd(selectedKelas, dataUrl);
-      setTtdToast(`TTD Wali Kelas ${selectedKelas} tersimpan.`);
+      setWaliKelasTtd(selectedKelas, trimmedUrl);
+      setTtdToast(`TTD Wali Kelas ${selectedKelas} tersimpan (transparan).`);
     }
     setActivePadTarget(null);
     setTimeout(() => setTtdToast(''), 3000);
@@ -1216,7 +1353,17 @@ export const SubTabRaportSantri: React.FC = () => {
             <PrintOrientationControl recommended="portrait" />
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() =>
+                triggerReliablePrint({
+                  title:
+                    printMode === 'kelas'
+                      ? `Raport F4 Kelas ${selectedKelas}`
+                      : `Raport F4 - ${currentSantri?.nama || ''}`,
+                  orientation: printOrientation,
+                  paperSize: 'F4',
+                  targetElement: raportContainerRef.current,
+                })
+              }
               className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold shadow-xs flex items-center gap-2"
             >
               <Printer className="w-4 h-4" />
@@ -1316,16 +1463,44 @@ export const SubTabRaportSantri: React.FC = () => {
           </div>
         </div>
 
+        {/* Auto-Transparent Option Header */}
+        <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <label className="inline-flex items-center gap-2 font-bold text-emerald-900 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoTransparentBg}
+              onChange={(e) => setAutoTransparentBg(e.target.checked)}
+              className="rounded border-slate-300 text-emerald-700 focus:ring-0"
+            />
+            <span>Otomatis Hapus Background Putih/Kertas saat Unggah TTD (PNG Transparan)</span>
+          </label>
+          <span className="text-[11px] text-slate-500">
+            Ukuran TTD otomatis diperbesar &amp; dipotong rapi agar tampak menyatu dengan kertas raport.
+          </span>
+        </div>
+
         {/* 2-Slot Digital Signature Config: Pengasuh + Wali Kelas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-100 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           {/* Slot 1: TTD Pengasuh */}
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="font-bold text-slate-800">TTD Pengasuh (Mudir Ma&apos;had)</p>
               <p className="text-[11px] text-slate-500">KH. Amin Maizun — Otomatis tampil di semua raport</p>
               {pengasuhTtdUrl && (
-                <div className="mt-2 flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-slate-200 w-fit">
-                  <img src={pengasuhTtdUrl} alt="TTD Pengasuh" className="h-9 w-auto object-contain" />
+                <div className="mt-2 flex flex-wrap items-center gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 w-fit">
+                  <img
+                    src={pengasuhTtdUrl}
+                    alt="TTD Pengasuh"
+                    className="h-12 w-auto max-w-[140px] object-contain mix-blend-multiply"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCleanExistingSignature('pengasuh')}
+                    className="text-emerald-700 text-[11px] font-bold hover:underline"
+                    title="Proses ulang menjadi PNG transparan tanpa background"
+                  >
+                    Transparankan
+                  </button>
                   <button
                     type="button"
                     onClick={() => setPengasuhTtdUrl(undefined)}
@@ -1366,8 +1541,20 @@ export const SubTabRaportSantri: React.FC = () => {
               <p className="font-bold text-slate-800">TTD Wali Kelas ({selectedKelas})</p>
               <p className="text-[11px] text-slate-500">{waliKelas} — Berlaku untuk raport kelas {selectedKelas}</p>
               {currentWaliTtd && (
-                <div className="mt-2 flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-slate-200 w-fit">
-                  <img src={currentWaliTtd} alt="TTD Wali Kelas" className="h-9 w-auto object-contain" />
+                <div className="mt-2 flex flex-wrap items-center gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 w-fit">
+                  <img
+                    src={currentWaliTtd}
+                    alt="TTD Wali Kelas"
+                    className="h-12 w-auto max-w-[140px] object-contain mix-blend-multiply"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCleanExistingSignature('walikelas')}
+                    className="text-emerald-700 text-[11px] font-bold hover:underline"
+                    title="Proses ulang menjadi PNG transparan tanpa background"
+                  >
+                    Transparankan
+                  </button>
                   <button
                     type="button"
                     onClick={() => setWaliKelasTtd(selectedKelas, undefined)}
@@ -1447,7 +1634,7 @@ export const SubTabRaportSantri: React.FC = () => {
       </div>
 
       {/* Printable Raport Sheets */}
-      <div className="space-y-8 print:space-y-0">
+      <div ref={raportContainerRef} className="space-y-8 print:space-y-0">
         {targetSantri.map((santri, idx) => (
           <RaportF4Sheet
             key={santri.id}
@@ -1477,7 +1664,8 @@ export const SubTabRaportSantri: React.FC = () => {
    3. PERINGKAT PARALEL (PER KELAS, ANGKATAN PUTRA/PUTRI, GABUNGAN PER ANGKATAN)
 ======================================================================== */
 export const SubTabPeringkatParalel: React.FC = () => {
-  const { santriList, nilaiList, imtihanMaster, mapelList } = useAppStore();
+  const { santriList, nilaiList, imtihanMaster, mapelList, printOrientation } = useAppStore();
+  const peringkatPrintRef = useRef<HTMLDivElement | null>(null);
 
   const [scope, setScope] = useState<'kelas' | 'angkatan_gender' | 'angkatan_gabungan'>(
     'angkatan_gabungan'
@@ -1554,7 +1742,14 @@ export const SubTabPeringkatParalel: React.FC = () => {
             <PrintOrientationControl recommended="portrait" />
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() =>
+                triggerReliablePrint({
+                  title: `Peringkat Imtihan - ${scopeTitle}`,
+                  orientation: printOrientation,
+                  paperSize: 'F4',
+                  targetElement: peringkatPrintRef.current,
+                })
+              }
               className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -1651,7 +1846,10 @@ export const SubTabPeringkatParalel: React.FC = () => {
       </div>
 
       {/* Ranking Table with Official Kop & Logo Imtihan */}
-      <div className="rounded-2xl bg-white p-5 sm:p-6 border border-slate-200 shadow-2xs printable-area space-y-4">
+      <div
+        ref={peringkatPrintRef}
+        className="rounded-2xl bg-white p-5 sm:p-6 border border-slate-200 shadow-2xs printable-area space-y-4"
+      >
         {/* KOP & LOGO RESMI PANITIA IMTIHAN */}
         <div className="flex items-center justify-between gap-4 pb-3 border-b-2 border-slate-900">
           <img

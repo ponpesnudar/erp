@@ -288,52 +288,52 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
             {/* Baris Kosong Pelengkap hingga baris 11 agar proporsional F4 */}
             {emptyPaddingRows.map((emptyNo) => (
               <tr key={emptyNo}>
-                <td className="border border-black py-1 px-1 text-slate-400 tabular-nums">{emptyNo}</td>
-                <td className="border border-black py-1 px-2"></td>
-                <td className="border border-black py-1 px-2"></td>
-                <td className="border border-black py-1 px-1"></td>
-                <td className="border border-black py-1 px-1"></td>
-                <td className="border border-black py-1 px-1"></td>
-                <td className="border border-black py-1 px-1"></td>
-                <td className="border border-black py-1 px-1"></td>
-                <td className="border border-black py-1 px-1"></td>
-                <td className="border border-black py-1 px-1"></td>
+                <td className="border border-black py-0.5 px-1 text-slate-400 tabular-nums">{emptyNo}</td>
+                <td className="border border-black py-0.5 px-2"></td>
+                <td className="border border-black py-0.5 px-2"></td>
+                <td className="border border-black py-0.5 px-1"></td>
+                <td className="border border-black py-0.5 px-1"></td>
+                <td className="border border-black py-0.5 px-1"></td>
+                <td className="border border-black py-0.5 px-1"></td>
+                <td className="border border-black py-0.5 px-1"></td>
+                <td className="border border-black py-0.5 px-1"></td>
+                <td className="border border-black py-0.5 px-1"></td>
               </tr>
             ))}
 
             {/* Summary Footer Rows */}
             <tr className="bg-slate-200/70 font-bold">
-              <td colSpan={3} className="border border-black py-1.5 px-2 font-arabic text-xs">
+              <td colSpan={3} className="border border-black py-1 px-2 font-arabic text-xs">
                 الجملة
               </td>
-              <td colSpan={6} className="border border-black py-1.5 px-2 tabular-nums text-xs">
+              <td colSpan={6} className="border border-black py-1 px-2 tabular-nums text-xs">
                 {totalScore}
               </td>
-              <td className="border border-black py-1.5 px-1 font-arabic text-xs bg-slate-100">الإسناد</td>
+              <td className="border border-black py-1 px-1 font-arabic text-xs bg-slate-100">الإسناد</td>
             </tr>
             <tr className="font-bold">
-              <td colSpan={3} className="border border-black py-1.5 px-2 font-arabic text-xs bg-slate-100">
+              <td colSpan={3} className="border border-black py-1 px-2 font-arabic text-xs bg-slate-100">
                 معتدل الحاصل
               </td>
-              <td colSpan={6} className="border border-black py-1.5 px-2 tabular-nums text-xs">
+              <td colSpan={6} className="border border-black py-1 px-2 tabular-nums text-xs">
                 {averageScore}
               </td>
-              <td rowSpan={2} className="border border-black py-1.5 px-1 font-arabic text-sm font-bold">
+              <td rowSpan={2} className="border border-black py-1 px-1 font-arabic text-sm font-bold">
                 {overallPred.predikatArab}
               </td>
             </tr>
             <tr className="font-bold">
-              <td colSpan={3} className="border border-black py-1.5 px-2 font-arabic text-xs bg-slate-100">
+              <td colSpan={3} className="border border-black py-1 px-2 font-arabic text-xs bg-slate-100">
                 الدرجة
               </td>
-              <td colSpan={2} className="border border-black py-1.5 px-2 tabular-nums text-xs">
+              <td colSpan={2} className="border border-black py-1 px-2 tabular-nums text-xs">
                 {peringkatKelas}
               </td>
-              <td className="border border-black py-1.5 px-1 font-arabic text-xs">من</td>
-              <td colSpan={2} className="border border-black py-1.5 px-2 tabular-nums text-xs">
+              <td className="border border-black py-1 px-1 font-arabic text-xs">من</td>
+              <td colSpan={2} className="border border-black py-1 px-2 tabular-nums text-xs">
                 {totalSantriKelas}
               </td>
-              <td className="border border-black py-1.5 px-1 font-arabic text-xs">الطلاب</td>
+              <td className="border border-black py-1 px-1 font-arabic text-xs">الطلاب</td>
             </tr>
           </tbody>
         </table>
@@ -353,37 +353,37 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
           </thead>
           <tbody>
             <tr>
-              <td className="border border-black py-1 font-arabic">١</td>
-              <td className="border border-black py-1 font-arabic font-bold">الأخلاق</td>
-              <td className="border border-black py-1 font-bold tabular-nums">{nilaiAkhlaq}</td>
-              <td className="border border-black py-1 font-arabic">{predikat(nilaiAkhlaq).predikatArab}</td>
-              <td className="border border-black py-1 font-arabic">١</td>
-              <td className="border border-black py-1 font-arabic font-bold">بمرض</td>
-              <td className="border border-black py-1 font-bold tabular-nums">{sakit}</td>
+              <td className="border border-black py-0.5 font-arabic">١</td>
+              <td className="border border-black py-0.5 font-arabic font-bold">الأخلاق</td>
+              <td className="border border-black py-0.5 font-bold tabular-nums">{nilaiAkhlaq}</td>
+              <td className="border border-black py-0.5 font-arabic">{predikat(nilaiAkhlaq).predikatArab}</td>
+              <td className="border border-black py-0.5 font-arabic">١</td>
+              <td className="border border-black py-0.5 font-arabic font-bold">بمرض</td>
+              <td className="border border-black py-0.5 font-bold tabular-nums">{sakit}</td>
             </tr>
             <tr>
-              <td className="border border-black py-1 font-arabic">٢</td>
-              <td className="border border-black py-1 font-arabic font-bold">الاستقامة</td>
-              <td className="border border-black py-1 font-bold tabular-nums">{nilaiIstiqomah}</td>
-              <td className="border border-black py-1 font-arabic">{predikat(nilaiIstiqomah).predikatArab}</td>
-              <td className="border border-black py-1 font-arabic">٢</td>
-              <td className="border border-black py-1 font-arabic font-bold">بإذن العذر</td>
-              <td className="border border-black py-1 font-bold tabular-nums">{izin}</td>
+              <td className="border border-black py-0.5 font-arabic">٢</td>
+              <td className="border border-black py-0.5 font-arabic font-bold">الاستقامة</td>
+              <td className="border border-black py-0.5 font-bold tabular-nums">{nilaiIstiqomah}</td>
+              <td className="border border-black py-0.5 font-arabic">{predikat(nilaiIstiqomah).predikatArab}</td>
+              <td className="border border-black py-0.5 font-arabic">٢</td>
+              <td className="border border-black py-0.5 font-arabic font-bold">بإذن العذر</td>
+              <td className="border border-black py-0.5 font-bold tabular-nums">{izin}</td>
             </tr>
             <tr>
-              <td className="border border-black py-1 font-arabic">٣</td>
-              <td className="border border-black py-1 font-arabic font-bold">العبودية</td>
-              <td className="border border-black py-1 font-bold tabular-nums">{nilaiUbudiyah}</td>
-              <td className="border border-black py-1 font-arabic">{predikat(nilaiUbudiyah).predikatArab}</td>
-              <td className="border border-black py-1 font-arabic">٣</td>
-              <td className="border border-black py-1 font-arabic font-bold">بدون أي عذر</td>
-              <td className="border border-black py-1 font-bold tabular-nums">{alpa}</td>
+              <td className="border border-black py-0.5 font-arabic">٣</td>
+              <td className="border border-black py-0.5 font-arabic font-bold">العبودية</td>
+              <td className="border border-black py-0.5 font-bold tabular-nums">{nilaiUbudiyah}</td>
+              <td className="border border-black py-0.5 font-arabic">{predikat(nilaiUbudiyah).predikatArab}</td>
+              <td className="border border-black py-0.5 font-arabic">٣</td>
+              <td className="border border-black py-0.5 font-arabic font-bold">بدون أي عذر</td>
+              <td className="border border-black py-0.5 font-bold tabular-nums">{alpa}</td>
             </tr>
             <tr>
-              <td colSpan={2} className="border border-black py-1.5 px-2 font-arabic font-bold bg-slate-100">
+              <td colSpan={2} className="border border-black py-1 px-2 font-arabic font-bold bg-slate-100">
                 وصية الوالي :
               </td>
-              <td colSpan={5} className="border border-black py-1.5 px-3 text-left font-sans italic text-[11px]" dir="ltr">
+              <td colSpan={5} className="border border-black py-1 px-3 text-left font-sans italic text-[11px]" dir="ltr">
                 {catatanWali}
               </td>
             </tr>
@@ -391,8 +391,8 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
         </table>
 
         {/* CAWU 2: KEPUTUSAN KENAIKAN KELAS (استمرار الدراسة) */}
-        <div className="flex items-stretch justify-between gap-4 pt-1">
-          <div className="space-y-1 text-xs font-arabic">
+        <div className="flex items-stretch justify-between gap-4 pt-0.5">
+          <div className="space-y-0.5 text-xs font-arabic">
             <p>
               التسليم في : <span className="font-bold">كاراغداداف</span>
             </p>
@@ -406,7 +406,7 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
               <div className="bg-slate-200/80 border-b border-black py-1 font-bold">
                 استمرار الدراسة:
               </div>
-              <div className="py-1.5 px-2 font-bold">
+              <div className="py-1 px-2 font-bold">
                 {averageScore >= 65
                   ? `الناجح، يستحق أن يستمر الدراسة في الفصل ${displayNextKelasArab}`
                   : `يبقى في الفصل ${displayKelasArab}`}
@@ -417,10 +417,10 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
       </div>
 
       {/* TANDA TANGAN 3 PIHAK RTL — LANGSUNG DI BAWAH TANGGAL PENYERAHAN */}
-      <div className="pt-1.5 print:pt-1 grid grid-cols-3 text-center text-xs font-arabic items-end">
+      <div className="pt-1 print:pt-0.5 grid grid-cols-3 text-center text-xs font-arabic items-end">
         <div>
           <p className="font-bold">والي المريد</p>
-          <div className="h-12 print:h-11" />
+          <div className="h-20 print:h-[76px]" />
           <p className="font-sans font-bold text-[11px]" dir="ltr">
             ( {santri.namaWali} )
           </p>
@@ -429,15 +429,15 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
         <div>
           <p className="text-[11px] leading-tight">يعرف</p>
           <p className="font-bold">مدير المعهد</p>
-          <div className="h-12 print:h-11 flex items-center justify-center my-0.5">
+          <div className="h-20 print:h-[76px] flex items-center justify-center overflow-visible">
             {pengasuhTtdUrl ? (
               <img
                 src={pengasuhTtdUrl}
                 alt="TTD Pengasuh"
-                className="h-12 print:h-11 max-w-[140px] mx-auto object-contain"
+                className="h-20 print:h-[74px] max-w-[220px] mx-auto object-contain mix-blend-multiply select-none"
               />
             ) : (
-              <div className="h-10" />
+              <div className="h-16" />
             )}
           </div>
           <p className="font-bold underline text-sm">كياهي أمين مأزون الحاج</p>
@@ -445,15 +445,15 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
 
         <div>
           <p className="font-bold">والي الفصل</p>
-          <div className="h-12 print:h-11 flex items-center justify-center my-0.5">
+          <div className="h-20 print:h-[76px] flex items-center justify-center overflow-visible">
             {waliKelasTtdUrl ? (
               <img
                 src={waliKelasTtdUrl}
                 alt="TTD Wali Kelas"
-                className="h-12 print:h-11 max-w-[140px] mx-auto object-contain"
+                className="h-20 print:h-[74px] max-w-[220px] mx-auto object-contain mix-blend-multiply select-none"
               />
             ) : (
-              <div className="h-10" />
+              <div className="h-16" />
             )}
           </div>
           <p className="font-sans font-bold text-[11px]" dir="ltr">

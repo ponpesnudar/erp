@@ -66,6 +66,8 @@ import {
   SEED_USTADZ_PAYROLL,
   BisyarohHistoryItem,
   SEED_BISYAROH_HISTORY,
+  LandingPageConfig,
+  DEFAULT_LANDING_CONFIG,
 } from '../data/seed/pondokData.ts';
 import {
   RuangUjian,
@@ -257,6 +259,19 @@ export interface PelanggaranRecord {
   status: 'Dalam Pembinaan' | 'Selesai';
 }
 
+export interface KoreksianKitabRecord {
+  id: string; // `${santriId}__${kitabKode}`
+  santriId: string;
+  kelas: string;
+  kitabKode: string;
+  mapelNama: string;
+  kitabNama: string;
+  sudahLengkap: boolean;
+  tanggalCek?: string;
+  verifikator?: string;
+  catatan?: string;
+}
+
 export interface ActiveGuruShiftSession {
   ustadzId: string;
   tanggal: string;
@@ -316,7 +331,8 @@ export interface AppState {
   imtihanMaster: ImtihanMasterConfig;
   jagaPiketList: JagaPiketRecord[];
 
-  // Sekretaris Pengurus & Sarpras
+  // Sekretaris, Pengurus, Sarpras & Info Landing Page
+  landingConfig: LandingPageConfig;
   pengurusStruktur: PengurusStrukturItem[];
   sarprasLahan: LahanItem[];
   sarprasGedung: GedungItem[];
@@ -337,6 +353,7 @@ export interface AppState {
   absensiSessions: AbsensiSession[];
   soalSubmissions: SoalSubmission[];
   nilaiList: NilaiSantriMapel[];
+  koreksianKitabList: KoreksianKitabRecord[];
   ruangUjianList: RuangUjian[];
   seatingRandomSeed: number;
   transaksiList: TransaksiKantin[];
@@ -379,8 +396,33 @@ export interface AppState {
   createOrUpdateSoal: (soal: Partial<SoalSubmission>) => void;
   updateSoalStatus: (soalId: string, status: SoalSubmission['status'], catatan?: string) => void;
   updateNilaiSantri: (nilai: NilaiSantriMapel) => void;
+  toggleKoreksianKitab: (payload: {
+    santriId: string;
+    kelas: string;
+    kitabKode: string;
+    mapelNama: string;
+    kitabNama: string;
+    verifikator: string;
+    catatan?: string;
+  }) => void;
+  bulkSetKoreksianKitab: (payload: {
+    santriIds: string[];
+    kelas: string;
+    kitabList: { kode: string; mapelNama: string; kitabNama: string }[];
+    sudahLengkap: boolean;
+    verifikator: string;
+  }) => void;
+  updateKoreksianKitabCatatan: (payload: {
+    santriId: string;
+    kelas: string;
+    kitabKode: string;
+    mapelNama: string;
+    kitabNama: string;
+    catatan: string;
+  }) => void;
   updateImtihanMaster: (data: Partial<ImtihanMasterConfig>) => void;
   togglePesertaSusulan: (santriId: string) => void;
+  setPesertaSusulanBatch: (santriIds: string[], ditunda: boolean) => void;
   addRoomConfig: (room: Omit<ImtihanRoomConfig, 'id'>) => void;
   updateRoomConfig: (id: string, room: Partial<ImtihanRoomConfig>) => void;
   deleteRoomConfig: (id: string) => void;
@@ -422,6 +464,7 @@ export interface AppState {
   submitIzinBadalGuru: (req: Omit<IzinBadalGuruRequest, 'id' | 'status' | 'waktuPengajuan'>) => void;
   approveIzinBadalGuru: (id: string, status: 'Disetujui' | 'Ditolak', reviewerName: string) => void;
   verifyAbsensiGuruRecord: (id: string, status: 'Terverifikasi' | 'Menunggu') => void;
+  verifyAbsensiGuruBatch: (ids: string[], status: 'Terverifikasi' | 'Menunggu') => void;
   toggleSdmNotif: () => void;
   setUserPinPengesahan: (userId: string, pin: string) => void;
   updateKurikulumMatrixCell: (rowId: string, kelasKey: 'kelas1' | 'kelas2' | 'kelas3' | 'kelas4' | 'kelas5' | 'kelas6', kitab: string, jtm: number) => void;
@@ -466,6 +509,8 @@ export interface AppState {
   updateStatusTitipanWali: (id: string, status: TitipanWaliRecord['status']) => void;
 
   // Sekretaris, Pengurus & Sarpras
+  updateLandingConfig: (data: Partial<LandingPageConfig>) => void;
+  resetLandingConfig: () => void;
   addSurat: (surat: Omit<SuratItem, 'id' | 'nomorSurat'>) => void;
   updateSuratStatus: (id: string, status: SuratItem['status']) => void;
   addPengurus: (data: Omit<PengurusStrukturItem, 'id'>) => void;
@@ -575,7 +620,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       currentUser: DEFAULT_USERS[0],
       userAccounts: SEED_USERS,
-      isDemoMode: true,
+      isDemoMode: false,
       activeRole: 'pengasuh',
       simulatedRole: null,
       darkMode: false,
@@ -627,6 +672,7 @@ export const useAppStore = create<AppState>()(
       kasTransactions: SEED_KAS_TRANSACTIONS,
       bisyarohHistory: SEED_BISYAROH_HISTORY,
       agendaKegiatan: SEED_AGENDA_KEGIATAN,
+      landingConfig: DEFAULT_LANDING_CONFIG,
       jadwalKeamanan: SEED_JADWAL_KEAMANAN,
       bukuTamu: SEED_BUKU_TAMU,
       titipanWali: SEED_TITIPAN_WALI,
@@ -841,6 +887,19 @@ export const useAppStore = create<AppState>()(
           hafalanNadhom: 'Imrithi Bait 1-120 Mutqin',
           catatanWaliKelas: 'Kemampuan qiraatul kutub sangat baik.',
         },
+      ],
+
+      koreksianKitabList: [
+        { id: 's-001__AKH', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'AKH', mapelNama: 'Akhlak', kitabNama: "Washoya Al-Aba' lil Abna'", sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman', catatan: 'Makna pegon & catatan lengkap' },
+        { id: 's-001__FQH', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'FQH', mapelNama: 'Fiqih', kitabNama: 'Matan Taqrib', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman', catatan: 'Lengkap' },
+        { id: 's-001__NHW', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'NHW', mapelNama: 'Nahwu', kitabNama: 'Matan Al-Ajurumiyyah', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
+        { id: 's-001__SHR', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'SHR', mapelNama: 'Shorof', kitabNama: 'Amtsilah Tashrifiyyah Lughowi', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
+        { id: 's-001__THD', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'THD', mapelNama: 'Tauhid', kitabNama: 'Aqidatul Islamiyyah', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
+        { id: 's-001__HDS', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'HDS', mapelNama: 'Hadits', kitabNama: 'Arbain Nawawi', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
+        { id: 's-001__TRK', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'TRK', mapelNama: 'Tarikh', kitabNama: 'Khulasoh Nurul Yaqin Juz 1', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
+        { id: 's-002__AKH', santriId: 's-002', kelas: '2 A PUTRA', kitabKode: 'AKH', mapelNama: 'Akhlak', kitabNama: "Washoya Al-Aba' lil Abna'", sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
+        { id: 's-002__FQH', santriId: 's-002', kelas: '2 A PUTRA', kitabKode: 'FQH', mapelNama: 'Fiqih', kitabNama: 'Matan Taqrib', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
+        { id: 's-002__NHW', santriId: 's-002', kelas: '2 A PUTRA', kitabKode: 'NHW', mapelNama: 'Nahwu', kitabNama: 'Matan Al-Ajurumiyyah', sudahLengkap: false, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman', catatan: 'Kurang bab Manshubatil Asma' },
       ],
 
       ruangUjianList: [],
@@ -1063,6 +1122,7 @@ export const useAppStore = create<AppState>()(
           activeGuruShiftMap: {},
           soalSubmissions: [],
           nilaiList: [],
+          koreksianKitabList: [],
           ruangUjianList: [],
           transaksiList: [],
           psbList: [],
@@ -1250,6 +1310,108 @@ export const useAppStore = create<AppState>()(
         get().addAuditLog('Imtihan', 'Input Nilai', `Nilai santri ${nilai.santriNama} berhasil disimpan.`);
       },
 
+      toggleKoreksianKitab: ({ santriId, kelas, kitabKode, mapelNama, kitabNama, verifikator, catatan }) => {
+        const key = `${santriId}__${kitabKode}`;
+        const todayStr = new Date().toISOString().slice(0, 10);
+        set((state) => {
+          const existing = state.koreksianKitabList.find((k) => k.id === key);
+          if (existing) {
+            return {
+              koreksianKitabList: state.koreksianKitabList.map((k) =>
+                k.id === key
+                  ? {
+                      ...k,
+                      sudahLengkap: !k.sudahLengkap,
+                      tanggalCek: todayStr,
+                      verifikator,
+                      catatan: catatan ?? k.catatan,
+                    }
+                  : k
+              ),
+            };
+          }
+          const created: KoreksianKitabRecord = {
+            id: key,
+            santriId,
+            kelas,
+            kitabKode,
+            mapelNama,
+            kitabNama,
+            sudahLengkap: true,
+            tanggalCek: todayStr,
+            verifikator,
+            catatan,
+          };
+          return {
+            koreksianKitabList: [...state.koreksianKitabList, created],
+          };
+        });
+      },
+
+      bulkSetKoreksianKitab: ({ santriIds, kelas, kitabList, sudahLengkap, verifikator }) => {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        set((state) => {
+          const nextMap = new Map<string, KoreksianKitabRecord>(
+            state.koreksianKitabList.map((r) => [r.id, r])
+          );
+          santriIds.forEach((santriId) => {
+            kitabList.forEach((kitab) => {
+              const key = `${santriId}__${kitab.kode}`;
+              const prev = nextMap.get(key);
+              nextMap.set(key, {
+                id: key,
+                santriId,
+                kelas,
+                kitabKode: kitab.kode,
+                mapelNama: kitab.mapelNama,
+                kitabNama: kitab.kitabNama,
+                sudahLengkap,
+                tanggalCek: todayStr,
+                verifikator,
+                catatan: prev?.catatan,
+              });
+            });
+          });
+          return { koreksianKitabList: Array.from(nextMap.values()) };
+        });
+        get().addAuditLog(
+          'Imtihan',
+          'Koreksian Kitab Massal',
+          `Menandai ${santriIds.length} santri kelas ${kelas} sebagai ${sudahLengkap ? 'Lengkap Terverifikasi' : 'Belum Lengkap'}.`
+        );
+      },
+
+      updateKoreksianKitabCatatan: ({ santriId, kelas, kitabKode, mapelNama, kitabNama, catatan }) => {
+        const key = `${santriId}__${kitabKode}`;
+        const todayStr = new Date().toISOString().slice(0, 10);
+        set((state) => {
+          const existing = state.koreksianKitabList.find((k) => k.id === key);
+          if (existing) {
+            return {
+              koreksianKitabList: state.koreksianKitabList.map((k) =>
+                k.id === key ? { ...k, catatan } : k
+              ),
+            };
+          }
+          return {
+            koreksianKitabList: [
+              ...state.koreksianKitabList,
+              {
+                id: key,
+                santriId,
+                kelas,
+                kitabKode,
+                mapelNama,
+                kitabNama,
+                sudahLengkap: false,
+                tanggalCek: todayStr,
+                catatan,
+              },
+            ],
+          };
+        });
+      },
+
       updateImtihanMaster: (data) => {
         set((state) => ({
           imtihanMaster: { ...state.imtihanMaster, ...data },
@@ -1264,6 +1426,19 @@ export const useAppStore = create<AppState>()(
           const next = exists ? current.filter((id) => id !== santriId) : [...current, santriId];
           return {
             imtihanMaster: { ...state.imtihanMaster, pesertaSusulanIds: next },
+          };
+        });
+      },
+
+      setPesertaSusulanBatch: (santriIds, ditunda) => {
+        set((state) => {
+          const setIds = new Set(state.imtihanMaster.pesertaSusulanIds || []);
+          santriIds.forEach((id) => {
+            if (ditunda) setIds.add(id);
+            else setIds.delete(id);
+          });
+          return {
+            imtihanMaster: { ...state.imtihanMaster, pesertaSusulanIds: Array.from(setIds) },
           };
         });
       },
@@ -1676,6 +1851,16 @@ export const useAppStore = create<AppState>()(
             r.id === id ? { ...r, verifikasiAtasan: status } : r
           ),
         }));
+      },
+
+      verifyAbsensiGuruBatch: (ids, status) => {
+        const idSet = new Set(ids);
+        set((state) => ({
+          absensiGuruList: state.absensiGuruList.map((r) =>
+            idSet.has(r.id) ? { ...r, verifikasiAtasan: status } : r
+          ),
+        }));
+        get().addAuditLog('SDM & Absensi', 'Verifikasi Massal Absensi', `${ids.length} log presensi asatidz ditandai ${status}.`);
       },
 
       toggleSdmNotif: () => {
@@ -2378,6 +2563,24 @@ export const useAppStore = create<AppState>()(
         return newAgendas.length;
       },
 
+      updateLandingConfig: (data) => {
+        set((state) => ({
+          landingConfig: {
+            ...state.landingConfig,
+            ...data,
+            pengasuh: data.pengasuh ? { ...state.landingConfig.pengasuh, ...data.pengasuh } : state.landingConfig.pengasuh,
+            statistik: data.statistik ? { ...state.landingConfig.statistik, ...data.statistik } : state.landingConfig.statistik,
+            kontak: data.kontak ? { ...state.landingConfig.kontak, ...data.kontak } : state.landingConfig.kontak,
+          },
+        }));
+        get().addAuditLog('Sekretaris', 'Edit Info Landing Page', 'Memperbarui informasi publik website pondok pada Landing Page.');
+      },
+
+      resetLandingConfig: () => {
+        set({ landingConfig: DEFAULT_LANDING_CONFIG });
+        get().addAuditLog('Sekretaris', 'Reset Info Landing Page', 'Mengembalikan informasi publik Landing Page ke pengaturan awal.');
+      },
+
       updateNISConfig: (config) => {
         set({ nisConfig: config });
         get().addAuditLog('Pengaturan', 'Update NIS', `Pengaturan format NIS diperbarui: prefix=${config.prefix}, nomorAwal=${config.nomorAwal}.`);
@@ -2413,8 +2616,9 @@ export const useAppStore = create<AppState>()(
         });
         merged.rolePermissions = mergedPerms;
 
-        // If still in demo mode, cleanly merge newly seeded asatidz (ust-16..ust-32), payroll, and availability
-        if (persisted.isDemoMode !== false) {
+        // Cleanly merge newly seeded asatidz (ust-16..ust-32), payroll, and availability when operational records exist
+        const hasOperationalSantri = (persisted.santriList?.length ?? 1) > 0;
+        if (hasOperationalSantri) {
           const existingUstIds = new Set((persisted.ustadzList || []).map((u) => u.id));
           const missingUst = SEED_USTADZ_LIST.filter((u) => !existingUstIds.has(u.id));
           merged.ustadzList = [...(persisted.ustadzList || SEED_USTADZ_LIST), ...missingUst];
@@ -2427,6 +2631,63 @@ export const useAppStore = create<AppState>()(
           const missingAvail = SEED_GURU_AVAILABILITY.filter((g) => !existingAvailIds.has(g.ustadzId));
           merged.guruAvailability = [...(persisted.guruAvailability || SEED_GURU_AVAILABILITY), ...missingAvail];
         }
+        merged.isDemoMode = false;
+
+        // Ensure administrator account (admin / admin) is always available and migrated from legacy seed password
+        const seedAdmin = SEED_USERS.find((u) => u.id === 'u-admin' || u.username === 'admin');
+        const currentAccounts = [...(merged.userAccounts || SEED_USERS)];
+        const adminIdx = currentAccounts.findIndex((u) => u.id === 'u-admin' || u.username === 'admin');
+        if (adminIdx === -1 && seedAdmin) {
+          currentAccounts.push({ ...seedAdmin, password: 'admin' });
+        } else if (adminIdx !== -1) {
+          const existingAdmin = currentAccounts[adminIdx];
+          if (!existingAdmin.password || existingAdmin.password === 'darussalam2026') {
+            currentAccounts[adminIdx] = { ...existingAdmin, password: 'admin' };
+          }
+        }
+        merged.userAccounts = currentAccounts;
+
+        // Backfill gedung & lantai metadata on persisted roomConfigs if missing
+        if (merged.imtihanMaster?.roomConfigs) {
+          const defaultRoomById = new Map(DEFAULT_IMTIHAN_MASTER.roomConfigs.map((r) => [r.id, r]));
+          merged.imtihanMaster = {
+            ...merged.imtihanMaster,
+            roomConfigs: merged.imtihanMaster.roomConfigs.map((rc) => {
+              const def = defaultRoomById.get(rc.id);
+              const inferGedung =
+                rc.gedung ||
+                def?.gedung ||
+                (rc.lokasi.toLowerCase().includes('masjid')
+                  ? 'Masjid Darussalam (Pusat)'
+                  : rc.gender === 'P'
+                  ? 'Gedung Madrasah & Asrama Putri (GD-C)'
+                  : 'Gedung Madrasah Utama (GD-A)');
+              const inferLantai =
+                rc.lantai ||
+                def?.lantai ||
+                (rc.lokasi.toLowerCase().includes('lt. 2') || rc.lokasi.toLowerCase().includes('lt 2') ? 2 : 1);
+              return { ...rc, gedung: inferGedung, lantai: inferLantai };
+            }),
+          };
+        }
+
+        // Ensure landingConfig stays valid and merged safely with defaults
+        merged.landingConfig = {
+          ...DEFAULT_LANDING_CONFIG,
+          ...(persisted.landingConfig || {}),
+          pengasuh: {
+            ...DEFAULT_LANDING_CONFIG.pengasuh,
+            ...(persisted.landingConfig?.pengasuh || {}),
+          },
+          statistik: {
+            ...DEFAULT_LANDING_CONFIG.statistik,
+            ...(persisted.landingConfig?.statistik || {}),
+          },
+          kontak: {
+            ...DEFAULT_LANDING_CONFIG.kontak,
+            ...(persisted.landingConfig?.kontak || {}),
+          },
+        };
 
         return merged;
       },
@@ -2460,6 +2721,7 @@ export const useAppStore = create<AppState>()(
         rolePermissions: state.rolePermissions,
         imtihanMaster: state.imtihanMaster,
         jagaPiketList: state.jagaPiketList,
+        landingConfig: state.landingConfig,
         pengurusStruktur: state.pengurusStruktur,
         sarprasLahan: state.sarprasLahan,
         sarprasGedung: state.sarprasGedung,
@@ -2476,6 +2738,7 @@ export const useAppStore = create<AppState>()(
         absensiSessions: state.absensiSessions,
         soalSubmissions: state.soalSubmissions,
         nilaiList: state.nilaiList,
+        koreksianKitabList: state.koreksianKitabList,
         ruangUjianList: state.ruangUjianList,
         seatingRandomSeed: state.seatingRandomSeed,
         transaksiList: state.transaksiList,

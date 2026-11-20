@@ -22,6 +22,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
+import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 import type {
@@ -47,6 +48,7 @@ export const KemahadiyahanModule: React.FC = () => {
     updateAgendaKegiatan,
     deleteAgendaKegiatan,
     syncAgendaFromKalender,
+    printOrientation,
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'bagan' | 'agenda'>('bagan');
@@ -377,7 +379,14 @@ export const KemahadiyahanModule: React.FC = () => {
               <PrintOrientationControl recommended="landscape" compact />
 
               <button
-                onClick={() => window.print()}
+                type="button"
+                onClick={() =>
+                  triggerReliablePrint({
+                    title: 'Struktur Organisasi & Bagan Kepanitiaan',
+                    orientation: printOrientation,
+                    paperSize: 'F4',
+                  })
+                }
                 className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5"
               >
                 <Printer className="w-3.5 h-3.5" />
@@ -639,7 +648,13 @@ export const KemahadiyahanModule: React.FC = () => {
               <PrintOrientationControl recommended="portrait" compact />
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() =>
+                  triggerReliablePrint({
+                    title: `Dokumen Agenda - ${selectedAgenda.nama}`,
+                    orientation: printOrientation,
+                    paperSize: 'F4',
+                  })
+                }
                 className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
               >
                 <Printer className="w-3.5 h-3.5" />

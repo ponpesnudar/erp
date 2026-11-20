@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Printer } from 'lucide-react';
 import type { RomawiSection, PilihanGandaItem } from '../../../lib/store.ts';
+import { triggerReliablePrint } from '../../../lib/printHelper.ts';
 
 export interface SoalItem {
   nomor: string | number;
@@ -95,6 +96,7 @@ export const TemplateBlankoImtihan: React.FC<TemplateBlankoImtihanProps> = ({
 }) => {
   const [internalMode, setInternalMode] = useState<'blanko' | 'terisi'>(mode);
   const [internalPaperSize, setInternalPaperSize] = useState<'F4' | 'A4'>(paperSize);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
 
   const effectiveMode = showControls ? internalMode : mode;
   const effectivePaper = showControls ? internalPaperSize : paperSize;
@@ -163,7 +165,14 @@ export const TemplateBlankoImtihan: React.FC<TemplateBlankoImtihanProps> = ({
 
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() =>
+                triggerReliablePrint({
+                  title: `Blanko Soal ${mapelLatin} - ${kelas}`,
+                  orientation: 'portrait',
+                  paperSize: effectivePaper,
+                  targetElement: sheetRef.current,
+                })
+              }
               className="px-4 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition shadow-xs flex items-center gap-2"
             >
               <Printer className="w-4 h-4" />
@@ -175,6 +184,7 @@ export const TemplateBlankoImtihan: React.FC<TemplateBlankoImtihanProps> = ({
 
       {/* LEMBAR BLANKO SOAL RESMI */}
       <div
+        ref={sheetRef}
         className={`bg-white border-2 border-slate-900 p-6 sm:p-10 print:p-2 print:border-0 print:shadow-none mx-auto shadow-2xl font-serif text-black printable-area ${paperWidthClass} ${paperMinHeightClass} print:min-h-0 flex flex-col justify-between`}
       >
         <div>

@@ -28,6 +28,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
+import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 import {
@@ -84,6 +85,7 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
     addJadwalMengajarSlot,
     deleteJadwalMengajarSlot,
     auditLogs,
+    printOrientation,
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<
@@ -1086,7 +1088,14 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                   <PrintOrientationControl recommended="landscape" />
 
                   <button
-                    onClick={() => window.print()}
+                    type="button"
+                    onClick={() =>
+                      triggerReliablePrint({
+                        title: `Rekapitulasi Kehadiran Santri (${rekapKelas})`,
+                        orientation: printOrientation,
+                        paperSize: 'F4',
+                      })
+                    }
                     className="px-4 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -1181,7 +1190,13 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                     <PrintOrientationControl recommended="landscape" />
                     <button
                       type="button"
-                      onClick={() => window.print()}
+                      onClick={() =>
+                        triggerReliablePrint({
+                          title: `Rekapitulasi Absensi Dewan Asatidz (${rekapGuruBulan || 'Semua'})`,
+                          orientation: printOrientation,
+                          paperSize: 'F4',
+                        })
+                      }
                       className="px-4 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
                     >
                       <Printer className="w-3.5 h-3.5" />
@@ -1338,7 +1353,13 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                 <PrintOrientationControl recommended="landscape" />
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() =>
+                    triggerReliablePrint({
+                      title: 'Kurikulum Madrasah Diniyah Salafiyah (22 Fan Ilmu)',
+                      orientation: printOrientation,
+                      paperSize: 'F4',
+                    })
+                  }
                   className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
                 >
                   <Printer className="w-3.5 h-3.5" />
@@ -2015,7 +2036,14 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
             <div className="flex flex-wrap items-center gap-2 no-print">
               <PrintOrientationControl recommended="landscape" />
               <button
-                onClick={() => window.print()}
+                type="button"
+                onClick={() =>
+                  triggerReliablePrint({
+                    title: 'Jadwal Pelajaran Madrasah Diniyah Kelas 1-6',
+                    orientation: printOrientation,
+                    paperSize: 'F4',
+                  })
+                }
                 className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
               >
                 <Printer className="w-3.5 h-3.5" />
@@ -2245,7 +2273,13 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                   <PrintOrientationControl recommended="landscape" />
                   <button
                     type="button"
-                    onClick={() => window.print()}
+                    onClick={() =>
+                      triggerReliablePrint({
+                        title: 'Matriks Jadwal Mengajar & Beban JTM Dewan Asatidz',
+                        orientation: printOrientation,
+                        paperSize: 'F4',
+                      })
+                    }
                     className="px-4 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -2935,7 +2969,13 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                   </button>
                   <button
                     type="button"
-                    onClick={() => window.print()}
+                    onClick={() =>
+                      triggerReliablePrint({
+                        title: `Kalender Pendidikan PP NU Darussalam (${kalenderPendidikan.tahunAjaran})`,
+                        orientation: printOrientation,
+                        paperSize: 'F4',
+                      })
+                    }
                     className="px-4 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
                   >
                     <Printer className="w-3.5 h-3.5" />

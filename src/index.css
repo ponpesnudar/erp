@@ -180,11 +180,27 @@
     display: flex !important;
   }
 
+  /* When printing via PrintPreviewModal portal, hide #root and show only #erp-direct-print-portal */
+  body.erp-portal-printing #root {
+    display: none !important;
+  }
+  body.erp-portal-printing #erp-direct-print-portal {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   /* Keep hide rules LAST with maximum specificity so they win over responsive md:block / sticky utilities */
   aside,
   aside.h-screen,
   aside.sticky,
   aside[class*="md:"],
+  .print-root-shell > aside,
   nav,
   header,
   .no-print,
@@ -195,9 +211,13 @@
     display: none !important;
     visibility: hidden !important;
     width: 0 !important;
+    max-width: 0 !important;
     height: 0 !important;
+    max-height: 0 !important;
     overflow: hidden !important;
-    position: fixed !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: absolute !important;
     left: -99999px !important;
   }
 }

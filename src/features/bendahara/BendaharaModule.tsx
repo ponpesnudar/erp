@@ -33,6 +33,7 @@ import {
   Legend,
 } from 'recharts';
 import { useAppStore } from '../../lib/store.ts';
+import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import { useAuth } from '../../lib/auth.ts';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
@@ -59,6 +60,7 @@ export const BendaharaModule: React.FC = () => {
     updateLimitHarian,
     toggleStatusKartu,
     topUpSaldo,
+    printOrientation,
   } = useAppStore();
   const { isFinancialPrivileged } = useAuth();
   const [payrollNotice, setPayrollNotice] = useState('');
@@ -149,7 +151,14 @@ export const BendaharaModule: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <PrintOrientationControl recommended="landscape" />
           <button
-            onClick={() => window.print()}
+            type="button"
+            onClick={() =>
+              triggerReliablePrint({
+                title: `Laporan Keuangan Pondok - ${selectedBulan} 2026`,
+                orientation: printOrientation,
+                paperSize: 'F4',
+              })
+            }
             className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-900 transition flex items-center gap-1.5 shadow-xs"
           >
             <Printer className="w-3.5 h-3.5" />
@@ -623,8 +632,13 @@ export const BendaharaModule: React.FC = () => {
 
       {/* TAB 3: MONITORING JAJAN SANTRI (BSI PSP MOBILE STYLE) */}
       {activeTab === 'monitoring_jajan' && (
-        <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-5 printable-area">
+          <PrintKopPondok
+            judulDokumen="MONITORING SALDO & JAJAN KARTU SANTRI"
+            subJudul={`Total Santri Terpantau: ${santriList.length} Santri · Tahun Ajaran ${currentTahunAjaran}`}
+            tahunAjaran={currentTahunAjaran}
+          />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 no-print">
             <div>
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-emerald-700" />
@@ -836,7 +850,13 @@ export const BendaharaModule: React.FC = () => {
                   <PrintOrientationControl recommended="landscape" />
                   <button
                     type="button"
-                    onClick={() => window.print()}
+                    onClick={() =>
+                      triggerReliablePrint({
+                        title: `Manajemen Bisyaroh Dewan Asatidz - ${selectedBulan} 2026`,
+                        orientation: printOrientation,
+                        paperSize: 'F4',
+                      })
+                    }
                     className="px-4 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 whitespace-nowrap shrink-0"
                   >
                     <Printer className="w-3.5 h-3.5" />
