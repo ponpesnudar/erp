@@ -14,6 +14,8 @@ import {
 import { useAppStore } from '../../lib/store.ts';
 import { formatNIS } from '../../lib/rules.ts';
 import { DetailSantriForm } from '../../components/common/DetailSantriForm.tsx';
+import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
+import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 import type { SantriRecord } from '../../data/seed/pondokData.ts';
 
 export const SekretarisModule: React.FC = () => {
@@ -261,6 +263,11 @@ export const SekretarisModule: React.FC = () => {
       {/* TAB 1: MASTER DATA SANTRI + EMIS FORM */}
       {activeTab === 'santri' && (
         <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
+          <PrintKopPondok
+            judulDokumen="BUKU INDUK MASTER SANTRI (FORMAT EMIS)"
+            subJudul={`Total Terdaftar: ${filteredSantri.length} Santri`}
+          />
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
             <div className="flex items-center gap-2 flex-1 max-w-md border border-slate-200 rounded-xl px-3 py-1.5">
               <Search className="w-4 h-4 text-slate-400" />
@@ -288,6 +295,8 @@ export const SekretarisModule: React.FC = () => {
                 </option>
               </select>
 
+              <PrintOrientationControl recommended="landscape" compact />
+
               <button
                 type="button"
                 onClick={() => {
@@ -301,6 +310,7 @@ export const SekretarisModule: React.FC = () => {
               </button>
 
               <button
+                type="button"
                 onClick={() => window.print()}
                 className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5"
               >
@@ -383,20 +393,36 @@ export const SekretarisModule: React.FC = () => {
       {/* TAB 2: PERSURATAN RESMI */}
       {activeTab === 'surat' && (
         <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <PrintKopPondok
+            judulDokumen="BUKU AGENDA SURAT KELUAR & MASUK PESANTREN"
+            subJudul={`Total Arsip: ${suratList.length} Dokumen Resmi`}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 no-print">
             <div>
               <h3 className="font-bold text-sm text-slate-900">Buku Agenda Surat Keluar & Masuk</h3>
               <p className="text-xs text-slate-500">
                 Penomoran otomatis dengan format standar pesantren
               </p>
             </div>
-            <button
-              onClick={() => setShowSuratModal(true)}
-              className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 no-print"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Buat Surat Resmi Baru</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <PrintOrientationControl recommended="portrait" compact />
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Cetak Agenda</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSuratModal(true)}
+                className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs shadow-xs flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Buat Surat Resmi Baru</span>
+              </button>
+            </div>
           </div>
 
           <div className="divide-y divide-slate-100">

@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
 import type { JadwalKeamananItem, TitipanWaliRecord } from '../../data/seed/pondokData.ts';
+import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
+import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 
 export const BKModule: React.FC = () => {
   const {
@@ -355,7 +357,12 @@ export const BKModule: React.FC = () => {
       {/* TAB 3: JADWAL KEAMANAN */}
       {activeTab === 'jadwal_keamanan' && (
         <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-5 printable-area">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <PrintKopPondok
+            variant="umum"
+            judulDokumen="JADWAL PIKET KEAMANAN & RONDA ASRAMA"
+            subJudul="Pengaturan Regu Jaga Gerbang Utama, Patroli Malam & Pos Penjengukan"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 no-print">
             <div>
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-emerald-700" />
@@ -365,13 +372,17 @@ export const BKModule: React.FC = () => {
                 Pengaturan regu jaga gerbang utama, patroli malam, dan pos penjengukan.
               </p>
             </div>
-            <button
-              onClick={() => window.print()}
-              className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold no-print flex items-center gap-1.5"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Cetak Jadwal</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <PrintOrientationControl recommended="portrait" compact />
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Cetak Jadwal</span>
+              </button>
+            </div>
           </div>
 
           <form
@@ -603,7 +614,7 @@ export const BKModule: React.FC = () => {
 
       {/* Modal Pelanggaran */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print print:hidden">
           <form
             onSubmit={handleCreatePelanggaran}
             className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4 text-xs"
@@ -685,7 +696,7 @@ export const BKModule: React.FC = () => {
 
       {/* Modal Catat Tamu */}
       {showTamuModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print print:hidden">
           <form
             onSubmit={handleCreateTamu}
             className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-3 text-xs"
@@ -749,7 +760,7 @@ export const BKModule: React.FC = () => {
 
       {/* Modal Titipan Wali + Upload Foto */}
       {showTitipanModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print print:hidden">
           <form
             onSubmit={handleCreateTitipan}
             className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-3 text-xs"

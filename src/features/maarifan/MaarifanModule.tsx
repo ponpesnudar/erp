@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   BookOpen,
   CheckCircle2,
@@ -23,8 +23,13 @@ import {
   AlertTriangle,
   LayoutGrid,
   Lock,
+  Camera,
+  MapPin,
+  RefreshCw,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
+import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
+import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 import {
   DAFTAR_KELAS_DINIYAH,
   MAPEL_PER_TINGKAT,
@@ -33,9 +38,21 @@ import {
   type UstadzRecord,
   type KitabPdfItem,
   type JadwalMengajarSlot,
+  type ProgramAbsensiType,
+  type AbsensiGuruRecord,
 } from '../../data/seed/pondokData.ts';
 
-export const MaarifanModule: React.FC = () => {
+const PROGRAM_ABSENSI_OPTIONS: ProgramAbsensiType[] = [
+  'Madrasah Diniyah',
+  "Ngaji Al-Qur'an Pagi (Ba'da Subuh)",
+  'Ngaji Takhasus',
+];
+
+interface MaarifanModuleProps {
+  onOpenSdmAbsensi?: () => void;
+}
+
+export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi }) => {
   const {
     currentUser,
     santriList,
@@ -125,17 +142,200 @@ export const MaarifanModule: React.FC = () => {
   // Kalender Pendidikan interactive state
   const [activeKalenderCode, setActiveKalenderCode] = useState<string>('IMT 1');
 
-  // Absensi Guru state
+  // Program & Selfie Timestamp Guru states
+  const [selectedProgram, setSelectedProgram] = useState<ProgramAbsensiType>('Madrasah Diniyah');
   const [guruStatusMap, setGuruStatusMap] = useState<
     Record<string, { status: 'Hadir' | 'Izin' | 'Sakit' | 'Badal'; pengganti: string }>
   >({});
+  const [selfieTargetUstadz, setSelfieTargetUstadz] = useState<UstadzRecord | null>(null);
+  const [cameraError, setCameraError] = useState<string>('');
+  const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number; fallback: boolean }>({
+    lat: -6.9765,
+    lng: 109.6832,
+    fallback: true,
+  });
+  const [capturedSelfieUrl, setCapturedSelfieUrl] = useState<string>('');
+  const [capturedTimestampText, setCapturedTimestampText] = useState<string>('');
+  const [lightboxRecord, setLightboxRecord] = useState<AbsensiGuruRecord | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopSelfieCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
+
+  const openSelfieModal = async (ustadz: UstadzRecord) => {
+    setSelfieTargetUstadz(ustadz);
+    setCapturedSelfieUrl('');
+    setCameraError('');
+    setCapturedTimestampText('');
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGpsCoords({
+            lat: Number(pos.coords.latitude.toFixed(5)),
+            lng: Number(pos.coords.longitude.toFixed(5)),
+            fallback: false,
+          });
+        },
+        () => {
+          setGpsCoords({ lat: -6.9765, lng: 109.6832, fallback: true });
+        },
+        { timeout: 4000 }
+      );
+    }
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        });
+        streamRef.current = stream;
+        setCameraActive(true);
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        }, 80);
+      } catch {
+        setCameraError(
+          'Kamera langsung tidak tersedia atau izin ditolak browser. Gunakan tombol Unggah / Kamera HP di bawah.'
+        );
+      }
+    } else {
+      setCameraError('Perangkat tidak mendukung kamera browser. Gunakan tombol Unggah / Kamera HP.');
+    }
+  };
+
+  const compositeTimestampPhoto = (source: HTMLVideoElement | HTMLImageElement) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const srcW = source instanceof HTMLVideoElement ? source.videoWidth || 640 : source.width || 640;
+    const srcH = source instanceof HTMLVideoElement ? source.videoHeight || 480 : source.height || 480;
+    const scale = Math.max(canvas.width / srcW, canvas.height / srcH);
+    const drawW = srcW * scale;
+    const drawH = srcH * scale;
+    const dx = (canvas.width - drawW) / 2;
+    const dy = (canvas.height - drawH) / 2;
+    ctx.drawImage(source, dx, dy, drawW, drawH);
+
+    // Google Timestamp style dark translucent banner
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+    ctx.fillRect(0, canvas.height - 118, canvas.width, 118);
+
+    // Accent strip
+    ctx.fillStyle = '#10B981';
+    ctx.fillRect(0, canvas.height - 118, 6, 118);
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timeStr = now.toTimeString().substring(0, 8) + ' WIB';
+    const stampLine = `${dateStr} · ${timeStr}`;
+    const coordStr = `GPS: ${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lng.toFixed(5)}${gpsCoords.fallback ? ' (Lokasi Pondok)' : ''}`;
+    const locLabel = 'PP NU Darussalam Karangdadap, Kab. Pekalongan';
+
+    ctx.fillStyle = '#FCD34D';
+    ctx.font = 'bold 17px sans-serif';
+    ctx.fillText(stampLine, 20, canvas.height - 88);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText(`${selfieTargetUstadz?.nama || 'Asatidz'} · ${selectedProgram}`, 20, canvas.height - 62);
+
+    ctx.fillStyle = '#A7F3D0';
+    ctx.font = '13px monospace';
+    ctx.fillText(coordStr, 20, canvas.height - 38);
+
+    ctx.fillStyle = '#CBD5E1';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(locLabel, 20, canvas.height - 16);
+
+    setCapturedSelfieUrl(canvas.toDataURL('image/jpeg', 0.86));
+    setCapturedTimestampText(stampLine);
+  };
+
+  const handleCaptureFromVideo = () => {
+    if (!videoRef.current) return;
+    compositeTimestampPhoto(videoRef.current);
+  };
+
+  const handleUploadSelfieFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        const img = new Image();
+        img.onload = () => compositeTimestampPhoto(img);
+        img.src = reader.result;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleConfirmSelfieAttendance = () => {
+    if (!selfieTargetUstadz || !capturedSelfieUrl) return;
+    saveAbsensiGuru({
+      tanggal: attendanceDate,
+      ustadzId: selfieTargetUstadz.id,
+      ustadzNama: selfieTargetUstadz.nama,
+      kelas: selfieTargetUstadz.jabatanUtama,
+      mapel:
+        selectedProgram === 'Madrasah Diniyah'
+          ? selfieTargetUstadz.fanIlmu.join(', ') || 'Madrasah Diniyah'
+          : selectedProgram,
+      program: selectedProgram,
+      status: 'Hadir',
+      waktuInput: new Date().toTimeString().substring(0, 5),
+      fotoSelfieUrl: capturedSelfieUrl,
+      koordinat: `${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lng.toFixed(5)}`,
+      lokasiLabel: 'PP NU Darussalam Karangdadap, Pekalongan',
+      waktuTimestamp: capturedTimestampText || new Date().toLocaleString('id-ID'),
+    });
+    stopSelfieCamera();
+    setSuccessToast(
+      `Presensi Selfie + GPS ${selfieTargetUstadz.nama} (${selectedProgram}) berhasil tersimpan.`
+    );
+    setSelfieTargetUstadz(null);
+    setCapturedSelfieUrl('');
+    setTimeout(() => setSuccessToast(''), 4000);
+  };
 
   // Rekap filter
+  const [rekapSubTab, setRekapSubTab] = useState<'santri' | 'guru'>('santri');
   const [rekapFilterMode, setRekapFilterMode] = useState<'per_kelas' | 'per_santri' | 'gender'>(
     'per_kelas'
   );
   const [rekapGender, setRekapGender] = useState<'Semua' | 'L' | 'P'>('Semua');
   const [rekapKelas, setRekapKelas] = useState<string>('Semua');
+  const [rekapProgram, setRekapProgram] = useState<'Semua' | ProgramAbsensiType>('Semua');
+  const [rekapGuruBulan, setRekapGuruBulan] = useState<string>(
+    new Date().toISOString().substring(0, 7)
+  );
 
   // Kurikulum add state
   const [showAddKitab, setShowAddKitab] = useState(false);
@@ -186,13 +386,16 @@ export const MaarifanModule: React.FC = () => {
         tanggal: attendanceDate,
         kelas: selectedKelas,
         guruNama: currentUser.nama,
-        mapel: selectedMapel,
+        mapel: selectedProgram === 'Madrasah Diniyah' ? selectedMapel : selectedProgram,
+        program: selectedProgram,
         tersimpanOleh: currentUser.nama,
         kehadiran: normalized,
         catatan,
       });
       setSaving(false);
-      setSuccessToast(`Presensi santri kelas ${selectedKelas} (${attendanceDate}) tersimpan.`);
+      setSuccessToast(
+        `Presensi santri ${selectedKelas} [${selectedProgram}] (${attendanceDate}) tersimpan.`
+      );
       setTimeout(() => setSuccessToast(''), 4000);
     }, 300);
   };
@@ -204,12 +407,18 @@ export const MaarifanModule: React.FC = () => {
       ustadzId: ustadz.id,
       ustadzNama: ustadz.nama,
       kelas: ustadz.jabatanUtama,
-      mapel: ustadz.fanIlmu.join(', ') || 'Madrasah Diniyah',
+      mapel:
+        selectedProgram === 'Madrasah Diniyah'
+          ? ustadz.fanIlmu.join(', ') || 'Madrasah Diniyah'
+          : selectedProgram,
+      program: selectedProgram,
       status: entry.status,
       pengganti: entry.status === 'Badal' ? entry.pengganti : undefined,
       waktuInput: new Date().toTimeString().substring(0, 5),
     });
-    setSuccessToast(`Presensi ${ustadz.nama} (${entry.status}) berhasil dicatat.`);
+    setSuccessToast(
+      `Presensi ${ustadz.nama} (${entry.status} · ${selectedProgram}) berhasil dicatat.`
+    );
     setTimeout(() => setSuccessToast(''), 3500);
   };
 
@@ -248,7 +457,7 @@ export const MaarifanModule: React.FC = () => {
     setTimeout(() => setSuccessToast(''), 3500);
   };
 
-  // Rekap computation from absensiSessions
+  // Rekap computation from absensiSessions (supports Program filter)
   const rekapPerSantri = useMemo(() => {
     return santriList
       .filter((s) => {
@@ -262,6 +471,8 @@ export const MaarifanModule: React.FC = () => {
         let sk = 0;
         let a = 0;
         absensiSessions.forEach((ses) => {
+          const sesProg = ses.program || 'Madrasah Diniyah';
+          if (rekapProgram !== 'Semua' && sesProg !== rekapProgram) return;
           const st = ses.kehadiran[s.id];
           if (st === 'H') h++;
           else if (st === 'I') i++;
@@ -270,7 +481,31 @@ export const MaarifanModule: React.FC = () => {
         });
         return { santri: s, h, i, s: sk, a, total: h + i + sk + a };
       });
-  }, [santriList, absensiSessions, rekapGender, rekapKelas]);
+  }, [santriList, absensiSessions, rekapGender, rekapKelas, rekapProgram]);
+
+  // Rekap Absensi Guru per ustadz
+  const rekapGuruFilteredLogs = useMemo(() => {
+    return absensiGuruList.filter((ag) => {
+      const prog = ag.program || 'Madrasah Diniyah';
+      if (rekapProgram !== 'Semua' && prog !== rekapProgram) return false;
+      if (rekapGuruBulan && !ag.tanggal.startsWith(rekapGuruBulan)) return false;
+      return true;
+    });
+  }, [absensiGuruList, rekapProgram, rekapGuruBulan]);
+
+  const rekapGuruSummary = useMemo(() => {
+    return ustadzList
+      .filter((u) => u.statusAktif === 'Aktif')
+      .map((u) => {
+        const logs = rekapGuruFilteredLogs.filter((ag) => ag.ustadzId === u.id || ag.ustadzNama === u.nama);
+        const hadir = logs.filter((l) => l.status === 'Hadir').length;
+        const izin = logs.filter((l) => l.status === 'Izin').length;
+        const sakit = logs.filter((l) => l.status === 'Sakit').length;
+        const badal = logs.filter((l) => l.status === 'Badal').length;
+        const selfieCount = logs.filter((l) => Boolean(l.fotoSelfieUrl)).length;
+        return { ustadz: u, hadir, izin, sakit, badal, selfieCount, total: logs.length };
+      });
+  }, [ustadzList, rekapGuruFilteredLogs]);
 
   return (
     <div className="space-y-6">
@@ -377,29 +612,50 @@ export const MaarifanModule: React.FC = () => {
       {/* TAB 1: ABSENSI HARIAN SANTRI & GURU */}
       {activeTab === 'absensi' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 no-print">
-            <button
-              type="button"
-              onClick={() => setAbsensiMode('santri')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
-                absensiMode === 'santri'
-                  ? 'bg-emerald-800 text-white border-emerald-800'
-                  : 'bg-white text-slate-700 border-slate-200'
-              }`}
-            >
-              Presensi Harian Santri
-            </button>
-            <button
-              type="button"
-              onClick={() => setAbsensiMode('guru')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
-                absensiMode === 'guru'
-                  ? 'bg-emerald-800 text-white border-emerald-800'
-                  : 'bg-white text-slate-700 border-slate-200'
-              }`}
-            >
-              Presensi Mengajar Guru Diniyah ({absensiGuruList.length})
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAbsensiMode('santri')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                  absensiMode === 'santri'
+                    ? 'bg-emerald-800 text-white border-emerald-800'
+                    : 'bg-white text-slate-700 border-slate-200'
+                }`}
+              >
+                Presensi Harian Santri
+              </button>
+              <button
+                type="button"
+                onClick={() => setAbsensiMode('guru')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                  absensiMode === 'guru'
+                    ? 'bg-emerald-800 text-white border-emerald-800'
+                    : 'bg-white text-slate-700 border-slate-200'
+                }`}
+              >
+                Presensi Guru &amp; Selfie Timestamp ({absensiGuruList.length})
+              </button>
+            </div>
+
+            {/* Program Absensi Selector (Madrasah Diniyah, Ngaji Al-Qur'an Pagi, Takhasus) */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 text-xs">
+              <span className="font-bold text-slate-600 px-2">Program:</span>
+              {PROGRAM_ABSENSI_OPTIONS.map((prog) => (
+                <button
+                  key={prog}
+                  type="button"
+                  onClick={() => setSelectedProgram(prog)}
+                  className={`px-3 py-1 rounded-lg font-bold transition ${
+                    selectedProgram === prog
+                      ? 'bg-emerald-800 text-white shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {prog === "Ngaji Al-Qur'an Pagi (Ba'da Subuh)" ? "Al-Qur'an Pagi" : prog}
+                </button>
+              ))}
+            </div>
           </div>
 
           {absensiMode === 'santri' ? (
@@ -532,24 +788,47 @@ export const MaarifanModule: React.FC = () => {
               </div>
             </>
           ) : (
-            /* Absensi Guru Diniyah */
+            /* Absensi Guru + Selfie Timestamp + GPS */
             <div className="space-y-4">
               <div className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div>
                     <h3 className="font-bold text-sm text-slate-900">
-                      Presensi Kehadiran Mengajar Dewan Asatidz
+                      Presensi Kehadiran Dewan Asatidz — Program: {selectedProgram}
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Catat kehadiran pengajar harian (Hadir, Izin, Sakit, atau Badal beserta nama ustadz pengganti).
+                      Gunakan tombol <strong>Selfie Timestamp</strong> untuk bukti foto kamera lengkap dengan waktu WIB &amp; koordinat GPS, atau catat manual Hadir/Izin/Sakit/Badal.
                     </p>
                   </div>
-                  <input
-                    type="date"
-                    value={attendanceDate}
-                    onChange={(e) => setAttendanceDate(e.target.value)}
-                    className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold"
-                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    {onOpenSdmAbsensi && (
+                      <button
+                        type="button"
+                        onClick={onOpenSdmAbsensi}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 shadow-2xs"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Buka Aplikasi Absensi Mobile Guru (Swafoto GPS)</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('rekap');
+                        setRekapSubTab('guru');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <History className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Lihat Rekap &amp; Cetak Guru</span>
+                    </button>
+                    <input
+                      type="date"
+                      value={attendanceDate}
+                      onChange={(e) => setAttendanceDate(e.target.value)}
+                      className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold"
+                    />
+                  </div>
                 </div>
 
                 <div className="divide-y divide-slate-100">
@@ -575,6 +854,15 @@ export const MaarifanModule: React.FC = () => {
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openSelfieModal(ust)}
+                              className="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-800 text-white font-bold flex items-center gap-1.5 shadow-2xs"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              <span>Selfie Timestamp</span>
+                            </button>
+
                             {(['Hadir', 'Izin', 'Sakit', 'Badal'] as const).map((st) => (
                               <button
                                 key={st}
@@ -631,16 +919,17 @@ export const MaarifanModule: React.FC = () => {
               {/* Log Presensi Guru */}
               <div className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-3">
                 <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">
-                  Riwayat Presensi Guru Terbaru
+                  Riwayat Presensi Guru Terbaru (Selfie GPS &amp; Manual)
                 </h4>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 text-slate-500 text-left">
-                        <th className="py-2">Tanggal & Jam</th>
+                        <th className="py-2">Tanggal &amp; Jam</th>
+                        <th className="py-2">Program</th>
                         <th className="py-2">Nama Ustadz</th>
-                        <th className="py-2">Mapel / Tugas</th>
                         <th className="py-2">Status</th>
+                        <th className="py-2">Foto Selfie &amp; Koordinat</th>
                         <th className="py-2">Pengganti (Badal)</th>
                       </tr>
                     </thead>
@@ -650,8 +939,10 @@ export const MaarifanModule: React.FC = () => {
                           <td className="py-2 tabular-nums text-slate-500">
                             {ag.tanggal} ({ag.waktuInput})
                           </td>
+                          <td className="py-2 font-semibold text-emerald-900">
+                            {ag.program || 'Madrasah Diniyah'}
+                          </td>
                           <td className="py-2 font-bold text-slate-900">{ag.ustadzNama}</td>
-                          <td className="py-2 text-slate-600">{ag.mapel}</td>
                           <td className="py-2">
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -665,6 +956,26 @@ export const MaarifanModule: React.FC = () => {
                               {ag.status}
                             </span>
                           </td>
+                          <td className="py-2">
+                            {ag.fotoSelfieUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => setLightboxRecord(ag)}
+                                className="flex items-center gap-2 text-left hover:opacity-80"
+                              >
+                                <img
+                                  src={ag.fotoSelfieUrl}
+                                  alt={ag.ustadzNama}
+                                  className="w-10 h-8 object-cover rounded border border-slate-300"
+                                />
+                                <span className="text-[10px] text-sky-700 font-semibold">
+                                  {ag.koordinat || 'Lihat Foto'}
+                                </span>
+                              </button>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">Input manual</span>
+                            )}
+                          </td>
                           <td className="py-2 text-slate-600">{ag.pengganti || '-'}</td>
                         </tr>
                       ))}
@@ -677,104 +988,312 @@ export const MaarifanModule: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: REKAPITULASI ABSENSI (FILTER SANTRI / KELAS / PUTRA-PUTRI + CETAK) */}
+      {/* TAB 2: REKAPITULASI ABSENSI (SANTRI + MANAJEMEN ABSENSI GURU & CETAK) */}
       {activeTab === 'rekap' && (
-        <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-5 printable-area">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                <History className="w-4 h-4 text-emerald-700" />
-                <span>Rekapitulasi Kehadiran Santri Madrasah Diniyah</span>
-              </h3>
-              <p className="text-xs text-slate-500">
-                Total sesi tercatat: {absensiSessions.length} pertemuan · Filter per kelas, per santri, atau Putra/Putri.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 no-print">
-              <select
-                value={rekapFilterMode}
-                onChange={(e) => setRekapFilterMode(e.target.value as any)}
-                className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold"
-              >
-                <option value="per_kelas">Tampilan Per Kelas</option>
-                <option value="per_santri">Tampilan Per Santri</option>
-                <option value="gender">Filter Putra / Putri</option>
-              </select>
-
-              <select
-                value={rekapGender}
-                onChange={(e) => setRekapGender(e.target.value as any)}
-                className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs"
-              >
-                <option value="Semua">Semua Gender</option>
-                <option value="L">Putra (Banin)</option>
-                <option value="P">Putri (Banat)</option>
-              </select>
-
-              <select
-                value={rekapKelas}
-                onChange={(e) => setRekapKelas(e.target.value)}
-                className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs"
-              >
-                <option value="Semua">Semua Kelas</option>
-                {uniqueClasses.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 no-print">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => window.print()}
-                className="px-4 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
+                type="button"
+                onClick={() => setRekapSubTab('santri')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                  rekapSubTab === 'santri'
+                    ? 'bg-emerald-800 text-white border-emerald-800'
+                    : 'bg-white text-slate-700 border-slate-200'
+                }`}
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Cetak Rekap</span>
+                Rekapitulasi Absensi Santri
+              </button>
+              <button
+                type="button"
+                onClick={() => setRekapSubTab('guru')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                  rekapSubTab === 'guru'
+                    ? 'bg-emerald-800 text-white border-emerald-800'
+                    : 'bg-white text-slate-700 border-slate-200'
+                }`}
+              >
+                Manajemen &amp; Rekapitulasi Absensi Guru ({absensiGuruList.length})
               </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto max-h-[500px]">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-slate-600">
-                <tr>
-                  <th className="py-2.5 px-3 text-left">NIS</th>
-                  <th className="py-2.5 px-3 text-left">Nama Santri</th>
-                  <th className="py-2.5 px-3 text-left">Kelas</th>
-                  <th className="py-2.5 px-3 text-center">Gender</th>
-                  <th className="py-2.5 px-3 text-center text-emerald-700">Hadir</th>
-                  <th className="py-2.5 px-3 text-center text-blue-700">Izin</th>
-                  <th className="py-2.5 px-3 text-center text-amber-700">Sakit</th>
-                  <th className="py-2.5 px-3 text-center text-rose-700">Alpa</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold">
-                {rekapPerSantri.slice(0, 60).map((row) => (
-                  <tr key={row.santri.id} className="hover:bg-slate-50">
-                    <td className="py-2 px-3 tabular-nums text-emerald-800">{row.santri.nis}</td>
-                    <td className="py-2 px-3 font-bold text-slate-900">{row.santri.nama}</td>
-                    <td className="py-2 px-3 text-slate-600">{row.santri.kelas}</td>
-                    <td className="py-2 px-3 text-center">
-                      {row.santri.gender === 'L' ? 'Putra' : 'Putri'}
-                    </td>
-                    <td className="py-2 px-3 text-center tabular-nums text-emerald-800">{row.h}</td>
-                    <td className="py-2 px-3 text-center tabular-nums text-blue-700">{row.i}</td>
-                    <td className="py-2 px-3 text-center tabular-nums text-amber-700">{row.s}</td>
-                    <td className="py-2 px-3 text-center tabular-nums text-rose-700">{row.a}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {rekapSubTab === 'santri' ? (
+            <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-5 printable-area">
+              <PrintKopPondok
+                variant="maarif"
+                judulDokumen={`REKAPITULASI KEHADIRAN SANTRI (${rekapProgram === 'Semua' ? 'SEMUA PROGRAM' : rekapProgram.toUpperCase()})`}
+                subJudul={`Kelas: ${rekapKelas} · Gender: ${rekapGender === 'Semua' ? 'Putra & Putri' : rekapGender === 'L' ? 'Putra (Banin)' : 'Putri (Banat)'}`}
+              />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 no-print">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <History className="w-4 h-4 text-emerald-700" />
+                    <span>Rekapitulasi Kehadiran Santri ({rekapProgram === 'Semua' ? 'Semua Program' : rekapProgram})</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Total sesi tercatat: {absensiSessions.length} pertemuan · Filter program, kelas, atau Putra/Putri.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 no-print">
+                  <select
+                    value={rekapProgram}
+                    onChange={(e) => setRekapProgram(e.target.value as 'Semua' | ProgramAbsensiType)}
+                    className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold text-emerald-900"
+                  >
+                    <option value="Semua">Semua Program</option>
+                    {PROGRAM_ABSENSI_OPTIONS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={rekapFilterMode}
+                    onChange={(e) => setRekapFilterMode(e.target.value as any)}
+                    className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold"
+                  >
+                    <option value="per_kelas">Tampilan Per Kelas</option>
+                    <option value="per_santri">Tampilan Per Santri</option>
+                    <option value="gender">Filter Putra / Putri</option>
+                  </select>
+
+                  <select
+                    value={rekapGender}
+                    onChange={(e) => setRekapGender(e.target.value as any)}
+                    className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs"
+                  >
+                    <option value="Semua">Semua Gender</option>
+                    <option value="L">Putra (Banin)</option>
+                    <option value="P">Putri (Banat)</option>
+                  </select>
+
+                  <select
+                    value={rekapKelas}
+                    onChange={(e) => setRekapKelas(e.target.value)}
+                    className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs"
+                  >
+                    <option value="Semua">Semua Kelas</option>
+                    {uniqueClasses.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                  </select>
+
+                  <PrintOrientationControl recommended="landscape" />
+
+                  <button
+                    onClick={() => window.print()}
+                    className="px-4 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Cetak Rekap</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto max-h-[500px] print:max-h-none print:overflow-visible">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-slate-600">
+                    <tr>
+                      <th className="py-2.5 px-3 text-left">NIS</th>
+                      <th className="py-2.5 px-3 text-left">Nama Santri</th>
+                      <th className="py-2.5 px-3 text-left">Kelas</th>
+                      <th className="py-2.5 px-3 text-center">Gender</th>
+                      <th className="py-2.5 px-3 text-center text-emerald-700">Hadir</th>
+                      <th className="py-2.5 px-3 text-center text-blue-700">Izin</th>
+                      <th className="py-2.5 px-3 text-center text-amber-700">Sakit</th>
+                      <th className="py-2.5 px-3 text-center text-rose-700">Alpa</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-semibold">
+                    {rekapPerSantri.slice(0, 60).map((row) => (
+                      <tr key={row.santri.id} className="hover:bg-slate-50">
+                        <td className="py-2 px-3 tabular-nums text-emerald-800">{row.santri.nis}</td>
+                        <td className="py-2 px-3 font-bold text-slate-900">{row.santri.nama}</td>
+                        <td className="py-2 px-3 text-slate-600">{row.santri.kelas}</td>
+                        <td className="py-2 px-3 text-center">
+                          {row.santri.gender === 'L' ? 'Putra' : 'Putri'}
+                        </td>
+                        <td className="py-2 px-3 text-center tabular-nums text-emerald-800">{row.h}</td>
+                        <td className="py-2 px-3 text-center tabular-nums text-blue-700">{row.i}</td>
+                        <td className="py-2 px-3 text-center tabular-nums text-amber-700">{row.s}</td>
+                        <td className="py-2 px-3 text-center tabular-nums text-rose-700">{row.a}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            /* MANAJEMEN & REKAPITULASI ABSENSI GURU */
+            <div className="space-y-4">
+              <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-5 printable-area">
+                <PrintKopPondok
+                  variant="maarif"
+                  judulDokumen="REKAPITULASI ABSENSI DEWAN ASATIDZ"
+                  subJudul={`Program: ${rekapProgram} · Periode: ${rekapGuruBulan || 'Semua Tanggal'}`}
+                />
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-200 no-print">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-emerald-700" />
+                      <span>Manajemen &amp; Rekapitulasi Kehadiran Dewan Asatidz</span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Bulan: <strong>{rekapGuruBulan || 'Semua'}</strong> · Program:{' '}
+                      <strong>{rekapProgram}</strong> · Menampilkan jumlah Hadir, Izin, Sakit, Badal, dan Bukti Foto Selfie GPS.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 no-print">
+                    {onOpenSdmAbsensi && (
+                      <button
+                        type="button"
+                        onClick={onOpenSdmAbsensi}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold flex items-center gap-1.5"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Aplikasi Absensi Guru</span>
+                      </button>
+                    )}
+                    <input
+                      type="month"
+                      value={rekapGuruBulan}
+                      onChange={(e) => setRekapGuruBulan(e.target.value)}
+                      className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold"
+                    />
+                    <select
+                      value={rekapProgram}
+                      onChange={(e) => setRekapProgram(e.target.value as 'Semua' | ProgramAbsensiType)}
+                      className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold text-emerald-900"
+                    >
+                      <option value="Semua">Semua Program</option>
+                      {PROGRAM_ABSENSI_OPTIONS.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                    <PrintOrientationControl recommended="landscape" />
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="px-4 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Cetak Rekap Guru</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border border-slate-200 border-collapse">
+                    <thead>
+                      <tr className="bg-emerald-900 text-white font-bold">
+                        <th className="py-2 px-2.5 border border-emerald-800 text-center w-9">No</th>
+                        <th className="py-2 px-3 border border-emerald-800 text-left">Nama Ustadz / Ustadzah</th>
+                        <th className="py-2 px-3 border border-emerald-800 text-left">Jabatan / Amanah</th>
+                        <th className="py-2 px-2.5 border border-emerald-800 text-center">Hadir</th>
+                        <th className="py-2 px-2.5 border border-emerald-800 text-center">Izin</th>
+                        <th className="py-2 px-2.5 border border-emerald-800 text-center">Sakit</th>
+                        <th className="py-2 px-2.5 border border-emerald-800 text-center">Badal</th>
+                        <th className="py-2 px-2.5 border border-emerald-800 text-center">Bukti Selfie</th>
+                        <th className="py-2 px-2.5 border border-emerald-800 text-center">Total Catatan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 font-semibold">
+                      {rekapGuruSummary.map((row, idx) => (
+                        <tr key={row.ustadz.id} className="hover:bg-slate-50">
+                          <td className="py-2 px-2 border border-slate-200 text-center">{idx + 1}</td>
+                          <td className="py-2 px-3 border border-slate-200 font-bold text-slate-900">
+                            {row.ustadz.nama}
+                            <span className="block text-[10px] font-arabic text-emerald-800">
+                              {row.ustadz.namaArab}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 border border-slate-200 text-slate-600">
+                            {row.ustadz.jabatanUtama}
+                          </td>
+                          <td className="py-2 px-2.5 border border-slate-200 text-center text-emerald-800 font-bold tabular-nums">
+                            {row.hadir}
+                          </td>
+                          <td className="py-2 px-2.5 border border-slate-200 text-center text-blue-700 tabular-nums">
+                            {row.izin}
+                          </td>
+                          <td className="py-2 px-2.5 border border-slate-200 text-center text-amber-700 tabular-nums">
+                            {row.sakit}
+                          </td>
+                          <td className="py-2 px-2.5 border border-slate-200 text-center text-purple-700 tabular-nums">
+                            {row.badal}
+                          </td>
+                          <td className="py-2 px-2.5 border border-slate-200 text-center text-sky-700 tabular-nums">
+                            {row.selfieCount} foto
+                          </td>
+                          <td className="py-2 px-2.5 border border-slate-200 text-center font-black tabular-nums">
+                            {row.total}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Log Foto Selfie & Koordinat Bukti Kehadiran */}
+                <div className="space-y-2 pt-2">
+                  <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">
+                    Bukti Foto Selfie Timestamp &amp; Log Presensi Guru ({rekapGuruFilteredLogs.length})
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {rekapGuruFilteredLogs.slice(0, 12).map((ag) => (
+                      <div
+                        key={ag.id}
+                        className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 flex items-center gap-3 text-xs"
+                      >
+                        {ag.fotoSelfieUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxRecord(ag)}
+                            className="shrink-0"
+                          >
+                            <img
+                              src={ag.fotoSelfieUrl}
+                              alt={ag.ustadzNama}
+                              className="w-16 h-12 object-cover rounded-lg border border-slate-300"
+                            />
+                          </button>
+                        ) : (
+                          <div className="w-16 h-12 rounded-lg bg-slate-200 flex items-center justify-center text-slate-500 text-[10px] font-bold shrink-0">
+                            Manual
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-900 truncate">{ag.ustadzNama}</p>
+                          <p className="text-[10px] text-emerald-800 font-semibold truncate">
+                            {ag.program || 'Madrasah Diniyah'} · {ag.status}
+                          </p>
+                          <p className="text-[10px] text-slate-500 tabular-nums">
+                            {ag.tanggal} {ag.waktuInput} {ag.koordinat ? `· ${ag.koordinat}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* TAB 3: KURIKULUM KITAB & RUMUS PEGON MAKNA JAWA */}
       {activeTab === 'kurikulum' && (
         <div className="space-y-5">
-          {/* Rumus Pegon Makna Jawa Card */}
-          <div className="rounded-2xl bg-amber-50/70 p-4 border border-amber-200 space-y-2">
+          {/* Rumus Pegon Makna Jawa Card (no-print agar tidak ikut tercetak) */}
+          <div className="rounded-2xl bg-amber-50/70 p-4 border border-amber-200 space-y-2 no-print">
             <h4 className="font-bold text-xs text-amber-950">
               Panduan Rumus Makna Kitab Pegon Jawa (Utawi Iki Iku)
             </h4>
@@ -801,7 +1320,12 @@ export const MaarifanModule: React.FC = () => {
 
           {/* Matriks Kurikulum 22 Fan Resmi (Lampiran 3. KURIKULUM 2026-2027) */}
           <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <PrintKopPondok
+              variant="maarif"
+              judulDokumen="KURIKULUM MADRASAH DINIYAH SALAFIYAH (22 FAN ILMU)"
+              subJudul="Tahun Ajaran 2026 / 2027 M · 1447 / 1448 H"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 no-print">
               <div>
                 <h3 className="font-bold text-sm text-slate-900">
                   Matriks Kurikulum Resmi 22 Fan Madrasah Diniyah (T.A. 2026-2027)
@@ -810,22 +1334,20 @@ export const MaarifanModule: React.FC = () => {
                   Klik kitab atau jam tatap muka (JTM) pada tiap kelas untuk menyesuaikan beban ajar (Total standar: 18 JTM/minggu per tingkat).
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 no-print"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Cetak Kurikulum F4</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2 no-print">
+                <PrintOrientationControl recommended="landscape" />
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak Kurikulum F4</span>
+                </button>
+              </div>
             </div>
 
-            <div className="hidden print:block text-center border-b-2 border-slate-800 pb-2 mb-2">
-              <h2 className="text-sm font-bold uppercase">KURIKULUM MADRASAH DINIYAH PP. NU DARUSSALAM KARANGDADAP</h2>
-              <p className="text-[11px]">Tahun Ajaran 2026 / 2027 M · 1447 / 1448 H</p>
-            </div>
-
-            <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+            <div className="overflow-x-auto print:overflow-visible border border-slate-200 rounded-2xl">
               <table className="w-full text-[11px] border-collapse">
                 <thead>
                   <tr className="bg-emerald-900 text-white font-bold text-center">
@@ -1475,7 +1997,12 @@ export const MaarifanModule: React.FC = () => {
       {/* TAB 4: JADWAL PELAJARAN KELAS 1-6 (SYNCED WITH IMTIHAN & KARTU) */}
       {activeTab === 'jadwal' && (
         <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <PrintKopPondok
+            variant="maarif"
+            judulDokumen="JADWAL PELAJARAN MADRASAH DINIYAH KELAS 1–6"
+            subJudul="Sinkronisasi Jadwal Pelajaran Ma'arifan, Imtihan & Kartu Ujian"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 no-print">
             <div>
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-emerald-700" />
@@ -1485,13 +2012,16 @@ export const MaarifanModule: React.FC = () => {
                 Setiap perubahan jadwal otomatis memperbarui tabel jadwal di Modul Imtihan & sisi belakang Kartu Imtihan.
               </p>
             </div>
-            <button
-              onClick={() => window.print()}
-              className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold no-print flex items-center gap-1.5"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Cetak Jadwal</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 no-print">
+              <PrintOrientationControl recommended="landscape" />
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Cetak Jadwal</span>
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -1711,7 +2241,8 @@ export const MaarifanModule: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <PrintOrientationControl recommended="landscape" />
                   <button
                     type="button"
                     onClick={() => window.print()}
@@ -1961,7 +2492,12 @@ export const MaarifanModule: React.FC = () => {
 
                 {/* Global Matrix Container (Printable F4) */}
                 <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <PrintKopPondok
+                    variant="maarif"
+                    judulDokumen="MATRIKS JADWAL MENGAJAR & BEBAN JTM DEWAN ASATIDZ"
+                    subJudul={`Total Slot Terjadwal: ${jadwalMengajar.length} Jam Tatap Muka · Tahun Ajaran 2026/2027`}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 no-print">
                     <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl no-print">
                       <button
                         type="button"
@@ -2383,7 +2919,8 @@ export const MaarifanModule: React.FC = () => {
                     Pilih kode kegiatan di bawah, lalu klik sel tanggal pada kalender untuk mengisi atau menghapus agenda.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <PrintOrientationControl recommended="landscape" />
                   <button
                     type="button"
                     onClick={() => {
@@ -2488,7 +3025,7 @@ export const MaarifanModule: React.FC = () => {
             </div>
 
             {/* Official Printable Kalender Sheet Matching User Reference Photo */}
-            <div className="rounded-3xl bg-white p-5 border border-slate-200 shadow-2xs space-y-3 printable-area">
+            <div className="rounded-3xl bg-white p-5 print:p-1 print:border-0 border border-slate-200 shadow-2xs space-y-3 printable-area">
               {/* Header with Official Logo */}
               <div className="flex items-center gap-4 border-b-2 border-slate-800 pb-2.5">
                 <img
@@ -3072,6 +3609,170 @@ export const MaarifanModule: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {/* Modal Kamera Selfie + Google Timestamp & GPS */}
+      {selfieTargetUstadz && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 no-print">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-sky-700" />
+                  <span>Absensi Selfie Timestamp — {selfieTargetUstadz.nama}</span>
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Program: <strong>{selectedProgram}</strong> · Foto otomatis ditempeli waktu &amp; koordinat GPS pondok.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  stopSelfieCamera();
+                  setSelfieTargetUstadz(null);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="relative rounded-2xl overflow-hidden bg-slate-900 aspect-4/3 flex items-center justify-center">
+              {capturedSelfieUrl ? (
+                <img
+                  src={capturedSelfieUrl}
+                  alt="Preview Selfie Timestamp"
+                  className="w-full h-full object-cover"
+                />
+              ) : cameraActive ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Live Timestamp Overlay Preview */}
+                  <div className="absolute inset-x-0 bottom-0 bg-slate-950/75 text-white p-3 border-l-4 border-emerald-500 text-[11px] space-y-0.5">
+                    <p className="font-bold text-amber-300">
+                      {new Date().toLocaleDateString('id-ID', {
+                        weekday: 'long',
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}{' '}
+                      · {new Date().toTimeString().substring(0, 5)} WIB
+                    </p>
+                    <p className="font-bold">
+                      {selfieTargetUstadz.nama} · {selectedProgram}
+                    </p>
+                    <p className="font-mono text-emerald-300 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      <span>
+                        GPS: {gpsCoords.lat.toFixed(5)}, {gpsCoords.lng.toFixed(5)}
+                        {gpsCoords.fallback ? ' (PP NU Darussalam)' : ''}
+                      </span>
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="p-6 text-center text-slate-300 text-xs space-y-2">
+                  <Camera className="w-10 h-10 mx-auto text-slate-500" />
+                  <p>{cameraError || 'Menghubungkan kamera depan...'}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <label className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold cursor-pointer flex items-center gap-1.5">
+                <Upload className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Unggah / Kamera HP</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  onChange={handleUploadSelfieFile}
+                  className="hidden"
+                />
+              </label>
+
+              <div className="flex items-center gap-2">
+                {!capturedSelfieUrl ? (
+                  cameraActive && (
+                    <button
+                      type="button"
+                      onClick={handleCaptureFromVideo}
+                      className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-bold flex items-center gap-1.5"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>Ambil Foto &amp; Stamp GPS</span>
+                    </button>
+                  )
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setCapturedSelfieUrl('')}
+                      className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Ulangi Foto</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmSelfieAttendance}
+                      className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Simpan Presensi Hadir</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Lightbox Bukti Foto Selfie */}
+      {lightboxRecord && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 no-print"
+          onClick={() => setLightboxRecord(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-white p-4 shadow-2xl space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-sm text-slate-900">{lightboxRecord.ustadzNama}</h4>
+                <p className="text-[11px] text-emerald-800 font-semibold">
+                  {lightboxRecord.program || 'Madrasah Diniyah'} · {lightboxRecord.tanggal} (
+                  {lightboxRecord.waktuInput})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLightboxRecord(null)}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {lightboxRecord.fotoSelfieUrl && (
+              <img
+                src={lightboxRecord.fotoSelfieUrl}
+                alt={lightboxRecord.ustadzNama}
+                className="w-full rounded-2xl border border-slate-200 object-cover"
+              />
+            )}
+            <div className="text-[11px] text-slate-600 flex items-center justify-between">
+              <span>{lightboxRecord.lokasiLabel || 'PP NU Darussalam Karangdadap'}</span>
+              <span className="font-mono font-bold text-slate-800">{lightboxRecord.koordinat}</span>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -24,6 +24,9 @@ import {
   SEED_JADWAL_MAARIFAN,
   AbsensiGuruRecord,
   SEED_ABSENSI_GURU,
+  IzinBadalGuruRequest,
+  SEED_IZIN_BADAL_GURU,
+  ProgramAbsensiType,
   ImtihanMasterConfig,
   ImtihanRoomConfig,
   DEFAULT_IMTIHAN_MASTER,
@@ -101,6 +104,7 @@ export interface AbsensiSession {
   kelas: string;
   guruNama: string;
   mapel: string;
+  program?: ProgramAbsensiType;
   waktuSimpan: string;
   tersimpanOleh: string;
   kehadiran: Record<string, 'H' | 'I' | 'S' | 'A'>; // santriId -> status
@@ -253,14 +257,34 @@ export interface PelanggaranRecord {
   status: 'Dalam Pembinaan' | 'Selesai';
 }
 
+export interface ActiveGuruShiftSession {
+  ustadzId: string;
+  tanggal: string;
+  program: ProgramAbsensiType;
+  status: 'bertugas' | 'istirahat' | 'selesai';
+  checkInIso: string;
+  checkInDisplay: string;
+  checkOutDisplay?: string;
+  activeRecordId: string;
+  breakTotalMs: number;
+  breakStartedIso?: string;
+  shiftStartTarget: string;
+  shiftEndTarget: string;
+}
+
 export interface AppState {
   // Mode & Auth
   currentUser: UserAccount;
+  userAccounts: UserAccount[];
+  isDemoMode: boolean;
   activeRole: string;
   simulatedRole: string | null;
   darkMode: boolean;
+  printOrientation: 'portrait' | 'landscape';
   systemStatus: 'ready' | 'offline' | 'syncing';
   offlineQueueCount: number;
+  pengasuhTtdUrl?: string;
+  waliKelasTtdMap: Record<string, string>;
 
   // Master Data & Config
   nisConfig: NISConfig;
@@ -278,6 +302,10 @@ export interface AppState {
   ustadzPayroll: UstadzPayrollItem[];
   jadwalMaarifan: JadwalMaarifanItem[];
   absensiGuruList: AbsensiGuruRecord[];
+  izinBadalGuruList: IzinBadalGuruRequest[];
+  activeGuruShiftMap: Record<string, ActiveGuruShiftSession>;
+  sdmNotifEnabled: boolean;
+  pinPengesahanMap: Record<string, string>;
   baganOrganisasi: JabatanOrganisasi[];
   rabImtihan: RabItem[];
   rekapAnggaranBulanan: RekapAnggaranBulan[];
@@ -322,8 +350,16 @@ export interface AppState {
   switchRole: (newRole: string) => void;
   simulateRole: (role: string | null) => void;
   toggleDarkMode: () => void;
+  setPrintOrientation: (orient: 'portrait' | 'landscape') => void;
   setSystemStatus: (status: 'ready' | 'offline' | 'syncing') => void;
   addAuditLog: (modul: string, aksi: string, keterangan: string) => void;
+  setPengasuhTtdUrl: (url?: string) => void;
+  setWaliKelasTtd: (kelas: string, url?: string) => void;
+  addUserAccount: (user: Omit<UserAccount, 'id'>) => void;
+  updateUserAccount: (id: string, data: Partial<UserAccount>) => void;
+  deleteUserAccount: (id: string) => void;
+  resetPasswordByWa: (noWa: string, newPassword: string) => { success: boolean; user?: UserAccount; message: string };
+  activateGoLiveMode: () => void;
 
   // Permissions
   togglePermissionAction: (roleId: string, fiturId: string, action: string) => void;
@@ -367,6 +403,27 @@ export interface AppState {
   updateJadwalMaarifan: (id: string, item: Partial<JadwalMaarifanItem>) => void;
   deleteJadwalMaarifan: (id: string) => void;
   saveAbsensiGuru: (rec: Omit<AbsensiGuruRecord, 'id'>) => void;
+  checkInGuruMobile: (payload: {
+    ustadzId: string;
+    ustadzNama: string;
+    program: ProgramAbsensiType;
+    kelas: string;
+    mapel: string;
+    fotoSelfieUrl?: string;
+    koordinat: string;
+    akurasiGps: number;
+    lokasiLabel: string;
+  }) => { recordId: string; checkInDisplay: string; terlambatMenit: number };
+  toggleIstirahatGuru: (ustadzId: string) => void;
+  checkOutGuruMobile: (payload: {
+    ustadzId: string;
+    fotoCekOutUrl?: string;
+  }) => { checkOutDisplay: string; durasiKerja: string } | null;
+  submitIzinBadalGuru: (req: Omit<IzinBadalGuruRequest, 'id' | 'status' | 'waktuPengajuan'>) => void;
+  approveIzinBadalGuru: (id: string, status: 'Disetujui' | 'Ditolak', reviewerName: string) => void;
+  verifyAbsensiGuruRecord: (id: string, status: 'Terverifikasi' | 'Menunggu') => void;
+  toggleSdmNotif: () => void;
+  setUserPinPengesahan: (userId: string, pin: string) => void;
   updateKurikulumMatrixCell: (rowId: string, kelasKey: 'kelas1' | 'kelas2' | 'kelas3' | 'kelas4' | 'kelas5' | 'kelas6', kitab: string, jtm: number) => void;
   addKitabPdf: (item: Omit<KitabPdfItem, 'id'>) => void;
   deleteKitabPdf: (id: string) => void;
@@ -430,6 +487,7 @@ export interface AppState {
   addAgendaKegiatan: (data: Omit<AgendaKegiatanItem, 'id'>) => void;
   updateAgendaKegiatan: (id: string, data: Partial<AgendaKegiatanItem>) => void;
   deleteAgendaKegiatan: (id: string) => void;
+  syncAgendaFromKalender: () => number;
 
   // Settings
   updateNISConfig: (config: NISConfig) => void;
@@ -451,6 +509,7 @@ const DEFAULT_ROLE_PERMS: Record<string, Record<string, string[]>> = {
     transaksi_kartu_pos: ['baca', 'tulis', 'ubah', 'posting', 'cetak'],
     psb_verifikasi: ['baca', 'tulis', 'setujui', 'konfigurasi'],
     bk_pelanggaran: ['baca', 'tulis', 'ubah', 'setujui'],
+    sdm_absensi_monitoring: ['baca', 'tulis', 'ubah', 'setujui', 'cetak', 'ekspor'],
   },
   pengasuh: {
     imtihan_soal: ['baca', 'setujui', 'cetak'],
@@ -464,6 +523,7 @@ const DEFAULT_ROLE_PERMS: Record<string, Record<string, string[]>> = {
     transaksi_kartu_pos: ['baca', 'cetak'],
     psb_verifikasi: ['baca', 'setujui'],
     bk_pelanggaran: ['baca', 'setujui'],
+    sdm_absensi_monitoring: ['baca', 'setujui', 'cetak', 'ekspor'],
   },
   ketua_imtihan: {
     imtihan_soal: ['baca', 'tulis', 'ubah', 'setujui', 'cetak'],
@@ -487,10 +547,12 @@ const DEFAULT_ROLE_PERMS: Record<string, Record<string, string[]>> = {
     maarifan_absensi: ['baca', 'tulis', 'ubah', 'setujui', 'cetak'],
     imtihan_nilai_raport: ['baca', 'cetak'],
     imtihan_soal: ['baca', 'cetak'],
+    sdm_absensi_monitoring: ['baca', 'tulis', 'ubah', 'setujui', 'cetak', 'ekspor'],
   },
   sekretaris: {
     sekretaris_persuratan: ['baca', 'tulis', 'ubah', 'hapus', 'cetak'],
     psb_verifikasi: ['baca', 'tulis'],
+    sdm_absensi_monitoring: ['baca', 'tulis', 'ubah', 'setujui', 'cetak', 'ekspor'],
   },
   kemahadiyahan: {
     bk_pelanggaran: ['baca', 'tulis'],
@@ -512,11 +574,16 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       currentUser: DEFAULT_USERS[0],
+      userAccounts: SEED_USERS,
+      isDemoMode: true,
       activeRole: 'pengasuh',
       simulatedRole: null,
       darkMode: false,
+      printOrientation: 'portrait',
       systemStatus: 'ready',
       offlineQueueCount: 0,
+      pengasuhTtdUrl: undefined,
+      waliKelasTtdMap: {},
 
       nisConfig: {
         prefix: '24',
@@ -538,6 +605,10 @@ export const useAppStore = create<AppState>()(
       ustadzPayroll: SEED_USTADZ_PAYROLL,
       jadwalMaarifan: SEED_JADWAL_MAARIFAN,
       absensiGuruList: SEED_ABSENSI_GURU,
+      izinBadalGuruList: SEED_IZIN_BADAL_GURU,
+      activeGuruShiftMap: {},
+      sdmNotifEnabled: true,
+      pinPengesahanMap: {},
       baganOrganisasi: SEED_BAGAN_ORGANISASI,
       rabImtihan: SEED_RAB_IMTIHAN,
       rekapAnggaranBulanan: SEED_REKAP_ANGGARAN_BULANAN,
@@ -869,7 +940,10 @@ export const useAppStore = create<AppState>()(
 
       // Handlers
       loginAs: (userId: string) => {
-        const found = DEFAULT_USERS.find((u) => u.id === userId);
+        const state = get();
+        const found =
+          state.userAccounts.find((u) => u.id === userId) ||
+          DEFAULT_USERS.find((u) => u.id === userId);
         if (found) {
           set({
             currentUser: found,
@@ -883,9 +957,10 @@ export const useAppStore = create<AppState>()(
       logout: () => {
         const user = get().currentUser;
         get().addAuditLog('Akses', 'Logout', `Pengguna ${user.nama} keluar dari sistem.`);
+        const adminFallback = get().userAccounts.find((u) => u.id === 'u-pengasuh') || DEFAULT_USERS[0];
         set({
-          currentUser: DEFAULT_USERS[0],
-          activeRole: 'pengasuh',
+          currentUser: adminFallback,
+          activeRole: adminFallback.peran,
           simulatedRole: null,
         });
       },
@@ -907,7 +982,112 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ darkMode: !state.darkMode }));
       },
 
+      setPrintOrientation: (orient) => {
+        set({ printOrientation: orient });
+      },
+
       setSystemStatus: (status) => set({ systemStatus: status }),
+
+      setPengasuhTtdUrl: (url) => {
+        set({ pengasuhTtdUrl: url });
+        get().addAuditLog('Imtihan', 'Update TTD Pengasuh', url ? 'Tanda tangan digital Pengasuh pada Raport diperbarui.' : 'Tanda tangan digital Pengasuh dihapus.');
+      },
+
+      setWaliKelasTtd: (kelas, url) => {
+        set((state) => {
+          const next = { ...state.waliKelasTtdMap };
+          if (url) {
+            next[kelas] = url;
+          } else {
+            delete next[kelas];
+          }
+          return { waliKelasTtdMap: next };
+        });
+        get().addAuditLog('Imtihan', 'Update TTD Wali Kelas', `Tanda tangan Wali Kelas ${kelas} ${url ? 'diperbarui' : 'dihapus'}.`);
+      },
+
+      addUserAccount: (user) => {
+        const newAccount: UserAccount = {
+          id: `u-custom-${Date.now()}`,
+          ...user,
+          password: user.password || 'darussalam2026',
+        };
+        set((state) => ({
+          userAccounts: [...state.userAccounts, newAccount],
+        }));
+        get().addAuditLog('Hak Akses', 'Tambah Akun', `Akun baru dibuat: ${newAccount.nama} (@${newAccount.username}).`);
+      },
+
+      updateUserAccount: (id, data) => {
+        set((state) => ({
+          userAccounts: state.userAccounts.map((u) => (u.id === id ? { ...u, ...data } : u)),
+          currentUser: state.currentUser.id === id ? { ...state.currentUser, ...data } : state.currentUser,
+        }));
+        get().addAuditLog('Hak Akses', 'Update Akun', `Data akun pengguna ID ${id} diperbarui.`);
+      },
+
+      deleteUserAccount: (id) => {
+        set((state) => ({
+          userAccounts: state.userAccounts.filter((u) => u.id !== id),
+        }));
+        get().addAuditLog('Hak Akses', 'Hapus Akun', `Akun pengguna ID ${id} dihapus.`);
+      },
+
+      resetPasswordByWa: (noWa, newPassword) => {
+        const normalizeWa = (raw?: string) => (raw || '').replace(/[^0-9]/g, '').replace(/^62/, '0');
+        const target = normalizeWa(noWa);
+        if (!target || target.length < 9) {
+          return { success: false, message: 'Nomor WhatsApp tidak valid.' };
+        }
+        const accounts = get().userAccounts;
+        const found = accounts.find((u) => normalizeWa(u.noWa) === target);
+        if (!found) {
+          return { success: false, message: 'Nomor WhatsApp belum terdaftar pada akun guru/staf.' };
+        }
+        set((state) => ({
+          userAccounts: state.userAccounts.map((u) =>
+            u.id === found.id ? { ...u, password: newPassword } : u
+          ),
+        }));
+        get().addAuditLog('Akses', 'Reset Kata Sandi WA OTP', `Kata sandi ${found.nama} berhasil direset melalui verifikasi WhatsApp OTP.`);
+        return { success: true, user: found, message: `Kata sandi untuk ${found.nama} berhasil diperbarui.` };
+      },
+
+      activateGoLiveMode: () => {
+        set((state) => ({
+          isDemoMode: false,
+          santriList: [],
+          absensiSessions: [],
+          absensiGuruList: [],
+          izinBadalGuruList: [],
+          activeGuruShiftMap: {},
+          soalSubmissions: [],
+          nilaiList: [],
+          ruangUjianList: [],
+          transaksiList: [],
+          psbList: [],
+          suratList: [],
+          pelanggaranList: [],
+          kasTransactions: [],
+          bisyarohHistory: [],
+          bukuTamu: [],
+          titipanWali: [],
+          kotakMasuk: [],
+          jagaPiketList: [],
+          auditLogs: [
+            {
+              id: `log-golive-${Date.now()}`,
+              waktu: new Date().toISOString().replace('T', ' ').substring(0, 16),
+              userId: state.currentUser.id,
+              userName: state.currentUser.nama,
+              peran: state.activeRole,
+              modul: 'Sistem',
+              aksi: 'Aktivasi Mode Go-Live',
+              keterangan: 'Seluruh data simulasi/demo telah dibersihkan. Sistem siap untuk input data riil pondok.',
+            },
+          ],
+        }));
+      },
 
       addAuditLog: (modul, aksi, keterangan) => {
         const state = get();
@@ -1273,6 +1453,240 @@ export const useAppStore = create<AppState>()(
         const newRec: AbsensiGuruRecord = { id: `ag-${Date.now()}`, ...rec };
         set((state) => ({ absensiGuruList: [newRec, ...state.absensiGuruList] }));
         get().addAuditLog("Ma'arifan", 'Absensi Guru', `Presensi ${rec.ustadzNama} (${rec.status}) tercatat.`);
+      },
+
+      checkInGuruMobile: (payload) => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const tanggal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        const waktuInput = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        const checkInDisplay = `${pad(now.getHours())}.${pad(now.getMinutes())}`;
+
+        const shiftBounds: Record<ProgramAbsensiType, { start: string; end: string }> = {
+          'Madrasah Diniyah': { start: '18:00', end: '21:00' },
+          "Ngaji Al-Qur'an Pagi (Ba'da Subuh)": { start: '05:00', end: '06:30' },
+          'Ngaji Takhasus': { start: '16:00', end: '17:15' },
+        };
+        const bounds = shiftBounds[payload.program] || { start: '18:00', end: '21:00' };
+        const [sh, sm] = bounds.start.split(':').map(Number);
+        const startMins = sh * 60 + sm;
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        // Grace tolerance 10 menit
+        const diff = nowMins - startMins;
+        const terlambatMenit = diff > 10 ? diff : 0;
+
+        const recordId = `ag-${Date.now()}`;
+        const newRec: AbsensiGuruRecord = {
+          id: recordId,
+          tanggal,
+          ustadzId: payload.ustadzId,
+          ustadzNama: payload.ustadzNama,
+          kelas: payload.kelas,
+          mapel: payload.mapel,
+          program: payload.program,
+          status: 'Hadir',
+          waktuInput,
+          statusKeterlambatan: terlambatMenit > 0 ? 'Terlambat' : 'Tepat Waktu',
+          menitTerlambat: terlambatMenit,
+          fotoSelfieUrl: payload.fotoSelfieUrl,
+          koordinat: payload.koordinat,
+          akurasiGps: payload.akurasiGps,
+          lokasiLabel: payload.lokasiLabel,
+          waktuTimestamp: `${now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} ${waktuInput} WIB`,
+          wajahCocok: true,
+          verifikasiAtasan: 'Terverifikasi',
+        };
+
+        const session: ActiveGuruShiftSession = {
+          ustadzId: payload.ustadzId,
+          tanggal,
+          program: payload.program,
+          status: 'bertugas',
+          checkInIso: now.toISOString(),
+          checkInDisplay,
+          activeRecordId: recordId,
+          breakTotalMs: 0,
+          shiftStartTarget: bounds.start.replace(':', '.'),
+          shiftEndTarget: bounds.end.replace(':', '.'),
+        };
+
+        set((state) => ({
+          absensiGuruList: [newRec, ...state.absensiGuruList],
+          activeGuruShiftMap: {
+            ...state.activeGuruShiftMap,
+            [payload.ustadzId]: session,
+          },
+        }));
+        get().addAuditLog('SDM & Absensi', 'Cek In Mobile GPS', `${payload.ustadzNama} Cek In (${payload.program}) pukul ${waktuInput} WIB.`);
+        return { recordId, checkInDisplay, terlambatMenit };
+      },
+
+      toggleIstirahatGuru: (ustadzId) => {
+        set((state) => {
+          const cur = state.activeGuruShiftMap[ustadzId];
+          if (!cur || cur.status === 'selesai') return state;
+          const nowIso = new Date().toISOString();
+          if (cur.status === 'bertugas') {
+            return {
+              activeGuruShiftMap: {
+                ...state.activeGuruShiftMap,
+                [ustadzId]: { ...cur, status: 'istirahat', breakStartedIso: nowIso },
+              },
+            };
+          } else {
+            const addedBreak = cur.breakStartedIso
+              ? Math.max(0, Date.now() - new Date(cur.breakStartedIso).getTime())
+              : 0;
+            return {
+              activeGuruShiftMap: {
+                ...state.activeGuruShiftMap,
+                [ustadzId]: {
+                  ...cur,
+                  status: 'bertugas',
+                  breakTotalMs: cur.breakTotalMs + addedBreak,
+                  breakStartedIso: undefined,
+                },
+              },
+            };
+          }
+        });
+      },
+
+      checkOutGuruMobile: (payload) => {
+        const cur = get().activeGuruShiftMap[payload.ustadzId];
+        if (!cur) return null;
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const waktuCekOut = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        const checkOutDisplay = `${pad(now.getHours())}.${pad(now.getMinutes())}`;
+        const extraBreak =
+          cur.status === 'istirahat' && cur.breakStartedIso
+            ? Math.max(0, now.getTime() - new Date(cur.breakStartedIso).getTime())
+            : 0;
+        const netMs = Math.max(
+          0,
+          now.getTime() - new Date(cur.checkInIso).getTime() - cur.breakTotalMs - extraBreak
+        );
+        const totalSecs = Math.floor(netMs / 1000);
+        const hrs = Math.floor(totalSecs / 3600);
+        const mins = Math.floor((totalSecs % 3600) / 60);
+        const secs = totalSecs % 60;
+        const durasiKerja = `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+
+        set((state) => ({
+          absensiGuruList: state.absensiGuruList.map((r) =>
+            r.id === cur.activeRecordId
+              ? {
+                  ...r,
+                  waktuCekOut,
+                  durasiKerja,
+                  fotoCekOutUrl: payload.fotoCekOutUrl || r.fotoCekOutUrl,
+                }
+              : r
+          ),
+          activeGuruShiftMap: {
+            ...state.activeGuruShiftMap,
+            [payload.ustadzId]: {
+              ...cur,
+              status: 'selesai',
+              checkOutDisplay,
+              breakStartedIso: undefined,
+            },
+          },
+        }));
+        get().addAuditLog('SDM & Absensi', 'Cek Out Mobile', `Cek Out tercatat pukul ${waktuCekOut} WIB (Durasi ${durasiKerja}).`);
+        return { checkOutDisplay, durasiKerja };
+      },
+
+      submitIzinBadalGuru: (req) => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const waktuPengajuan = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        const newReq: IzinBadalGuruRequest = {
+          id: `ib-${Date.now()}`,
+          status: 'Menunggu',
+          waktuPengajuan,
+          ...req,
+        };
+        set((state) => ({
+          izinBadalGuruList: [newReq, ...state.izinBadalGuruList],
+          kotakMasuk: [
+            {
+              id: `km-ib-${Date.now()}`,
+              judul: `Pengajuan ${req.jenis}: ${req.ustadzNama}`,
+              modul: 'SDM & Absensi',
+              pengirim: req.ustadzNama,
+              waktu: 'Baru saja',
+              status: 'Menunggu',
+              keterangan: `${req.program} tanggal ${req.tanggal}${req.guruBadalNama ? ` · Badal: ${req.guruBadalNama}` : ''}. ${req.alasan}`,
+              linkTab: 'sdm_absensi',
+            },
+            ...state.kotakMasuk,
+          ],
+        }));
+        get().addAuditLog('SDM & Absensi', `Ajukan ${req.jenis} Guru`, `${req.ustadzNama} mengajukan ${req.jenis} tanggal ${req.tanggal}.`);
+      },
+
+      approveIzinBadalGuru: (id, status, reviewerName) => {
+        const target = get().izinBadalGuruList.find((x) => x.id === id);
+        if (!target) return;
+        set((state) => {
+          const updatedRequests = state.izinBadalGuruList.map((item) =>
+            item.id === id ? { ...item, status, disetujuiOleh: reviewerName } : item
+          );
+          let nextAbsensi = state.absensiGuruList;
+          if (status === 'Disetujui') {
+            const mappedStatus: AbsensiGuruRecord['status'] =
+              target.jenis === 'Sakit' ? 'Sakit' : target.jenis === 'Badal' ? 'Badal' : 'Izin';
+            const exists = state.absensiGuruList.some(
+              (a) => a.ustadzId === target.ustadzId && a.tanggal === target.tanggal && a.program === target.program
+            );
+            if (!exists) {
+              nextAbsensi = [
+                {
+                  id: `ag-ib-${Date.now()}`,
+                  tanggal: target.tanggal,
+                  ustadzId: target.ustadzId,
+                  ustadzNama: target.ustadzNama,
+                  kelas: 'Terjadwal',
+                  mapel: target.program,
+                  program: target.program,
+                  status: mappedStatus,
+                  pengganti: target.guruBadalNama,
+                  waktuInput: 'Disetujui',
+                  lokasiLabel: `Persetujuan ${reviewerName}`,
+                  waktuTimestamp: `${target.tanggal} (Disetujui)`,
+                  verifikasiAtasan: 'Terverifikasi',
+                },
+                ...state.absensiGuruList,
+              ];
+            }
+          }
+          return {
+            izinBadalGuruList: updatedRequests,
+            absensiGuruList: nextAbsensi,
+          };
+        });
+        get().addAuditLog('SDM & Absensi', `Keputusan ${target.jenis}`, `Pengajuan ${target.ustadzNama} (${target.tanggal}) ${status} oleh ${reviewerName}.`);
+      },
+
+      verifyAbsensiGuruRecord: (id, status) => {
+        set((state) => ({
+          absensiGuruList: state.absensiGuruList.map((r) =>
+            r.id === id ? { ...r, verifikasiAtasan: status } : r
+          ),
+        }));
+      },
+
+      toggleSdmNotif: () => {
+        set((state) => ({ sdmNotifEnabled: !state.sdmNotifEnabled }));
+      },
+
+      setUserPinPengesahan: (userId, pin) => {
+        set((state) => ({
+          pinPengesahanMap: { ...state.pinPengesahanMap, [userId]: pin },
+        }));
+        get().addAuditLog('SDM & Absensi', 'Update PIN Pengesahan', `PIN pengesahan dokumen akun diperbarui.`);
       },
 
       updateKurikulumMatrixCell: (rowId, kelasKey, kitab, jtm) => {
@@ -1878,6 +2292,92 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
+      syncAgendaFromKalender: () => {
+        const state = get();
+        const kalender = state.kalenderPendidikan;
+        const legendMap = new Map<string, string>();
+        kalender.legend.forEach((l) => legendMap.set(l.code, l.label));
+
+        const BULAN_MAP: Record<string, string> = {
+          januari: '01', februari: '02', maret: '03', april: '04', mei: '05', juni: '06',
+          juli: '07', agustus: '08', september: '09', oktober: '10', november: '11', desember: '12',
+        };
+
+        const IGNORE_CODES = new Set(['LM', 'LP', 'L IMT', 'LHR', 'LD']);
+        const grouped = new Map<string, { code: string; label: string; firstDate: string; countDays: number }>();
+
+        kalender.rows.forEach((row) => {
+          const parts = row.bulan.trim().split(/\s+/);
+          const monthNum = BULAN_MAP[parts[0]?.toLowerCase() || ''] || '01';
+          const yearStr = parts[1] || '2026';
+          Object.entries(row.days).forEach(([dayKey, rawCode]) => {
+            const code = String(rawCode).trim();
+            if (!code || IGNORE_CODES.has(code)) return;
+            const dayPadded = String(Number(dayKey)).padStart(2, '0');
+            const isoDate = `${yearStr}-${monthNum}-${dayPadded}`;
+            const key = `${code}::${row.bulan}`;
+            const existing = grouped.get(key);
+            if (!existing) {
+              grouped.set(key, {
+                code,
+                label: legendMap.get(code) || code,
+                firstDate: isoDate,
+                countDays: 1,
+              });
+            } else {
+              existing.countDays += 1;
+              if (isoDate < existing.firstDate) existing.firstDate = isoDate;
+            }
+          });
+        });
+
+        const existingKeys = new Set(
+          state.agendaKegiatan.map((a) => `${a.sumberKalenderKode || ''}::${a.tanggal.slice(0, 7)}`)
+        );
+        const newAgendas: AgendaKegiatanItem[] = [];
+        grouped.forEach((g) => {
+          const monthKey = `${g.code}::${g.firstDate.slice(0, 7)}`;
+          const alreadyExists =
+            existingKeys.has(monthKey) ||
+            state.agendaKegiatan.some((a) => a.sumberKalenderKode === g.code && a.tanggal.slice(0, 7) === g.firstDate.slice(0, 7));
+          if (!alreadyExists) {
+            newAgendas.push({
+              id: `agk-cal-${g.code.replace(/\s+/g, '')}-${g.firstDate}`,
+              nama: `${g.label} (${g.code})`,
+              tanggal: g.firstDate,
+              lokasi: 'Komplek PP NU Darussalam Karangdadap',
+              ketuaPanitia: 'Ust. Khoirul Umam',
+              anggaran: 5000000,
+              status: 'Persiapan',
+              keterangan: `Tersinkron otomatis dari Kalender Pendidikan Ma'arif (${g.countDays} hari pelaksanaan).`,
+              sumberKalenderKode: g.code,
+              panitiaList: [
+                { id: `pan-${Date.now()}-1`, jabatan: 'Penanggung Jawab Umum', nama: 'KH. Amin Maizun', tugasTupoksi: 'Pengawasan dan arahan syar\'i kegiatan.' },
+                { id: `pan-${Date.now()}-2`, jabatan: 'Ketua Panitia Pelaksana', nama: 'Ust. Khoirul Umam', tugasTupoksi: 'Koordinasi teknis persiapan hingga evaluasi LPJ.' },
+              ],
+              rabItems: [
+                { id: `rab-${Date.now()}-1`, uraian: `Konsumsi & Perlengkapan ${g.label}`, qty: 1, satuan: 'Paket', hargaSatuan: 5000000 },
+              ],
+              rundownList: [
+                { id: `rnd-${Date.now()}-1`, waktu: '08.00 - 11.30', sesi: `Pelaksanaan Utama ${g.label}`, penanggungJawab: 'Ust. Khoirul Umam', lokasi: 'PP NU Darussalam' },
+              ],
+              proposal: {
+                latarBelakang: `Program kerja resmi berdasarkan Kalender Pendidikan T.A. ${kalender.tahunAjaran}.`,
+                tujuan: `Menyukseskan agenda ${g.label} dengan tertib dan berkah.`,
+                status: 'Draf',
+              },
+              lpj: { ringkasanHasil: '', totalRealisasi: 0, kendala: '', status: 'Belum Disusun' },
+            });
+          }
+        });
+
+        if (newAgendas.length > 0) {
+          set((s) => ({ agendaKegiatan: [...s.agendaKegiatan, ...newAgendas] }));
+          get().addAuditLog("Kema'hadiyahan", 'Sinkron Kalender Pendidikan', `${newAgendas.length} agenda baru disinkronkan dari Kalender Pendidikan Ma'arif.`);
+        }
+        return newAgendas.length;
+      },
+
       updateNISConfig: (config) => {
         set({ nisConfig: config });
         get().addAuditLog('Pengaturan', 'Update NIS', `Pengaturan format NIS diperbarui: prefix=${config.prefix}, nomorAwal=${config.nomorAwal}.`);
@@ -1885,7 +2385,57 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'erp-darussalam-storage-v3',
+      merge: (persistedState: unknown, currentState: AppState): AppState => {
+        const persisted = (persistedState || {}) as Partial<AppState>;
+        const merged: AppState = { ...currentState, ...persisted };
+
+        // Always keep core & newly seeded individual accounts up to date by ID
+        const existingAccountIds = new Set((persisted.userAccounts || []).map((u) => u.id));
+        const missingAccounts = SEED_USERS.filter((u) => !existingAccountIds.has(u.id));
+        merged.userAccounts = [...(persisted.userAccounts || SEED_USERS), ...missingAccounts];
+
+        // Ensure new sdm_absensi_monitoring permissions and fiturWewenang stay synced for existing localStorage users
+        const existingFiturIds = new Set((merged.fiturWewenang || []).map((f) => f.id));
+        const missingFiturs = FITUR_WEWENANG_LIST.filter((f) => !existingFiturIds.has(f.id));
+        if (missingFiturs.length > 0) {
+          merged.fiturWewenang = [...(merged.fiturWewenang || []), ...missingFiturs];
+        }
+        const mergedPerms = { ...(merged.rolePermissions || DEFAULT_ROLE_PERMS) };
+        (['admin_sistem', 'pengasuh', 'kepala_madin', 'sekretaris'] as const).forEach((roleKey) => {
+          const baseRolePerms = DEFAULT_ROLE_PERMS[roleKey] || {};
+          const savedRolePerms = mergedPerms[roleKey] || {};
+          if (!savedRolePerms.sdm_absensi_monitoring && baseRolePerms.sdm_absensi_monitoring) {
+            mergedPerms[roleKey] = {
+              ...savedRolePerms,
+              sdm_absensi_monitoring: baseRolePerms.sdm_absensi_monitoring,
+            };
+          }
+        });
+        merged.rolePermissions = mergedPerms;
+
+        // If still in demo mode, cleanly merge newly seeded asatidz (ust-16..ust-32), payroll, and availability
+        if (persisted.isDemoMode !== false) {
+          const existingUstIds = new Set((persisted.ustadzList || []).map((u) => u.id));
+          const missingUst = SEED_USTADZ_LIST.filter((u) => !existingUstIds.has(u.id));
+          merged.ustadzList = [...(persisted.ustadzList || SEED_USTADZ_LIST), ...missingUst];
+
+          const existingPayIds = new Set((persisted.ustadzPayroll || []).map((p) => p.ustadzId));
+          const missingPay = SEED_USTADZ_PAYROLL.filter((p) => !existingPayIds.has(p.ustadzId));
+          merged.ustadzPayroll = [...(persisted.ustadzPayroll || SEED_USTADZ_PAYROLL), ...missingPay];
+
+          const existingAvailIds = new Set((persisted.guruAvailability || []).map((g) => g.ustadzId));
+          const missingAvail = SEED_GURU_AVAILABILITY.filter((g) => !existingAvailIds.has(g.ustadzId));
+          merged.guruAvailability = [...(persisted.guruAvailability || SEED_GURU_AVAILABILITY), ...missingAvail];
+        }
+
+        return merged;
+      },
       partialize: (state) => ({
+        isDemoMode: state.isDemoMode,
+        userAccounts: state.userAccounts,
+        printOrientation: state.printOrientation,
+        pengasuhTtdUrl: state.pengasuhTtdUrl,
+        waliKelasTtdMap: state.waliKelasTtdMap,
         nisConfig: state.nisConfig,
         nisCounter: state.nisCounter,
         currentTahunAjaran: state.currentTahunAjaran,
@@ -1900,6 +2450,10 @@ export const useAppStore = create<AppState>()(
         ustadzPayroll: state.ustadzPayroll,
         jadwalMaarifan: state.jadwalMaarifan,
         absensiGuruList: state.absensiGuruList,
+        izinBadalGuruList: state.izinBadalGuruList,
+        activeGuruShiftMap: state.activeGuruShiftMap,
+        sdmNotifEnabled: state.sdmNotifEnabled,
+        pinPengesahanMap: state.pinPengesahanMap,
         baganOrganisasi: state.baganOrganisasi,
         rabImtihan: state.rabImtihan,
         rekapAnggaranBulanan: state.rekapAnggaranBulanan,

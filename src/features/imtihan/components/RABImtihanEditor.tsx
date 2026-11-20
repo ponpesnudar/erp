@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../../../lib/store.ts';
 import { RabItem } from '../../../data/seed/pondokData.ts';
+import { PrintOrientationControl } from '../../../components/common/PrintOrientationControl.tsx';
 
 export interface RABImtihanEditorProps {
   /** Optional custom items */
@@ -223,6 +224,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <PrintOrientationControl recommended="portrait" compact />
             <button
               type="button"
               onClick={() => handleOpenTambah()}
@@ -603,7 +605,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
         ========================================================================
       */}
       {showItemModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 no-print print:hidden">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">

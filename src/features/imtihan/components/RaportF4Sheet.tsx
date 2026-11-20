@@ -1,5 +1,9 @@
 import React from 'react';
-import { MAPEL_PER_TINGKAT, type SantriRecord } from '../../../data/seed/pondokData.ts';
+import {
+  MAPEL_PER_TINGKAT,
+  SEED_MAPEL_IMTIHAN,
+  type SantriRecord,
+} from '../../../data/seed/pondokData.ts';
 import type { NilaiSantriMapel } from '../../../lib/store.ts';
 import { predikat } from '../../../lib/rules.ts';
 
@@ -16,6 +20,9 @@ export interface RaportF4SheetProps {
   nilaiList: NilaiSantriMapel[];
   totalSantriKelas: number;
   peringkatKelas: number;
+  pengasuhTtdUrl?: string;
+  waliKelasTtdUrl?: string;
+  isLast?: boolean;
 }
 
 const ARABIC_ONES = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثانية', 'تسعة'];
@@ -91,6 +98,9 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
   nilaiList,
   totalSantriKelas,
   peringkatKelas,
+  pengasuhTtdUrl,
+  waliKelasTtdUrl,
+  isLast = false,
 }) => {
   const santriGrades = nilaiList.filter((n) => n.santriId === santri.id);
   const firstRec = santriGrades[0];
@@ -103,8 +113,12 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
     const legacyMatch = DEFAULT_RAPORT_SUBJECTS.find((d) =>
       subj.nama.toLowerCase().includes(d.mapelLatin.toLowerCase().split(' ')[0])
     );
+    const mapelObj = SEED_MAPEL_IMTIHAN.find(
+      (m) => m.tingkat === santri.tingkat && m.kode.toUpperCase() === `${subj.kodePrefix}-${santri.tingkat}`
+    );
     const rec = santriGrades.find((g) => {
       const idUpper = g.mapelId.toUpperCase();
+      if (mapelObj && g.mapelId === mapelObj.id) return true;
       if (idUpper.startsWith(`${subj.kodePrefix}-${santri.tingkat}`)) return true;
       if (legacyMatch && g.mapelId === legacyMatch.mapelId) return true;
       return false;
@@ -150,9 +164,11 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
   return (
     <div
       dir="rtl"
-      className="bg-white border border-slate-800 p-6 sm:p-7 mx-auto text-black shadow-xl printable-area page-break-after page-break-inside-avoid max-w-[215mm] min-h-[320mm] flex flex-col justify-between font-sans"
+      className={`bg-white border border-slate-800 p-5 sm:p-6 print:p-1.5 print:border-0 print:shadow-none mx-auto text-black shadow-xl printable-area ${
+        !isLast ? 'page-break-after' : ''
+      } page-break-inside-avoid max-w-[215mm] min-h-[275mm] print:min-h-0 flex flex-col justify-start gap-2.5 print:gap-2 font-sans`}
     >
-      <div className="space-y-3">
+      <div className="space-y-2.5 print:space-y-1.5">
         {/* KOP RAPORT RTL (Logo Top Right + Arabic Header Center) */}
         <div className="flex items-center justify-between gap-4 pb-2 border-b-2 border-black">
           <img
@@ -400,23 +416,46 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
         </div>
       </div>
 
-      {/* TANDA TANGAN 3 PIHAK RTL */}
-      <div className="pt-4 grid grid-cols-3 text-center text-xs font-arabic">
+      {/* TANDA TANGAN 3 PIHAK RTL — LANGSUNG DI BAWAH TANGGAL PENYERAHAN */}
+      <div className="pt-1.5 print:pt-1 grid grid-cols-3 text-center text-xs font-arabic items-end">
         <div>
-          <p className="font-bold mb-14">والي المريد</p>
+          <p className="font-bold">والي المريد</p>
+          <div className="h-12 print:h-11" />
           <p className="font-sans font-bold text-[11px]" dir="ltr">
             ( {santri.namaWali} )
           </p>
         </div>
 
         <div>
-          <p className="text-[11px]">يعرف</p>
-          <p className="font-bold mb-11">مدير المعهد</p>
+          <p className="text-[11px] leading-tight">يعرف</p>
+          <p className="font-bold">مدير المعهد</p>
+          <div className="h-12 print:h-11 flex items-center justify-center my-0.5">
+            {pengasuhTtdUrl ? (
+              <img
+                src={pengasuhTtdUrl}
+                alt="TTD Pengasuh"
+                className="h-12 print:h-11 max-w-[140px] mx-auto object-contain"
+              />
+            ) : (
+              <div className="h-10" />
+            )}
+          </div>
           <p className="font-bold underline text-sm">كياهي أمين مأزون الحاج</p>
         </div>
 
         <div>
-          <p className="font-bold mb-14">والي الفصل</p>
+          <p className="font-bold">والي الفصل</p>
+          <div className="h-12 print:h-11 flex items-center justify-center my-0.5">
+            {waliKelasTtdUrl ? (
+              <img
+                src={waliKelasTtdUrl}
+                alt="TTD Wali Kelas"
+                className="h-12 print:h-11 max-w-[140px] mx-auto object-contain"
+              />
+            ) : (
+              <div className="h-10" />
+            )}
+          </div>
           <p className="font-sans font-bold text-[11px]" dir="ltr">
             {waliKelas}
           </p>

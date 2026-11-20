@@ -20,6 +20,10 @@ import {
   CheckCircle2,
   ArrowLeft,
   MoveHorizontal,
+  CalendarDays,
+  MapPin,
+  Users2,
+  X,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -112,6 +116,7 @@ export const GlobalDashboard: React.FC<GlobalDashboardProps> = ({ onNavigate }) 
     rekapAnggaranBulanan,
     ustadzPayroll,
     agendaKegiatan,
+    kalenderPendidikan,
     absensiSessions,
     absensiGuruList,
     soalSubmissions,
@@ -138,6 +143,20 @@ export const GlobalDashboard: React.FC<GlobalDashboardProps> = ({ onNavigate }) 
   );
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const [reorderMode, setReorderMode] = useState<boolean>(false);
+  const [kalenderFilter, setKalenderFilter] = useState<'Semua' | 'Pengajian' | 'Libur Santri' | 'Rapat & Evaluasi' | 'Imtihan & PHBI'>('Semua');
+  const [selectedKalenderEvent, setSelectedKalenderEvent] = useState<{
+    id: string;
+    judul: string;
+    kode: string;
+    kategori: 'Pengajian' | 'Libur Santri' | 'Rapat & Evaluasi' | 'Imtihan & PHBI';
+    bulanLabel: string;
+    tanggalDisplay: string;
+    isoDate: string;
+    bgColor: string;
+    textColor: string;
+    deskripsi: string;
+    linkedAgenda?: (typeof agendaKegiatan)[number];
+  } | null>(null);
 
   // Periode laporan bulanan (default bulan terakhir pada rekapAnggaranBulanan)
   const periodOptions = useMemo(() => {
@@ -1486,6 +1505,272 @@ export const GlobalDashboard: React.FC<GlobalDashboardProps> = ({ onNavigate }) 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {summaryOrder.map((cardId, idx) => renderSummaryCard(cardId, idx))}
       </div>
+
+      {/* Kalender Akademik & Agenda Pondok Terintegrasi */}
+      {(() => {
+        const legendMap = new Map(kalenderPendidikan.legend.map((l) => [l.code, l]));
+        const categorizeCode = (
+          code: string
+        ): 'Pengajian' | 'Libur Santri' | 'Rapat & Evaluasi' | 'Imtihan & PHBI' => {
+          if (['LP', 'LM', 'L IMT', 'LHR', 'LD', 'LHS', 'HUT', 'MLD', 'HR'].includes(code)) {
+            return 'Libur Santri';
+          }
+          if (['PS', 'DZB', 'Z', 'IFT', 'TSY', 'HF'].includes(code)) {
+            return 'Pengajian';
+          }
+          if (['EV', 'SDK', 'KS', 'IN', 'PR', 'KSB', 'KSL', 'KDS', 'MTS', 'R'].includes(code)) {
+            return 'Rapat & Evaluasi';
+          }
+          return 'Imtihan & PHBI';
+        };
+
+        type UnifiedKalenderItem = NonNullable<typeof selectedKalenderEvent>;
+        const groupedMap = new Map<string, UnifiedKalenderItem & { daysNums: number[] }>();
+
+        kalenderPendidikan.rows.forEach((row) => {
+          const parts = row.bulan.trim().split(/\s+/);
+          const monthNum = BULAN_MAP[parts[0]] || '01';
+          const yearStr = parts[1] || '2026';
+
+          Object.entries(row.days).forEach(([dayKey, rawCode]) => {
+            const code = String(rawCode).trim();
+            if (!code || code === 'LM') return; // skip routine Friday off so key academic agenda stands out
+            const dayNum = Number(dayKey);
+            const groupKey = `${row.bulan}::${code}`;
+            const leg = legendMap.get(code);
+            const label = leg?.label || code;
+            const kategori = categorizeCode(code);
+            const firstIso = `${yearStr}-${monthNum}-${String(dayNum).padStart(2, '0')}`;
+            const linked = agendaKegiatan.find(
+              (a) =>
+                a.sumberKalenderKode === code ||
+                a.tanggal.startsWith(`${yearStr}-${monthNum}`) &&
+                  a.nama.toLowerCase().includes(label.toLowerCase().split(' ')[0])
+            );
+
+            const ex = groupedMap.get(groupKey);
+            if (!ex) {
+              groupedMap.set(groupKey, {
+                id: `kal-${groupKey}`,
+                judul: linked ? linked.nama : label,
+                kode: code,
+                kategori,
+                bulanLabel: row.bulan,
+                tanggalDisplay: `${dayNum} ${row.bulan}`,
+                isoDate: firstIso,
+                bgColor: leg?.bgColor || '#0B5D3B',
+                textColor: leg?.textColor || '#FFFFFF',
+                deskripsi:
+                  linked?.keterangan ||
+                  `Agenda resmi Kalender Pendidikan Ma'arif (${label}) bulan ${row.bulan}.`,
+                linkedAgenda: linked,
+                daysNums: [dayNum],
+              });
+            } else {
+              ex.daysNums.push(dayNum);
+              const sorted = [...ex.daysNums].sort((a, b) => a - b);
+              ex.tanggalDisplay =
+                sorted.length > 1
+                  ? `${sorted[0]}–${sorted[sorted.length - 1]} ${row.bulan} (${sorted.length} hari)`
+                  : `${sorted[0]} ${row.bulan}`;
+            }
+          });
+        });
+
+        // Also include standalone Kema'hadiyahan agendas not already matched by kode
+        agendaKegiatan.forEach((ag) => {
+          const alreadyListed = Array.from(groupedMap.values()).some(
+            (item) => item.linkedAgenda?.id === ag.id
+          );
+          if (!alreadyListed) {
+            groupedMap.set(`ag-${ag.id}`, {
+              id: `ag-${ag.id}`,
+              judul: ag.nama,
+              kode: ag.sumberKalenderKode || 'PHBI',
+              kategori: 'Imtihan & PHBI',
+              bulanLabel: formatTanggalPendek(ag.tanggal),
+              tanggalDisplay: formatTanggalPendek(ag.tanggal),
+              isoDate: ag.tanggal,
+              bgColor: '#065F46',
+              textColor: '#FFFFFF',
+              deskripsi: ag.keterangan || `Kegiatan Kema'hadiyahan di ${ag.lokasi}`,
+              linkedAgenda: ag,
+              daysNums: [1],
+            });
+          }
+        });
+
+        const allItems = Array.from(groupedMap.values()).sort((a, b) =>
+          a.isoDate.localeCompare(b.isoDate)
+        );
+        const filteredItems =
+          kalenderFilter === 'Semua'
+            ? allItems
+            : allItems.filter((i) => i.kategori === kalenderFilter);
+
+        return (
+          <div className="rounded-2xl bg-white p-5 border border-slate-200 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4 text-emerald-700" />
+                  <span>Kalender Akademik &amp; Agenda Terintegrasi ({kalenderPendidikan.tahunAjaran})</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Tersinkron otomatis dari Kalender Pendidikan Ma&apos;arif &amp; Kema&apos;hadiyahan · Klik agenda untuk melihat panitia, RAB &amp; rundown
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5 no-print">
+                {(['Semua', 'Pengajian', 'Libur Santri', 'Rapat & Evaluasi', 'Imtihan & PHBI'] as const).map(
+                  (cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setKalenderFilter(cat)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
+                        kalenderFilter === cat
+                          ? 'bg-emerald-800 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
+              {filteredItems.slice(0, 18).map((ev) => (
+                <button
+                  key={ev.id}
+                  type="button"
+                  onClick={() => setSelectedKalenderEvent(ev)}
+                  className="text-left p-3 rounded-xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/40 transition flex items-start gap-3 group"
+                >
+                  <span
+                    className="px-2 py-1 rounded-lg text-[10px] font-black shrink-0 min-w-[46px] text-center"
+                    style={{ backgroundColor: ev.bgColor, color: ev.textColor }}
+                  >
+                    {ev.kode}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-900 group-hover:text-emerald-800 truncate">
+                      {ev.judul}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                      {ev.tanggalDisplay} · <span className="font-semibold">{ev.kategori}</span>
+                    </p>
+                    {ev.linkedAgenda && (
+                      <p className="text-[10px] text-emerald-700 font-semibold mt-0.5 truncate">
+                        Ketua: {ev.linkedAgenda.ketuaPanitia} · RAB {formatRupiahShort(ev.linkedAgenda.anggaran)}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Modal Detail Agenda Kalender Akademik */}
+      {selectedKalenderEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="px-2.5 py-1 rounded-lg text-xs font-black"
+                  style={{
+                    backgroundColor: selectedKalenderEvent.bgColor,
+                    color: selectedKalenderEvent.textColor,
+                  }}
+                >
+                  {selectedKalenderEvent.kode}
+                </span>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">
+                    {selectedKalenderEvent.judul}
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    {selectedKalenderEvent.tanggalDisplay} · {selectedKalenderEvent.kategori}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedKalenderEvent(null)}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">
+                {selectedKalenderEvent.deskripsi}
+              </p>
+
+              {selectedKalenderEvent.linkedAgenda ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                      <Users2 className="w-3.5 h-3.5" />
+                      Kepanitiaan &amp; Anggaran Kema&apos;hadiyahan
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-800 text-white">
+                      {selectedKalenderEvent.linkedAgenda.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <p className="flex items-center gap-1 text-slate-600">
+                      <MapPin className="w-3 h-3 text-emerald-700 shrink-0" />
+                      <span className="truncate">{selectedKalenderEvent.linkedAgenda.lokasi}</span>
+                    </p>
+                    <p className="text-slate-700 font-semibold text-right">
+                      RAB: {formatRupiahFull(selectedKalenderEvent.linkedAgenda.anggaran)}
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    Ketua Panitia: <strong>{selectedKalenderEvent.linkedAgenda.ketuaPanitia}</strong> ·{' '}
+                    {selectedKalenderEvent.linkedAgenda.panitiaList?.length || 0} personel panitia ·{' '}
+                    {selectedKalenderEvent.linkedAgenda.rundownList?.length || 0} sesi rundown
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-600">
+                  Agenda ini terdaftar pada Kalender Pendidikan Ma&apos;arif. Anda dapat menyinkronkan ke Kema&apos;hadiyahan untuk menyusun Struktur Panitia, RAB, Rundown, Proposal, &amp; LPJ.
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedKalenderEvent(null);
+                  navigate('maarifan');
+                }}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Buka Kalender Ma&apos;arifan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedKalenderEvent(null);
+                  navigate('kemahadiyahan');
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-900"
+              >
+                Kelola Panitia &amp; RAB di Kema&apos;hadiyahan →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   GraduationCap,
   CheckCircle2,
@@ -6,12 +6,23 @@ import {
   FileText,
   Award,
   Save,
-  Users,
   Search,
+  Upload,
+  PenTool,
+  Eraser,
+  BookOpen,
 } from 'lucide-react';
 import { useAppStore } from '../../../lib/store.ts';
-import { DAFTAR_KELAS_DINIYAH } from '../../../data/seed/pondokData.ts';
+import { useAuth } from '../../../lib/auth.ts';
+import {
+  DAFTAR_KELAS_DINIYAH,
+  MAPEL_PER_TINGKAT,
+  SEED_MAPEL_IMTIHAN,
+  type MapelTingkatTemplate,
+} from '../../../data/seed/pondokData.ts';
 import { RaportF4Sheet, getArabicKelas } from './RaportF4Sheet.tsx';
+import { PrintOrientationControl } from '../../../components/common/PrintOrientationControl.tsx';
+import { PrintKopPondok } from '../../../components/common/PrintKopPondok.tsx';
 
 function sortClassesCanonical(classes: string[]): string[] {
   const orderMap = new Map<string, number>(DAFTAR_KELAS_DINIYAH.map((c, i) => [c, i]));
@@ -23,29 +34,91 @@ function sortClassesCanonical(classes: string[]): string[] {
   });
 }
 
-/* =========================================================================
-   1. INPUT NILAI SPREADSHEET + CLASS ENTRY PROGRESS TRACKER
-========================================================================= */
-export const SubTabInputNilaiSpreadsheet: React.FC = () => {
-  const { santriList, mapelList, nilaiList, updateNilaiSantri, currentTahunAjaran } = useAppStore();
+function resolveMapelIdForTemplate(
+  subj: MapelTingkatTemplate,
+  tingkat: number,
+  mapelList: { id: string; kode: string; nama: string; tingkat: number }[]
+): string {
+  const exact = mapelList.find(
+    (m) => m.tingkat === tingkat && m.kode.toUpperCase() === `${subj.kodePrefix}-${tingkat}`
+  );
+  if (exact) return exact.id;
+  const byName = mapelList.find(
+    (m) =>
+      m.tingkat === tingkat &&
+      m.nama.toLowerCase().includes(subj.nama.toLowerCase().split(' ')[0])
+  );
+  if (byName) return byName.id;
+  const seedExact = SEED_MAPEL_IMTIHAN.find(
+    (m) => m.tingkat === tingkat && m.kode.toUpperCase() === `${subj.kodePrefix}-${tingkat}`
+  );
+  return seedExact?.id || `${subj.kodePrefix}-${tingkat}`;
+}
 
+/* =========================================================================
+   1. INPUT NILAI SPREADSHEET + MODE WALI KELAS (SEMUA MAPEL)
+======================================================================== */
+export const SubTabInputNilaiSpreadsheet: React.FC = () => {
+  const {
+    santriList,
+    mapelList,
+    nilaiList,
+    ustadzList,
+    updateNilaiSantri,
+    currentTahunAjaran,
+  } = useAppStore();
+
+  const { currentUser } = useAuth();
   const uniqueClasses = useMemo(
     () => sortClassesCanonical(Array.from(new Set(santriList.map((s) => s.kelas)))),
     [santriList]
   );
 
+  const [entryMode, setEntryMode] = useState<'mapel' | 'walikelas'>('walikelas');
   const [selectedKelas, setSelectedKelas] = useState<string>(uniqueClasses[0] || '1 A PUTRA');
   const currentTingkat = parseInt(selectedKelas.charAt(0)) || 1;
   const levelMapels = useMemo(
     () => mapelList.filter((m) => m.tingkat === currentTingkat),
     [mapelList, currentTingkat]
   );
-  const [selectedMapelId, setSelectedMapelId] = useState<string>(levelMapels[0]?.id || mapelList[0]?.id || 'm-04');
+  const tingkatTemplates = useMemo(
+    () => MAPEL_PER_TINGKAT[currentTingkat] || MAPEL_PER_TINGKAT[1],
+    [currentTingkat]
+  );
+  const [selectedMapelId, setSelectedMapelId] = useState<string>(
+    levelMapels[0]?.id || mapelList[0]?.id || 'm-04'
+  );
   const [semester, setSemester] = useState<'1' | '2'>('1');
-  const [waliKelas, setWaliKelas] = useState<string>('Ust. Abdur Rahman');
+
+  const defaultWaliForClass = (kls: string) => {
+    const matched = ustadzList.find((u) =>
+      `${u.tugasTambahanSatminkal || ''} ${u.jabatanUtama || ''}`
+        .toUpperCase()
+        .includes(kls.toUpperCase())
+    );
+    return matched?.nama || 'Ust. Abdur Rahman';
+  };
+
+  const [waliKelas, setWaliKelas] = useState<string>(() =>
+    defaultWaliForClass(uniqueClasses[0] || '1 A PUTRA')
+  );
   const [toast, setToast] = useState<string>('');
 
-  // Draft map by santriId for instant spreadsheet editing
+  // Auto-sync kelas & wali kelas saat login sebagai guru/wali kelas tertentu
+  useEffect(() => {
+    const matchedUstadz = ustadzList.find(
+      (u) => u.nama.toLowerCase() === currentUser.nama.toLowerCase()
+    );
+    const roleHint = `${currentUser.peranLabel || ''} ${matchedUstadz?.tugasTambahanSatminkal || ''} ${matchedUstadz?.jabatanUtama || ''}`.toUpperCase();
+    const detectedClass = uniqueClasses.find((k) => roleHint.includes(k.toUpperCase()));
+    if (detectedClass) {
+      setSelectedKelas(detectedClass);
+      setWaliKelas(matchedUstadz?.nama || currentUser.nama);
+      setEntryMode('walikelas');
+    }
+  }, [currentUser.id, currentUser.nama, currentUser.peranLabel, ustadzList, uniqueClasses]);
+
+  // Draft map for single-mapel mode: santriId -> row fields
   const [draftEdits, setDraftEdits] = useState<
     Record<
       string,
@@ -53,6 +126,27 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
         ujian: number;
         harian: number;
         lisan: number;
+        sakit: number;
+        izin: number;
+        alpa: number;
+        akhlaq: number;
+        istiqomah: number;
+        ubudiyah: number;
+        catatan: string;
+      }
+    >
+  >({});
+
+  // Draft map for Wali Kelas multi-mapel mode: `${santriId}__${mapelId}` -> { ujian, harian, lisan }
+  const [waliMapelDrafts, setWaliMapelDrafts] = useState<
+    Record<string, { ujian: number; harian: number; lisan: number }>
+  >({});
+
+  // Draft map for Wali Kelas shared non-mapel fields: santriId -> { sakit, izin, alpa, akhlaq, istiqomah, ubudiyah, catatan }
+  const [waliMetaDrafts, setWaliMetaDrafts] = useState<
+    Record<
+      string,
+      {
         sakit: number;
         izin: number;
         alpa: number;
@@ -84,6 +178,31 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
     };
   };
 
+  const getWaliMapelCell = (santriId: string, mapelId: string, index: number, tingkat: number) => {
+    const key = `${santriId}__${mapelId}`;
+    if (waliMapelDrafts[key]) return waliMapelDrafts[key];
+    const existing = nilaiList.find((n) => n.santriId === santriId && n.mapelId === mapelId);
+    return {
+      ujian: existing?.nilaiAngka ?? 84 + ((index + tingkat) % 9),
+      harian: existing?.nilaiHarian ?? 82 + ((index * 2) % 8),
+      lisan: existing?.nilaiLisan ?? 85,
+    };
+  };
+
+  const getWaliMeta = (santriId: string) => {
+    if (waliMetaDrafts[santriId]) return waliMetaDrafts[santriId];
+    const anyRec = nilaiList.find((n) => n.santriId === santriId);
+    return {
+      sakit: anyRec?.sakit ?? 0,
+      izin: anyRec?.izin ?? 1,
+      alpa: anyRec?.alpa ?? 0,
+      akhlaq: anyRec?.nilaiAkhlaq ?? 88,
+      istiqomah: anyRec?.nilaiIstiqomah ?? 86,
+      ubudiyah: anyRec?.nilaiUbudiyah ?? 90,
+      catatan: anyRec?.catatanWaliKelas ?? 'Tingkatkan semangat muthalaah kitab & shalat berjamaah.',
+    };
+  };
+
   const handleCellChange = (
     santriId: string,
     field: keyof ReturnType<typeof getRowValues>,
@@ -91,6 +210,32 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
   ) => {
     const cur = getRowValues(santriId);
     setDraftEdits((prev) => ({
+      ...prev,
+      [santriId]: { ...cur, [field]: val },
+    }));
+  };
+
+  const handleWaliMapelChange = (
+    santriId: string,
+    mapelId: string,
+    index: number,
+    field: 'ujian' | 'harian' | 'lisan',
+    val: number
+  ) => {
+    const cur = getWaliMapelCell(santriId, mapelId, index, currentTingkat);
+    setWaliMapelDrafts((prev) => ({
+      ...prev,
+      [`${santriId}__${mapelId}`]: { ...cur, [field]: val },
+    }));
+  };
+
+  const handleWaliMetaChange = (
+    santriId: string,
+    field: keyof ReturnType<typeof getWaliMeta>,
+    val: string | number
+  ) => {
+    const cur = getWaliMeta(santriId);
+    setWaliMetaDrafts((prev) => ({
       ...prev,
       [santriId]: { ...cur, [field]: val },
     }));
@@ -154,11 +299,83 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
     setTimeout(() => setToast(''), 4000);
   };
 
+  const handleSaveWaliRow = (santri: (typeof santriList)[0]) => {
+    const meta = getWaliMeta(santri.id);
+    tingkatTemplates.forEach((subj, idx) => {
+      const mId = resolveMapelIdForTemplate(subj, currentTingkat, mapelList);
+      const cell = getWaliMapelCell(santri.id, mId, idx, currentTingkat);
+      updateNilaiSantri({
+        santriId: santri.id,
+        santriNama: santri.nama,
+        nis: santri.nis,
+        kelas: santri.kelas,
+        mapelId: mId,
+        nilaiAngka: cell.ujian,
+        nilaiHarian: cell.harian,
+        nilaiLisan: cell.lisan,
+        nilaiAkhlaq: meta.akhlaq,
+        nilaiIstiqomah: meta.istiqomah,
+        nilaiUbudiyah: meta.ubudiyah,
+        nilaiMQK: cell.lisan,
+        sakit: meta.sakit,
+        izin: meta.izin,
+        alpa: meta.alpa,
+        semester,
+        tahunAjaran: currentTahunAjaran,
+        waliKelas,
+        hafalanNadhom: 'Tercapai Sesuai Target',
+        catatanWaliKelas: meta.catatan,
+      });
+    });
+    setToast(
+      `Semua ${tingkatTemplates.length} mapel untuk ${santri.nama} (${selectedKelas}) tersimpan.`
+    );
+    setTimeout(() => setToast(''), 3500);
+  };
+
+  const handleSaveAllWaliKelas = () => {
+    kelasSantri.forEach((santri) => {
+      const meta = getWaliMeta(santri.id);
+      tingkatTemplates.forEach((subj, idx) => {
+        const mId = resolveMapelIdForTemplate(subj, currentTingkat, mapelList);
+        const cell = getWaliMapelCell(santri.id, mId, idx, currentTingkat);
+        updateNilaiSantri({
+          santriId: santri.id,
+          santriNama: santri.nama,
+          nis: santri.nis,
+          kelas: santri.kelas,
+          mapelId: mId,
+          nilaiAngka: cell.ujian,
+          nilaiHarian: cell.harian,
+          nilaiLisan: cell.lisan,
+          nilaiAkhlaq: meta.akhlaq,
+          nilaiIstiqomah: meta.istiqomah,
+          nilaiUbudiyah: meta.ubudiyah,
+          nilaiMQK: cell.lisan,
+          sakit: meta.sakit,
+          izin: meta.izin,
+          alpa: meta.alpa,
+          semester,
+          tahunAjaran: currentTahunAjaran,
+          waliKelas,
+          hafalanNadhom: 'Tercapai Sesuai Target',
+          catatanWaliKelas: meta.catatan,
+        });
+      });
+    });
+    setToast(
+      `Berhasil menyimpan semua ${tingkatTemplates.length} mapel untuk ${kelasSantri.length} santri kelas ${selectedKelas}!`
+    );
+    setTimeout(() => setToast(''), 4000);
+  };
+
   // Class Entry Progress Status
   const classProgress = uniqueClasses.map((kls) => {
     const total = santriList.filter((s) => s.kelas === kls).length;
     const savedIds = new Set(
-      nilaiList.filter((n) => n.kelas === kls && n.mapelId === selectedMapelId).map((n) => n.santriId)
+      nilaiList
+        .filter((n) => n.kelas === kls && (entryMode === 'walikelas' || n.mapelId === selectedMapelId))
+        .map((n) => n.santriId)
     );
     return {
       kelas: kls,
@@ -182,9 +399,12 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
 
       {/* Class Entry Progress Tracker */}
       <div className="rounded-2xl bg-white p-4 border border-slate-200 shadow-2xs space-y-2.5 no-print">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-bold text-slate-800">
-            Status Input Nilai per Kelas — Mapel: {currentMapel?.nama}
+            Status Input Nilai per Kelas —{' '}
+            {entryMode === 'walikelas'
+              ? `Semua Mapel Tingkat ${currentTingkat} MDS`
+              : `Mapel: ${currentMapel?.nama}`}
           </span>
           <span className="text-[11px] text-slate-500">Klik kelas untuk membuka lembar input</span>
         </div>
@@ -193,7 +413,13 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
             <button
               key={cp.kelas}
               type="button"
-              onClick={() => setSelectedKelas(cp.kelas)}
+              onClick={() => {
+                setSelectedKelas(cp.kelas);
+                setWaliKelas(defaultWaliForClass(cp.kelas));
+                const nextTingkat = parseInt(cp.kelas.charAt(0)) || 1;
+                const firstLevelMapel = mapelList.find((m) => m.tingkat === nextTingkat);
+                if (firstLevelMapel) setSelectedMapelId(firstLevelMapel.id);
+              }}
               className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
                 selectedKelas === cp.kelas
                   ? 'bg-emerald-800 text-white border-emerald-800'
@@ -215,17 +441,18 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
 
       {/* Header & Controls */}
       <div className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-4 no-print">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
               <GraduationCap className="w-4 h-4 text-emerald-700" />
-              <span>Rekapitulasi & Input Nilai Imtihan (Format Leger Pondok)</span>
+              <span>Rekapitulasi &amp; Input Nilai Imtihan (Format Leger Pondok)</span>
             </h3>
             <p className="text-xs text-slate-500">
-              Input nilai ujian, harian, tes lisan, absensi (S/I/A), sikap, dan catatan wali kelas secara spreadsheet.
+              Pilih <strong>Mode Wali Kelas (Semua Mapel)</strong> untuk input seluruh mapel kelas {selectedKelas} sekaligus dalam 1 leger, atau <strong>Per Mapel</strong> untuk guru bidang studi.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintOrientationControl recommended="landscape" />
             <button
               type="button"
               onClick={() => window.print()}
@@ -236,11 +463,45 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={handleSaveAllKelas}
+              onClick={entryMode === 'walikelas' ? handleSaveAllWaliKelas : handleSaveAllKelas}
               className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>Simpan Semua Kelas ({selectedKelas})</span>
+              <span>
+                {entryMode === 'walikelas'
+                  ? `Simpan Semua Mapel & Santri (${selectedKelas})`
+                  : `Simpan Semua Kelas (${selectedKelas})`}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mode Switcher */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100">
+          <span className="text-xs font-bold text-slate-700">Mode Input Nilai:</span>
+          <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs">
+            <button
+              type="button"
+              onClick={() => setEntryMode('walikelas')}
+              className={`px-3.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+                entryMode === 'walikelas'
+                  ? 'bg-emerald-800 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Mode Wali Kelas (Semua Mapel Kelas {currentTingkat})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setEntryMode('mapel')}
+              className={`px-3.5 py-1.5 rounded-lg font-bold transition ${
+                entryMode === 'mapel'
+                  ? 'bg-emerald-800 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Per 1 Mata Pelajaran
             </button>
           </div>
         </div>
@@ -253,6 +514,7 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
               onChange={(e) => {
                 const nextKelas = e.target.value;
                 setSelectedKelas(nextKelas);
+                setWaliKelas(defaultWaliForClass(nextKelas));
                 const nextTingkat = parseInt(nextKelas.charAt(0)) || 1;
                 const firstLevelMapel = mapelList.find((m) => m.tingkat === nextTingkat);
                 if (firstLevelMapel) setSelectedMapelId(firstLevelMapel.id);
@@ -266,35 +528,48 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">
-              Mata Pelajaran (Tingkat {currentTingkat} MDS)
-            </label>
-            <select
-              value={selectedMapelId}
-              onChange={(e) => setSelectedMapelId(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 font-bold"
-            >
-              {levelMapels.length > 0 && (
-                <optgroup label={`Mapel Tingkat ${currentTingkat} MDS`}>
-                  {levelMapels.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nama} ({m.kitab})
-                    </option>
-                  ))}
+
+          {entryMode === 'mapel' ? (
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Mata Pelajaran (Tingkat {currentTingkat} MDS)
+              </label>
+              <select
+                value={selectedMapelId}
+                onChange={(e) => setSelectedMapelId(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 font-bold"
+              >
+                {levelMapels.length > 0 && (
+                  <optgroup label={`Mapel Tingkat ${currentTingkat} MDS`}>
+                    {levelMapels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nama} ({m.kitab})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="Mata Pelajaran Tingkat Lainnya">
+                  {mapelList
+                    .filter((m) => m.tingkat !== currentTingkat)
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        [Tkt {m.tingkat}] {m.nama} ({m.kitab})
+                      </option>
+                    ))}
                 </optgroup>
-              )}
-              <optgroup label="Mata Pelajaran Tingkat Lainnya">
-                {mapelList
-                  .filter((m) => m.tingkat !== currentTingkat)
-                  .map((m) => (
-                    <option key={m.id} value={m.id}>
-                      [Tkt {m.tingkat}] {m.nama} ({m.kitab})
-                    </option>
-                  ))}
-              </optgroup>
-            </select>
-          </div>
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Cakupan Mapel Aktif ({tingkatTemplates.length} Kitab)
+              </label>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[11px] font-bold text-emerald-900 truncate">
+                {tingkatTemplates.map((t) => t.nama.split(' (')[0]).join(' · ')}
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block font-bold text-slate-700 mb-1">Semester / Cawu</label>
             <select
@@ -318,180 +593,485 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
         </div>
       </div>
 
-      {/* Spreadsheet Table Matching image_c0c3a5a6.png */}
+      {/* Spreadsheet Table: Mode Per Mapel OR Mode Wali Kelas (Semua Mapel) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 overflow-x-auto printable-area">
-        <div className="mb-3 text-center">
+        <PrintKopPondok
+          variant="imtihan"
+          judulDokumen={`REKAPITULASI NILAI IMTIHAN ${semester === '2' ? 'TSANI' : 'AWWAL'} — KELAS ${selectedKelas}`}
+          subJudul={`${
+            entryMode === 'walikelas'
+              ? `Leger Wali Kelas (${tingkatTemplates.length} Mapel)`
+              : `Mapel: ${currentMapel?.nama || '-'}`
+          } · Wali Kelas: ${waliKelas}`}
+          tahunAjaran={currentTahunAjaran}
+        />
+        <div className="mb-3 text-center no-print">
           <h4 className="font-black text-sm uppercase text-slate-900">
             REKAPITULASI NILAI IMTIHAN {semester === '2' ? 'TSANI' : 'AWWAL'} — MADRASAH DINIYAH NU DARUSSALAM
           </h4>
           <p className="text-xs text-slate-600">
-            Kelas: <strong>{selectedKelas}</strong> · Mapel: <strong>{currentMapel?.nama}</strong> · Wali Kelas:{' '}
-            <strong>{waliKelas}</strong> · T.A. {currentTahunAjaran}
+            Kelas: <strong>{selectedKelas}</strong> ·{' '}
+            {entryMode === 'walikelas' ? (
+              <>
+                Mode: <strong>Leger Wali Kelas ({tingkatTemplates.length} Mapel)</strong>
+              </>
+            ) : (
+              <>
+                Mapel: <strong>{currentMapel?.nama}</strong>
+              </>
+            )}{' '}
+            · Wali Kelas: <strong>{waliKelas}</strong> · T.A. {currentTahunAjaran}
           </p>
         </div>
 
-        <table className="w-full text-[11px] border border-slate-300 border-collapse">
-          <thead>
-            <tr className="bg-emerald-900 text-white font-bold text-center">
-              <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 w-8">NO</th>
-              <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 text-left min-w-[160px]">NAMA SANTRI</th>
-              <th colSpan={3} className="border border-emerald-700 py-1 px-2 bg-emerald-800">NILAI MAPEL</th>
-              <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 bg-amber-600">RATA2</th>
-              <th colSpan={3} className="border border-emerald-700 py-1 px-2 bg-slate-800">ABSENSI</th>
-              <th colSpan={3} className="border border-emerald-700 py-1 px-2 bg-sky-900">SIKAP</th>
-              <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 min-w-[160px]">CATATAN WALI KELAS</th>
-              <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 no-print">AKSI</th>
-            </tr>
-            <tr className="bg-slate-100 text-slate-800 font-bold text-center text-[10px]">
-              <th className="border border-slate-300 py-1 px-1 w-14">UJIAN</th>
-              <th className="border border-slate-300 py-1 px-1 w-14">HARIAN</th>
-              <th className="border border-slate-300 py-1 px-1 w-14">LISAN</th>
-              <th className="border border-slate-300 py-1 px-1 w-10">S</th>
-              <th className="border border-slate-300 py-1 px-1 w-10">I</th>
-              <th className="border border-slate-300 py-1 px-1 w-10">A</th>
-              <th className="border border-slate-300 py-1 px-1 w-14">AKHLAQ</th>
-              <th className="border border-slate-300 py-1 px-1 w-14">ISTIQ</th>
-              <th className="border border-slate-300 py-1 px-1 w-14">UBUD</th>
-            </tr>
-          </thead>
-          <tbody>
-            {kelasSantri.map((s, idx) => {
-              const vals = getRowValues(s.id);
-              const rata = ((vals.ujian + vals.harian + vals.lisan) / 3).toFixed(1);
-              const isSaved = nilaiList.some((n) => n.santriId === s.id && n.mapelId === selectedMapelId);
+        {entryMode === 'mapel' ? (
+          <table className="w-full text-[11px] border border-slate-300 border-collapse">
+            <thead>
+              <tr className="bg-emerald-900 text-white font-bold text-center">
+                <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 w-8">
+                  NO
+                </th>
+                <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 text-left min-w-[160px]">
+                  NAMA SANTRI
+                </th>
+                <th colSpan={3} className="border border-emerald-700 py-1 px-2 bg-emerald-800">
+                  NILAI MAPEL
+                </th>
+                <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 bg-amber-600">
+                  RATA2
+                </th>
+                <th colSpan={3} className="border border-emerald-700 py-1 px-2 bg-slate-800">
+                  ABSENSI
+                </th>
+                <th colSpan={3} className="border border-emerald-700 py-1 px-2 bg-sky-900">
+                  SIKAP
+                </th>
+                <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 min-w-[160px]">
+                  CATATAN WALI KELAS
+                </th>
+                <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 no-print">
+                  AKSI
+                </th>
+              </tr>
+              <tr className="bg-slate-100 text-slate-800 font-bold text-center text-[10px]">
+                <th className="border border-slate-300 py-1 px-1 w-14">UJIAN</th>
+                <th className="border border-slate-300 py-1 px-1 w-14">HARIAN</th>
+                <th className="border border-slate-300 py-1 px-1 w-14">LISAN</th>
+                <th className="border border-slate-300 py-1 px-1 w-10">S</th>
+                <th className="border border-slate-300 py-1 px-1 w-10">I</th>
+                <th className="border border-slate-300 py-1 px-1 w-10">A</th>
+                <th className="border border-slate-300 py-1 px-1 w-14">AKHLAQ</th>
+                <th className="border border-slate-300 py-1 px-1 w-14">ISTIQ</th>
+                <th className="border border-slate-300 py-1 px-1 w-14">UBUD</th>
+              </tr>
+            </thead>
+            <tbody>
+              {kelasSantri.map((s, idx) => {
+                const vals = getRowValues(s.id);
+                const rata = ((vals.ujian + vals.harian + vals.lisan) / 3).toFixed(1);
+                const isSaved = nilaiList.some(
+                  (n) => n.santriId === s.id && n.mapelId === selectedMapelId
+                );
 
-              return (
-                <tr key={s.id} className="hover:bg-slate-50">
-                  <td className="border border-slate-300 py-1 px-1.5 text-center font-bold">{idx + 1}</td>
-                  <td className="border border-slate-300 py-1 px-2 font-bold text-slate-900">
-                    {s.nama}
-                    {isSaved && <span className="ml-1 text-emerald-700 text-[10px]">✓</span>}
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={vals.ujian}
-                      onChange={(e) => handleCellChange(s.id, 'ujian', parseFloat(e.target.value) || 0)}
-                      className={`w-full text-center font-bold py-1 rounded ${
-                        vals.ujian < 65 ? 'text-rose-700 bg-rose-50' : 'text-slate-900'
-                      }`}
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={vals.harian}
-                      onChange={(e) => handleCellChange(s.id, 'harian', parseFloat(e.target.value) || 0)}
-                      className="w-full text-center font-bold py-1"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={vals.lisan}
-                      onChange={(e) => handleCellChange(s.id, 'lisan', parseFloat(e.target.value) || 0)}
-                      className="w-full text-center font-bold py-1"
-                    />
-                  </td>
-                  <td className="border border-slate-300 py-1 px-1.5 text-center font-black bg-amber-50 tabular-nums">
-                    {rata}
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="number"
-                      min={0}
-                      value={vals.sakit}
-                      onChange={(e) => handleCellChange(s.id, 'sakit', parseInt(e.target.value) || 0)}
-                      className="w-full text-center py-1"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="number"
-                      min={0}
-                      value={vals.izin}
-                      onChange={(e) => handleCellChange(s.id, 'izin', parseInt(e.target.value) || 0)}
-                      className="w-full text-center py-1"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="number"
-                      min={0}
-                      value={vals.alpa}
-                      onChange={(e) => handleCellChange(s.id, 'alpa', parseInt(e.target.value) || 0)}
-                      className="w-full text-center py-1"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={vals.akhlaq}
-                      onChange={(e) => handleCellChange(s.id, 'akhlaq', parseFloat(e.target.value) || 0)}
-                      className="w-full text-center py-1 font-semibold"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={vals.istiqomah}
-                      onChange={(e) => handleCellChange(s.id, 'istiqomah', parseFloat(e.target.value) || 0)}
-                      className="w-full text-center py-1 font-semibold"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={vals.ubudiyah}
-                      onChange={(e) => handleCellChange(s.id, 'ubudiyah', parseFloat(e.target.value) || 0)}
-                      className="w-full text-center py-1 font-semibold"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-0.5">
-                    <input
-                      type="text"
-                      value={vals.catatan}
-                      onChange={(e) => handleCellChange(s.id, 'catatan', e.target.value)}
-                      className="w-full px-1.5 py-1 text-[10px]"
-                    />
-                  </td>
-                  <td className="border border-slate-300 p-1 text-center no-print">
-                    <button
-                      type="button"
-                      onClick={() => handleSaveRow(s)}
-                      className="px-2 py-1 rounded bg-emerald-800 hover:bg-emerald-900 text-white text-[10px] font-bold"
-                    >
-                      Simpan
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                return (
+                  <tr key={s.id} className="hover:bg-slate-50">
+                    <td className="border border-slate-300 py-1 px-1.5 text-center font-bold">
+                      {idx + 1}
+                    </td>
+                    <td className="border border-slate-300 py-1 px-2 font-bold text-slate-900">
+                      {s.nama}
+                      {isSaved && <span className="ml-1 text-emerald-700 text-[10px]">✓</span>}
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={vals.ujian}
+                        onChange={(e) =>
+                          handleCellChange(s.id, 'ujian', parseFloat(e.target.value) || 0)
+                        }
+                        className={`w-full text-center font-bold py-1 rounded ${
+                          vals.ujian < 65 ? 'text-rose-700 bg-rose-50' : 'text-slate-900'
+                        }`}
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={vals.harian}
+                        onChange={(e) =>
+                          handleCellChange(s.id, 'harian', parseFloat(e.target.value) || 0)
+                        }
+                        className="w-full text-center font-bold py-1"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={vals.lisan}
+                        onChange={(e) =>
+                          handleCellChange(s.id, 'lisan', parseFloat(e.target.value) || 0)
+                        }
+                        className="w-full text-center font-bold py-1"
+                      />
+                    </td>
+                    <td className="border border-slate-300 py-1 px-1.5 text-center font-black bg-amber-50 tabular-nums">
+                      {rata}
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        value={vals.sakit}
+                        onChange={(e) =>
+                          handleCellChange(s.id, 'sakit', parseInt(e.target.value) || 0)
+                        }
+                        className="w-full text-center py-1"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        value={vals.izin}
+                        onChange={(e) =>
+                          handleCellChange(s.id, 'izin', parseInt(e.target.value) || 0)
+                        }
+                        className="w-full text-center py-1"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        value={vals.alpa}
+                        onChange={(e) =>
+                          handleCellChange(s.id, 'alpa', parseInt(e.target.value) || 0)
+                        }
+                        className="w-full text-center py-1"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={vals.akhlaq}
+                        onChange={(e) =>
+                          handleCellChange(s.id, 'akhlaq', parseFloat(e.target.value) || 0)
+                        }
+                        className="w-full text-center py-1 font-semibold"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={vals.istiqomah}
+                        onChange={(e) =>
+                          handleCellChange(s.id, 'istiqomah', parseFloat(e.target.value) || 0)
+                        }
+                        className="w-full text-center py-1 font-semibold"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={vals.ubudiyah}
+                        onChange={(e) =>
+                          handleCellChange(s.id, 'ubudiyah', parseFloat(e.target.value) || 0)
+                        }
+                        className="w-full text-center py-1 font-semibold"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="text"
+                        value={vals.catatan}
+                        onChange={(e) => handleCellChange(s.id, 'catatan', e.target.value)}
+                        className="w-full px-1.5 py-1 text-[10px]"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-1 text-center no-print">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveRow(s)}
+                        className="px-2 py-1 rounded bg-emerald-800 hover:bg-emerald-900 text-white text-[10px] font-bold"
+                      >
+                        Simpan
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          /* MODE WALI KELAS: SEMUA MAPEL SEKALIGUS (UJIAN, HARIAN, LISAN PER MAPEL + S/I/A + SIKAP + CATATAN) */
+          <table className="w-full text-[10px] border border-slate-300 border-collapse">
+            <thead>
+              <tr className="bg-emerald-900 text-white font-bold text-center">
+                <th rowSpan={2} className="border border-emerald-700 py-1.5 px-1.5 w-7">
+                  NO
+                </th>
+                <th
+                  rowSpan={2}
+                  className="border border-emerald-700 py-1.5 px-2 text-left min-w-[140px] sticky left-0 bg-emerald-900"
+                >
+                  NAMA SANTRI
+                </th>
+                {tingkatTemplates.map((subj) => (
+                  <th
+                    key={subj.kodePrefix}
+                    colSpan={3}
+                    className="border border-emerald-700 py-1 px-1 bg-emerald-800 whitespace-nowrap"
+                    title={subj.kitab}
+                  >
+                    {subj.nama.split(' (')[0]}
+                  </th>
+                ))}
+                <th rowSpan={2} className="border border-emerald-700 py-1.5 px-1.5 bg-amber-600">
+                  RATA2
+                </th>
+                <th colSpan={3} className="border border-emerald-700 py-1 px-1 bg-slate-800">
+                  S/I/A
+                </th>
+                <th colSpan={3} className="border border-emerald-700 py-1 px-1 bg-sky-900">
+                  SIKAP
+                </th>
+                <th rowSpan={2} className="border border-emerald-700 py-1.5 px-2 min-w-[130px]">
+                  CATATAN
+                </th>
+                <th rowSpan={2} className="border border-emerald-700 py-1.5 px-1.5 no-print">
+                  AKSI
+                </th>
+              </tr>
+              <tr className="bg-slate-100 text-slate-800 font-bold text-center text-[9px]">
+                {tingkatTemplates.map((subj) => (
+                  <React.Fragment key={`${subj.kodePrefix}-sub`}>
+                    <th className="border border-slate-300 py-0.5 px-0.5 w-9" title="Nilai Imtihan / Ujian">
+                      U
+                    </th>
+                    <th className="border border-slate-300 py-0.5 px-0.5 w-9" title="Nilai Harian">
+                      H
+                    </th>
+                    <th className="border border-slate-300 py-0.5 px-0.5 w-9" title="Nilai Lisan">
+                      L
+                    </th>
+                  </React.Fragment>
+                ))}
+                <th className="border border-slate-300 py-0.5 px-0.5 w-8">S</th>
+                <th className="border border-slate-300 py-0.5 px-0.5 w-8">I</th>
+                <th className="border border-slate-300 py-0.5 px-0.5 w-8">A</th>
+                <th className="border border-slate-300 py-0.5 px-0.5 w-10">AKH</th>
+                <th className="border border-slate-300 py-0.5 px-0.5 w-10">IST</th>
+                <th className="border border-slate-300 py-0.5 px-0.5 w-10">UBD</th>
+              </tr>
+            </thead>
+            <tbody>
+              {kelasSantri.map((s, sIdx) => {
+                const meta = getWaliMeta(s.id);
+                const cells = tingkatTemplates.map((subj, mIdx) => {
+                  const mId = resolveMapelIdForTemplate(subj, currentTingkat, mapelList);
+                  const cell = getWaliMapelCell(s.id, mId, mIdx, currentTingkat);
+                  return { subj, mId, mIdx, cell };
+                });
+                const totalAvg =
+                  cells.reduce((sum, c) => sum + (c.cell.ujian + c.cell.harian) / 2, 0) /
+                  Math.max(1, cells.length);
+
+                return (
+                  <tr key={s.id} className="hover:bg-slate-50">
+                    <td className="border border-slate-300 py-1 px-1 text-center font-bold">
+                      {sIdx + 1}
+                    </td>
+                    <td className="border border-slate-300 py-1 px-1.5 font-bold text-slate-900 sticky left-0 bg-white">
+                      {s.nama}
+                    </td>
+                    {cells.map(({ mId, mIdx, cell }) => (
+                      <React.Fragment key={`${s.id}-${mId}`}>
+                        <td className="border border-slate-300 p-0.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={cell.ujian}
+                            onChange={(e) =>
+                              handleWaliMapelChange(
+                                s.id,
+                                mId,
+                                mIdx,
+                                'ujian',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className={`w-9 text-center font-bold py-0.5 rounded ${
+                              cell.ujian < 65 ? 'text-rose-700 bg-rose-50' : 'text-slate-900'
+                            }`}
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-0.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={cell.harian}
+                            onChange={(e) =>
+                              handleWaliMapelChange(
+                                s.id,
+                                mId,
+                                mIdx,
+                                'harian',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="w-9 text-center py-0.5"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-0.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={cell.lisan}
+                            onChange={(e) =>
+                              handleWaliMapelChange(
+                                s.id,
+                                mId,
+                                mIdx,
+                                'lisan',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="w-9 text-center py-0.5 text-slate-600"
+                          />
+                        </td>
+                      </React.Fragment>
+                    ))}
+                    <td className="border border-slate-300 py-1 px-1.5 text-center font-black bg-amber-50 tabular-nums">
+                      {totalAvg.toFixed(1)}
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        value={meta.sakit}
+                        onChange={(e) =>
+                          handleWaliMetaChange(s.id, 'sakit', parseInt(e.target.value) || 0)
+                        }
+                        className="w-8 text-center py-0.5"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        value={meta.izin}
+                        onChange={(e) =>
+                          handleWaliMetaChange(s.id, 'izin', parseInt(e.target.value) || 0)
+                        }
+                        className="w-8 text-center py-0.5"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        value={meta.alpa}
+                        onChange={(e) =>
+                          handleWaliMetaChange(s.id, 'alpa', parseInt(e.target.value) || 0)
+                        }
+                        className="w-8 text-center py-0.5"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={meta.akhlaq}
+                        onChange={(e) =>
+                          handleWaliMetaChange(s.id, 'akhlaq', parseFloat(e.target.value) || 0)
+                        }
+                        className="w-10 text-center py-0.5 font-semibold"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={meta.istiqomah}
+                        onChange={(e) =>
+                          handleWaliMetaChange(s.id, 'istiqomah', parseFloat(e.target.value) || 0)
+                        }
+                        className="w-10 text-center py-0.5 font-semibold"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={meta.ubudiyah}
+                        onChange={(e) =>
+                          handleWaliMetaChange(s.id, 'ubudiyah', parseFloat(e.target.value) || 0)
+                        }
+                        className="w-10 text-center py-0.5 font-semibold"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-0.5">
+                      <input
+                        type="text"
+                        value={meta.catatan}
+                        onChange={(e) => handleWaliMetaChange(s.id, 'catatan', e.target.value)}
+                        className="w-full px-1 py-0.5 text-[9.5px]"
+                      />
+                    </td>
+                    <td className="border border-slate-300 p-1 text-center no-print">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveWaliRow(s)}
+                        className="px-2 py-1 rounded bg-emerald-800 hover:bg-emerald-900 text-white text-[9.5px] font-bold whitespace-nowrap"
+                      >
+                        Simpan
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
 };
 
 /* =========================================================================
-   2. RAPORT SANTRI F4 RTL (INDIVIDU & CETAK / PDF 1 KELAS SEKALIGUS)
-========================================================================= */
+   2. RAPORT SANTRI F4 RTL (INDIVIDU, BATCH 1 KELAS, & TTD PENGASUH/WALI KELAS)
+======================================================================== */
 export const SubTabRaportSantri: React.FC = () => {
-  const { santriList, nilaiList, currentTahunAjaran } = useAppStore();
+  const {
+    santriList,
+    nilaiList,
+    ustadzList,
+    currentTahunAjaran,
+    pengasuhTtdUrl,
+    setPengasuhTtdUrl,
+    waliKelasTtdMap,
+    setWaliKelasTtd,
+  } = useAppStore();
 
+  const { currentUser } = useAuth();
   const uniqueClasses = useMemo(
     () => sortClassesCanonical(Array.from(new Set(santriList.map((s) => s.kelas)))),
     [santriList]
@@ -504,17 +1084,121 @@ export const SubTabRaportSantri: React.FC = () => {
   const [semester, setSemester] = useState<'1' | '2'>('1');
   const [tahunAjaran, setTahunAjaran] = useState<string>(currentTahunAjaran);
   const [tanggalPenyerahan, setTanggalPenyerahan] = useState<string>('٢١ ديسمبر ٢٠٢٦ م');
+  const [activePadTarget, setActivePadTarget] = useState<'pengasuh' | 'walikelas' | null>(null);
+  const [ttdToast, setTtdToast] = useState('');
+
+  const padCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingRef = useRef(false);
+
+  useEffect(() => {
+    const matchedUserUstadz = ustadzList.find(
+      (u) => u.nama.toLowerCase() === currentUser.nama.toLowerCase()
+    );
+    const roleHint = `${currentUser.peranLabel || ''} ${matchedUserUstadz?.tugasTambahanSatminkal || ''} ${matchedUserUstadz?.jabatanUtama || ''}`.toUpperCase();
+    const detectedClass = uniqueClasses.find((k) => roleHint.includes(k.toUpperCase()));
+    if (detectedClass) {
+      setSelectedKelas(detectedClass);
+    }
+  }, [currentUser.id, currentUser.nama, currentUser.peranLabel, ustadzList, uniqueClasses]);
+
+  useEffect(() => {
+    const matched = ustadzList.find((u) =>
+      `${u.tugasTambahanSatminkal || ''} ${u.jabatanUtama || ''}`
+        .toUpperCase()
+        .includes(selectedKelas.toUpperCase())
+    );
+    if (matched) {
+      setWaliKelas(matched.namaArab || matched.nama);
+    }
+  }, [selectedKelas, ustadzList]);
 
   const kelasSantri = santriList.filter((s) => s.kelas === selectedKelas);
   const currentSantri =
     kelasSantri.find((s) => s.id === selectedSantriId) || kelasSantri[0] || santriList[0];
 
   const kelasArabic = getArabicKelas(selectedKelas);
-
   const targetSantri = printMode === 'kelas' ? kelasSantri : currentSantri ? [currentSantri] : [];
+
+  const handleUploadSignature = (
+    target: 'pengasuh' | 'walikelas',
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        if (target === 'pengasuh') {
+          setPengasuhTtdUrl(reader.result);
+          setTtdToast('TTD Pengasuh (Mudir Ma’had) tersimpan untuk semua raport.');
+        } else {
+          setWaliKelasTtd(selectedKelas, reader.result);
+          setTtdToast(`TTD Wali Kelas (${selectedKelas}) tersimpan.`);
+        }
+        setTimeout(() => setTtdToast(''), 3000);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = padCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    isDrawingRef.current = true;
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current || !padCanvasRef.current) return;
+    const ctx = padCanvasRef.current.getContext('2d');
+    if (!ctx) return;
+    const rect = padCanvasRef.current.getBoundingClientRect();
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.stroke();
+  };
+
+  const endDraw = () => {
+    isDrawingRef.current = false;
+  };
+
+  const clearPad = () => {
+    const canvas = padCanvasRef.current;
+    if (!canvas) return;
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const savePad = () => {
+    if (!padCanvasRef.current || !activePadTarget) return;
+    const dataUrl = padCanvasRef.current.toDataURL('image/png');
+    if (activePadTarget === 'pengasuh') {
+      setPengasuhTtdUrl(dataUrl);
+      setTtdToast('TTD Pengasuh tersimpan.');
+    } else {
+      setWaliKelasTtd(selectedKelas, dataUrl);
+      setTtdToast(`TTD Wali Kelas ${selectedKelas} tersimpan.`);
+    }
+    setActivePadTarget(null);
+    setTimeout(() => setTtdToast(''), 3000);
+  };
+
+  const currentWaliTtd = waliKelasTtdMap[selectedKelas];
 
   return (
     <div className="space-y-6">
+      {ttdToast && (
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2 no-print">
+          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+          <span>{ttdToast}</span>
+        </div>
+      )}
+
       {/* Control Bar (No-print) */}
       <div className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-4 no-print">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -524,11 +1208,12 @@ export const SubTabRaportSantri: React.FC = () => {
               <span>Raport Resmi F4 RTL (كشف درجات الطلاب)</span>
             </h3>
             <p className="text-xs text-slate-500">
-              Format F4 (215 × 330 mm) sesuai berkas resmi Cawu 1 & Cawu 2. Dapat mencetak 1 santri atau generate PDF 1 kelas sekaligus.
+              Format F4 (215 × 330 mm) sesuai berkas resmi Cawu 1 &amp; Cawu 2. Dapat mencetak 1 santri atau PDF 1 kelas sekaligus lengkap dengan TTD Pengasuh &amp; Wali Kelas.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintOrientationControl recommended="portrait" />
             <button
               type="button"
               onClick={() => window.print()}
@@ -630,10 +1315,139 @@ export const SubTabRaportSantri: React.FC = () => {
             />
           </div>
         </div>
+
+        {/* 2-Slot Digital Signature Config: Pengasuh + Wali Kelas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-100 text-xs">
+          {/* Slot 1: TTD Pengasuh */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-bold text-slate-800">TTD Pengasuh (Mudir Ma&apos;had)</p>
+              <p className="text-[11px] text-slate-500">KH. Amin Maizun — Otomatis tampil di semua raport</p>
+              {pengasuhTtdUrl && (
+                <div className="mt-2 flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-slate-200 w-fit">
+                  <img src={pengasuhTtdUrl} alt="TTD Pengasuh" className="h-9 w-auto object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => setPengasuhTtdUrl(undefined)}
+                    className="text-rose-600 text-[11px] font-bold hover:underline"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-bold text-slate-700 cursor-pointer flex items-center gap-1">
+                <Upload className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Unggah</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleUploadSignature('pengasuh', e)}
+                  className="hidden"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setActivePadTarget(activePadTarget === 'pengasuh' ? null : 'pengasuh')
+                }
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-bold flex items-center gap-1"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Tanda Tangan</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Slot 2: TTD Wali Kelas */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-bold text-slate-800">TTD Wali Kelas ({selectedKelas})</p>
+              <p className="text-[11px] text-slate-500">{waliKelas} — Berlaku untuk raport kelas {selectedKelas}</p>
+              {currentWaliTtd && (
+                <div className="mt-2 flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-slate-200 w-fit">
+                  <img src={currentWaliTtd} alt="TTD Wali Kelas" className="h-9 w-auto object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => setWaliKelasTtd(selectedKelas, undefined)}
+                    className="text-rose-600 text-[11px] font-bold hover:underline"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-bold text-slate-700 cursor-pointer flex items-center gap-1">
+                <Upload className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Unggah</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleUploadSignature('walikelas', e)}
+                  className="hidden"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setActivePadTarget(activePadTarget === 'walikelas' ? null : 'walikelas')
+                }
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-bold flex items-center gap-1"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Tanda Tangan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Inline Signature Canvas */}
+        {activePadTarget && (
+          <div className="p-4 rounded-2xl bg-white border-2 border-emerald-600 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-800">
+                Goreskan TTD{' '}
+                {activePadTarget === 'pengasuh'
+                  ? 'Pengasuh Pondok (KH. Amin Maizun)'
+                  : `Wali Kelas (${selectedKelas})`}
+                :
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={clearPad}
+                  className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-1"
+                >
+                  <Eraser className="w-3.5 h-3.5" />
+                  <span>Bersihkan</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={savePad}
+                  className="px-4 py-1 rounded-lg bg-emerald-800 text-white text-xs font-bold"
+                >
+                  Simpan TTD
+                </button>
+              </div>
+            </div>
+            <canvas
+              ref={padCanvasRef}
+              width={420}
+              height={130}
+              onMouseDown={startDraw}
+              onMouseMove={draw}
+              onMouseUp={endDraw}
+              onMouseLeave={endDraw}
+              className="border border-slate-300 rounded-xl bg-white cursor-crosshair w-full max-w-md"
+            />
+          </div>
+        )}
       </div>
 
       {/* Printable Raport Sheets */}
-      <div className="space-y-8">
+      <div className="space-y-8 print:space-y-0">
         {targetSantri.map((santri, idx) => (
           <RaportF4Sheet
             key={santri.id}
@@ -649,6 +1463,9 @@ export const SubTabRaportSantri: React.FC = () => {
             nilaiList={nilaiList}
             totalSantriKelas={kelasSantri.length}
             peringkatKelas={idx + 1}
+            pengasuhTtdUrl={pengasuhTtdUrl}
+            waliKelasTtdUrl={currentWaliTtd}
+            isLast={idx === targetSantri.length - 1}
           />
         ))}
       </div>
@@ -657,37 +1474,54 @@ export const SubTabRaportSantri: React.FC = () => {
 };
 
 /* =========================================================================
-   3. PERINGKAT PARALEL (PER KELAS, PER ANGKATAN, GABUNGAN PUTRA & PUTRI)
-========================================================================= */
+   3. PERINGKAT PARALEL (PER KELAS, ANGKATAN PUTRA/PUTRI, GABUNGAN PER ANGKATAN)
+======================================================================== */
 export const SubTabPeringkatParalel: React.FC = () => {
-  const { santriList, nilaiList } = useAppStore();
+  const { santriList, nilaiList, imtihanMaster, mapelList } = useAppStore();
 
-  const [scope, setScope] = useState<'kelas' | 'angkatan' | 'gabungan'>('gabungan');
+  const [scope, setScope] = useState<'kelas' | 'angkatan_gender' | 'angkatan_gabungan'>(
+    'angkatan_gabungan'
+  );
   const [selectedKelas, setSelectedKelas] = useState<string>('2 A PUTRA');
   const [selectedTingkat, setSelectedTingkat] = useState<number>(2);
+  const [selectedGender, setSelectedGender] = useState<'L' | 'P'>('L');
   const [search, setSearch] = useState<string>('');
 
   const uniqueClasses = sortClassesCanonical(Array.from(new Set(santriList.map((s) => s.kelas))));
 
   const rankedList = useMemo(() => {
     const filtered = santriList.filter((s) => {
-      if (scope === 'kelas' && s.kelas !== selectedKelas) return false;
-      if (scope === 'angkatan' && s.tingkat !== selectedTingkat) return false;
-      return true;
+      if (scope === 'kelas') return s.kelas === selectedKelas;
+      if (scope === 'angkatan_gender') {
+        return s.tingkat === selectedTingkat && s.gender === selectedGender;
+      }
+      // angkatan_gabungan: strictly same Tingkat (1–6), combines Putra + Putri fairly
+      return s.tingkat === selectedTingkat;
     });
 
     const scored = filtered.map((s, idx) => {
-      const recs = nilaiList.filter((n) => n.santriId === s.id);
-      const baseUjian = recs.length > 0 ? recs.reduce((sum, r) => sum + r.nilaiAngka, 0) / recs.length : 78 + ((idx * 7) % 20);
-      const baseHarian = recs.length > 0 ? recs.reduce((sum, r) => sum + (r.nilaiHarian ?? 82), 0) / recs.length : 80 + ((idx * 5) % 16);
-      const rata = Number(((baseUjian + baseHarian) / 2).toFixed(2));
-      const jumlah = Math.round(rata * 8);
+      const templates = MAPEL_PER_TINGKAT[s.tingkat] || MAPEL_PER_TINGKAT[1];
+      const santriGrades = nilaiList.filter((n) => n.santriId === s.id);
+      let totalAvg = 0;
+
+      templates.forEach((subj, mIdx) => {
+        const mId = resolveMapelIdForTemplate(subj, s.tingkat, mapelList);
+        const rec = santriGrades.find(
+          (g) => g.mapelId === mId || g.mapelId.toUpperCase().startsWith(`${subj.kodePrefix}-${s.tingkat}`)
+        );
+        const ujian = rec ? rec.nilaiAngka : 82 + ((idx * 3 + mIdx + s.tingkat) % 15);
+        const harian = rec?.nilaiHarian ?? 80 + ((idx * 5 + mIdx * 2) % 14);
+        totalAvg += (ujian + harian) / 2;
+      });
+
+      const rata = Number((totalAvg / Math.max(1, templates.length)).toFixed(2));
+      const jumlah = Math.round(totalAvg);
       return { santri: s, rata, jumlah };
     });
 
     scored.sort((a, b) => b.rata - a.rata);
     return scored.map((item, i) => ({ ...item, rank: i + 1 }));
-  }, [santriList, nilaiList, scope, selectedKelas, selectedTingkat]);
+  }, [santriList, nilaiList, mapelList, scope, selectedKelas, selectedTingkat, selectedGender]);
 
   const displayed = rankedList.filter(
     (r) =>
@@ -696,6 +1530,13 @@ export const SubTabPeringkatParalel: React.FC = () => {
       r.santri.nis.includes(search)
   );
 
+  const scopeTitle =
+    scope === 'kelas'
+      ? `KELAS ${selectedKelas}`
+      : scope === 'angkatan_gender'
+      ? `PARALEL ANGKATAN TINGKAT ${selectedTingkat} MDS (${selectedGender === 'L' ? 'PUTRA' : 'PUTRI'})`
+      : `PARALEL GABUNGAN ANGKATAN TINGKAT ${selectedTingkat} MDS (PUTRA & PUTRI)`;
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-4 no-print">
@@ -703,24 +1544,27 @@ export const SubTabPeringkatParalel: React.FC = () => {
           <div>
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
               <Award className="w-4 h-4 text-amber-600" />
-              <span>Peringkat Prestasi Santri (Paralel Putra & Putri)</span>
+              <span>Peringkat Prestasi Santri (Setara Per Tingkat / Angkatan)</span>
             </h3>
             <p className="text-xs text-slate-500">
-              Pemeringkatan otomatis berdasarkan rata-rata nilai imtihan & harian per kelas, per angkatan (tingkat), maupun gabungan paralel pondok.
+              Pemeringkatan adil per kelas atau paralel per tingkat angkatan (Putra sendiri, Putri sendiri, atau Gabungan Putra &amp; Putri pada Tingkat yang sama).
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Cetak Peringkat</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintOrientationControl recommended="portrait" />
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Cetak Peringkat</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
-          <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+          <div className="flex flex-wrap rounded-xl bg-slate-100 p-1 border border-slate-200">
             <button
               type="button"
               onClick={() => setScope('kelas')}
@@ -732,21 +1576,25 @@ export const SubTabPeringkatParalel: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setScope('angkatan')}
+              onClick={() => setScope('angkatan_gender')}
               className={`px-3 py-1.5 rounded-lg font-bold transition ${
-                scope === 'angkatan' ? 'bg-white text-emerald-900 shadow-2xs' : 'text-slate-600'
+                scope === 'angkatan_gender'
+                  ? 'bg-white text-emerald-900 shadow-2xs'
+                  : 'text-slate-600'
               }`}
             >
-              Per Angkatan (Tingkat)
+              Pararel Angkatan (Putra / Putri)
             </button>
             <button
               type="button"
-              onClick={() => setScope('gabungan')}
+              onClick={() => setScope('angkatan_gabungan')}
               className={`px-3 py-1.5 rounded-lg font-bold transition ${
-                scope === 'gabungan' ? 'bg-white text-emerald-900 shadow-2xs' : 'text-slate-600'
+                scope === 'angkatan_gabungan'
+                  ? 'bg-white text-emerald-900 shadow-2xs'
+                  : 'text-slate-600'
               }`}
             >
-              Paralel Gabungan Putra & Putri
+              Gabungan Putra &amp; Putri (Per Tingkat)
             </button>
           </div>
 
@@ -764,7 +1612,7 @@ export const SubTabPeringkatParalel: React.FC = () => {
             </select>
           )}
 
-          {scope === 'angkatan' && (
+          {(scope === 'angkatan_gender' || scope === 'angkatan_gabungan') && (
             <select
               value={selectedTingkat}
               onChange={(e) => setSelectedTingkat(parseInt(e.target.value))}
@@ -772,9 +1620,20 @@ export const SubTabPeringkatParalel: React.FC = () => {
             >
               {[1, 2, 3, 4, 5, 6].map((t) => (
                 <option key={t} value={t}>
-                  Tingkat {t} MDS (Putra & Putri)
+                  Angkatan / Tingkat {t} MDS
                 </option>
               ))}
+            </select>
+          )}
+
+          {scope === 'angkatan_gender' && (
+            <select
+              value={selectedGender}
+              onChange={(e) => setSelectedGender(e.target.value as 'L' | 'P')}
+              className="rounded-xl border border-slate-300 px-3 py-1.5 font-bold text-emerald-900"
+            >
+              <option value="L">Khusus Santri Putra</option>
+              <option value="P">Khusus Santri Putri</option>
             </select>
           )}
 
@@ -791,35 +1650,62 @@ export const SubTabPeringkatParalel: React.FC = () => {
         </div>
       </div>
 
-      {/* Ranking Table */}
-      <div className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs printable-area">
-        <div className="mb-3 text-center">
+      {/* Ranking Table with Official Kop & Logo Imtihan */}
+      <div className="rounded-2xl bg-white p-5 sm:p-6 border border-slate-200 shadow-2xs printable-area space-y-4">
+        {/* KOP & LOGO RESMI PANITIA IMTIHAN */}
+        <div className="flex items-center justify-between gap-4 pb-3 border-b-2 border-slate-900">
+          <img
+            src="/assets/aistudio/ChatGPT_Image_Nov_6__2025__01_32_08_PM_64f70724.png"
+            alt="Logo Panitia Imtihan PP NU Darussalam"
+            className="w-16 h-16 object-contain shrink-0"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = '/assets/aistudio/preview__14__3b7f388f.webp';
+            }}
+          />
+          <div className="flex-1 text-center">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+              PANITIA IMTIHAN MADRASAH DINIYAH SALAFIYAH
+            </p>
+            <h3 className="text-base sm:text-lg font-black uppercase text-slate-900 leading-tight">
+              PONDOK PESANTREN NU DARUSSALAM KARANGDADAP
+            </h3>
+            <p className="text-[11px] text-slate-600">
+              Karangdadap, Kabupaten Pekalongan, Jawa Tengah · Cawu {imtihanMaster.cawu} T.A.{' '}
+              {imtihanMaster.tahunAjaran}
+            </p>
+          </div>
+          <div className="w-16 shrink-0 hidden sm:flex justify-end">
+            <img
+              src="/assets/aistudio/preview__14__3b7f388f.webp"
+              alt="Logo Pondok"
+              className="w-14 h-14 object-contain"
+            />
+          </div>
+        </div>
+
+        <div className="text-center">
           <h4 className="font-black text-sm uppercase text-slate-900">
-            DAFTAR PERINGKAT JUARA IMTIHAN —{' '}
-            {scope === 'kelas'
-              ? `KELAS ${selectedKelas}`
-              : scope === 'angkatan'
-              ? `PARALEL TINGKAT ${selectedTingkat} MDS`
-              : 'GABUNGAN PARALEL PUTRA & PUTRI'}
+            DAFTAR PERINGKAT JUARA IMTIHAN — {scopeTitle}
           </h4>
         </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs border border-slate-300 border-collapse">
             <thead>
-              <tr className="border-b-2 border-slate-300 bg-slate-50 text-slate-600 text-left">
-                <th className="py-2.5 px-3 w-20 text-center">Peringkat</th>
-                <th className="py-2.5 px-3">NIS</th>
-                <th className="py-2.5 px-3">Nama Lengkap Santri</th>
-                <th className="py-2.5 px-3">Putra / Putri</th>
-                <th className="py-2.5 px-3">Kelas</th>
-                <th className="py-2.5 px-3 text-right">Jumlah Nilai</th>
-                <th className="py-2.5 px-3 text-right">Rata-Rata</th>
+              <tr className="border-b-2 border-slate-400 bg-slate-100 text-slate-700 text-left">
+                <th className="py-2 px-3 w-20 text-center border border-slate-300">Peringkat</th>
+                <th className="py-2 px-3 border border-slate-300">NIS</th>
+                <th className="py-2 px-3 border border-slate-300">Nama Lengkap Santri</th>
+                <th className="py-2 px-3 border border-slate-300">Putra / Putri</th>
+                <th className="py-2 px-3 border border-slate-300">Kelas</th>
+                <th className="py-2 px-3 text-right border border-slate-300">Jumlah Nilai</th>
+                <th className="py-2 px-3 text-right border border-slate-300">Rata-Rata</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-semibold">
-              {displayed.slice(0, 60).map((row) => (
+            <tbody className="divide-y divide-slate-200 font-semibold">
+              {displayed.slice(0, 80).map((row) => (
                 <tr key={row.santri.id} className={row.rank <= 3 ? 'bg-amber-50/50' : 'hover:bg-slate-50'}>
-                  <td className="py-2.5 px-3 text-center">
+                  <td className="py-2 px-3 text-center border border-slate-200">
                     <span
                       className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${
                         row.rank === 1
@@ -834,20 +1720,30 @@ export const SubTabPeringkatParalel: React.FC = () => {
                       {row.rank}
                     </span>
                   </td>
-                  <td className="py-2.5 px-3 font-mono text-slate-500">{row.santri.nis}</td>
-                  <td className="py-2.5 px-3 font-bold text-slate-900">{row.santri.nama}</td>
-                  <td className="py-2.5 px-3">
+                  <td className="py-2 px-3 font-mono text-slate-500 border border-slate-200">
+                    {row.santri.nis}
+                  </td>
+                  <td className="py-2 px-3 font-bold text-slate-900 border border-slate-200">
+                    {row.santri.nama}
+                  </td>
+                  <td className="py-2 px-3 border border-slate-200">
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        row.santri.gender === 'L' ? 'bg-sky-100 text-sky-800' : 'bg-emerald-100 text-emerald-800'
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        row.santri.gender === 'L'
+                          ? 'bg-sky-100 text-sky-800'
+                          : 'bg-emerald-100 text-emerald-800'
                       }`}
                     >
                       {row.santri.gender === 'L' ? 'Putra' : 'Putri'}
                     </span>
                   </td>
-                  <td className="py-2.5 px-3 text-slate-700">{row.santri.kelas}</td>
-                  <td className="py-2.5 px-3 text-right tabular-nums">{row.jumlah}</td>
-                  <td className="py-2.5 px-3 text-right font-black text-emerald-800 tabular-nums">
+                  <td className="py-2 px-3 text-slate-700 border border-slate-200">
+                    {row.santri.kelas}
+                  </td>
+                  <td className="py-2 px-3 text-right tabular-nums border border-slate-200">
+                    {row.jumlah}
+                  </td>
+                  <td className="py-2 px-3 text-right font-black text-emerald-800 tabular-nums border border-slate-200">
                     {row.rata.toFixed(2)}
                   </td>
                 </tr>

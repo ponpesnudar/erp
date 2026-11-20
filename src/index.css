@@ -64,7 +64,6 @@
 /* Print CSS */
 @media print {
   @page {
-    size: 215mm 330mm;
     margin: 8mm 10mm;
   }
 
@@ -73,7 +72,7 @@
   #root {
     background: #FFFFFF !important;
     color: #000000 !important;
-    font-size: 10.5pt !important;
+    font-size: 10pt !important;
     height: auto !important;
     min-height: 0 !important;
     overflow: visible !important;
@@ -82,20 +81,26 @@
     print-color-adjust: exact !important;
   }
 
-  /* Ensure scrollable/flex main containers never clip or stop after page 1 */
+  /* Ensure scrollable/flex main containers never clip or stop after page 1,
+     while respecting .no-print elements (Sidebar, Header, modals) */
   .print-root-shell,
   .print-main-col,
   .print-main-scroll,
-  .h-screen,
-  .overflow-hidden,
-  .overflow-y-auto,
-  .overflow-x-auto,
-  [class*="max-h-"] {
+  .h-screen:not(.no-print),
+  .overflow-hidden:not(.no-print),
+  .overflow-y-auto:not(.no-print),
+  .overflow-x-auto:not(.no-print),
+  [class*="max-h-"]:not(.no-print),
+  .sticky:not(.no-print) {
     display: block !important;
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
     position: static !important;
+  }
+
+  .print-no-scale {
+    transform: none !important;
   }
 
   main {
@@ -104,6 +109,7 @@
     overflow: visible !important;
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
   }
 
   thead {
@@ -115,20 +121,6 @@
     page-break-inside: avoid;
   }
 
-  .no-print,
-  nav,
-  aside,
-  header,
-  .pwa-prompt,
-  .ai-assistant-bubble,
-  button:not(.print-include) {
-    display: none !important;
-  }
-
-  .print-only {
-    display: block !important;
-  }
-
   .printable-area {
     width: 100% !important;
     max-width: 100% !important;
@@ -136,6 +128,21 @@
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .printable-area table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .print-landscape .printable-area table {
+    font-size: 8pt !important;
+  }
+
+  .print-landscape .printable-area th,
+  .print-landscape .printable-area td {
+    padding: 3px 4px !important;
   }
 
   .printable-card-sheet {
@@ -164,9 +171,42 @@
       transparent 5px
     ) !important;
   }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-only-flex {
+    display: flex !important;
+  }
+
+  /* Keep hide rules LAST with maximum specificity so they win over responsive md:block / sticky utilities */
+  aside,
+  aside.h-screen,
+  aside.sticky,
+  aside[class*="md:"],
+  nav,
+  header,
+  .no-print,
+  .print\:hidden,
+  .pwa-prompt,
+  .ai-assistant-bubble,
+  button:not(.print-include) {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: fixed !important;
+    left: -99999px !important;
+  }
 }
 
 .print-only {
+  display: none;
+}
+
+.print-only-flex {
   display: none;
 }
 

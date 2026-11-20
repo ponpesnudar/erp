@@ -152,14 +152,20 @@ export interface UserAccount {
   rolesAvailable: string[];
   keterangan: string;
   santriAnakId?: string; // Khusus wali santri
+  noWa?: string;
+  password?: string;
+  ustadzId?: string;
 }
 
-export const SEED_USERS: UserAccount[] = [
+export const CORE_SEED_USERS: UserAccount[] = [
   {
     id: "u-pengasuh",
     username: "pengasuh",
     nama: "KH. Amin Maizun",
     email: "pengasuh@darussalam.id",
+    noWa: "081128000001",
+    password: "darussalam2026",
+    ustadzId: "ust-1",
     peran: "pengasuh",
     peranLabel: "Pengasuh Pondok",
     avatar: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&auto=format&fit=crop&q=80",
@@ -171,6 +177,9 @@ export const SEED_USERS: UserAccount[] = [
     username: "nidhomul",
     nama: "Ust. Nidhomul Muna Lana",
     email: "nidhomul@darussalam.id",
+    noWa: "085727005566",
+    password: "darussalam2026",
+    ustadzId: "ust-4",
     peran: "ketua_imtihan",
     peranLabel: "Ketua Imtihan / Panitia",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
@@ -182,10 +191,13 @@ export const SEED_USERS: UserAccount[] = [
     username: "fataah",
     nama: "M. Abdul Fataah",
     email: "bendahara@darussalam.id",
+    noWa: "081903004455",
+    password: "darussalam2026",
+    ustadzId: "ust-7",
     peran: "bendahara",
     peranLabel: "Bendahara Pondok & Imtihan",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    rolesAvailable: ["bendahara"],
+    rolesAvailable: ["bendahara", "guru_pengampu"],
     keterangan: "Pengelola kas, arus kas, iuran santri, penggajian, transparansi RAB, dan rekonsiliasi jajan",
   },
   {
@@ -193,6 +205,9 @@ export const SEED_USERS: UserAccount[] = [
     username: "abdurrahman",
     nama: "Ust. Abdur Rahman",
     email: "abdurrahman@darussalam.id",
+    noWa: "085641003344",
+    password: "darussalam2026",
+    ustadzId: "ust-3",
     peran: "guru_pengampu",
     peranLabel: "Guru Pengampu Fiqih & MDS",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
@@ -204,6 +219,9 @@ export const SEED_USERS: UserAccount[] = [
     username: "syarif",
     nama: "Ust. Syarif Hidayatullah",
     email: "madin@darussalam.id",
+    noWa: "081226001122",
+    password: "darussalam2026",
+    ustadzId: "ust-2",
     peran: "kepala_madin",
     peranLabel: "Kepala Madrasah Diniyah",
     avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
@@ -215,10 +233,13 @@ export const SEED_USERS: UserAccount[] = [
     username: "sekretaris",
     nama: "Ust. Ahmad Mujiburrohman",
     email: "sekretaris@darussalam.id",
+    noWa: "081325007788",
+    password: "darussalam2026",
+    ustadzId: "ust-5",
     peran: "sekretaris",
     peranLabel: "Sekretaris Yayasan & MDS",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    rolesAvailable: ["sekretaris"],
+    rolesAvailable: ["sekretaris", "guru_pengampu"],
     keterangan: "Persuratan resmi, nomor otomatis, arsip dokumen, master data santri & asatidz, inventaris",
   },
   {
@@ -226,10 +247,13 @@ export const SEED_USERS: UserAccount[] = [
     username: "kemahadiyahan",
     nama: "Ust. Khoirul Umam",
     email: "kemahadiyahan@darussalam.id",
+    noWa: "085866008899",
+    password: "darussalam2026",
+    ustadzId: "ust-6",
     peran: "kemahadiyahan",
     peranLabel: "Bagian Kema'hadiyahan",
     avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
-    rolesAvailable: ["kemahadiyahan"],
+    rolesAvailable: ["kemahadiyahan", "guru_pengampu"],
     keterangan: "Struktur kepanitiaan PHBI & PHBN, kalender kegiatan, pembagian tugas asrama",
   },
   {
@@ -237,6 +261,8 @@ export const SEED_USERS: UserAccount[] = [
     username: "keamanan",
     nama: "Ust. Bahrul Ulum",
     email: "keamanan@darussalam.id",
+    noWa: "085788990011",
+    password: "darussalam2026",
     peran: "bk_keamanan",
     peranLabel: "Ketertiban & BK Keamanan",
     avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
@@ -248,6 +274,8 @@ export const SEED_USERS: UserAccount[] = [
     username: "kantin",
     nama: "Mbak Siti Rohmah",
     email: "kantin@darussalam.id",
+    noWa: "085640001199",
+    password: "darussalam2026",
     peran: "kasir_kantin",
     peranLabel: "Kasir Kantin & Laundry",
     avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
@@ -259,6 +287,8 @@ export const SEED_USERS: UserAccount[] = [
     username: "walisantri",
     nama: "H. Mustofa (Wali Muhammad Zidni)",
     email: "mustofa@gmail.com",
+    noWa: "081399887700",
+    password: "darussalam2026",
     peran: "wali_santri",
     peranLabel: "Wali Santri (Muhammad Zidni)",
     avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80",
@@ -271,6 +301,8 @@ export const SEED_USERS: UserAccount[] = [
     username: "admin",
     nama: "Administrator Sistem ERP",
     email: "admin@darussalam.id",
+    noWa: "081128009999",
+    password: "darussalam2026",
     peran: "admin_sistem",
     peranLabel: "Administrator Sistem ERP",
     avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
@@ -278,6 +310,9 @@ export const SEED_USERS: UserAccount[] = [
     keterangan: "Akses super-admin: manajemen peran, konfigurasi database, jejak audit, backup, simulasi peran",
   },
 ];
+
+// SEED_USERS will be populated right after SEED_USTADZ_LIST below to include every individual guru account
+export let SEED_USERS: UserAccount[] = [...CORE_SEED_USERS];
 
 export interface SantriRecord {
   id: string;
@@ -1028,7 +1063,36 @@ export const FITUR_WEWENANG_LIST: FiturWewenang[] = [
     deskripsi: "Poin pelanggaran, penegakan takzir syar'i, izin keluar malam",
     actions: { baca: true, tulis: true, ubah: true, setujui: true },
   },
+  {
+    id: "sdm_absensi_monitoring",
+    modul: "SDM & Absensi",
+    nama: "Dashboard Monitoring Guru, SDM & Persetujuan Izin",
+    deskripsi: "Monitoring real-time kehadiran dewan asatidz, verifikasi foto selfie GPS, persetujuan badal, & cetak rekap SDM",
+    isSensitif: true,
+    actions: { baca: true, tulis: true, ubah: true, setujui: true, cetak: true, ekspor: true },
+  },
 ];
+
+/**
+ * Format nama pengajar dengan gelar resmi Ustadz / Ustadzah di depan
+ */
+export function formatNamaWithGelar(nama: string, gender?: 'L' | 'P'): string {
+  const trimmed = (nama || '').trim();
+  if (!trimmed) return gender === 'P' ? 'Ustadzah' : 'Ustadz';
+  if (/^(KH\.|K\.H\.|Nyai\s+Hj\.|Nyai\.?\s)/i.test(trimmed)) {
+    return trimmed;
+  }
+  const withoutPrefix = trimmed
+    .replace(/^(Ustadzah|Ustzh\.|Usth\.|Ustadz|Ustd\.|Ust\.|M\.)\s+/i, '')
+    .trim();
+  const isFemale =
+    gender === 'P' ||
+    /^(Ustzh\.|Usth\.|Ustadzah)/i.test(trimmed) ||
+    /(Siti|Aisyah|Fatimah|Khadijah|Dewi|Nurul|Zulfa|Salma|Durrotun|Nabila|Uswatun|Afifah|Rohmah|Laila|Roudhotul|Masruroh|Khoirunnisa|Mufidah|Alfi|Hilya|Mbak)/i.test(
+      trimmed
+    );
+  return `${isFemale ? 'Ustadzah' : 'Ustadz'} ${withoutPrefix || trimmed}`;
+}
 
 /**
  * Master Data Dewan Asatidz / Ustadzah (EMIS-compatible)
@@ -1299,13 +1363,13 @@ export const SEED_USTADZ_LIST: UstadzRecord[] = [
     tempatLahir: 'Batang',
     tanggalLahir: '1996-08-14',
     statusAktif: 'Aktif',
-    jabatanUtama: 'Guru Mapel Tarikh & Fiqih',
+    jabatanUtama: 'Guru Mapel Tarikh, Fiqih & Faroidh 3',
     tugasTambahanSatminkal: 'Wali Kelas 2 B PUTRA',
     statusKepegawaian: 'Khidmah',
     tmtMulai: '2023-01-10',
     pendidikanFormal: 'S1 Sejarah Peradaban Islam',
     pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
-    fanIlmu: ['Tarikh', 'Fiqih', 'Tahaji'],
+    fanIlmu: ['Tarikh', 'Fiqih', 'Tahaji', 'Faroidh 3'],
     noHP: '0856-7788-1122',
     alamat: 'Bandar, Kab. Batang',
     honorPokok: 1800000,
@@ -1373,7 +1437,386 @@ export const SEED_USTADZ_LIST: UstadzRecord[] = [
     alamat: 'Doro, Kab. Pekalongan',
     honorPokok: 1900000,
   },
+  // === 17 PENGAJAR PUTRI RESMI (JTM 2026/2027) ===
+  {
+    id: 'ust-16',
+    nip: '2012.07.041',
+    nik: '3326015403820016',
+    nama: 'Nyai Hj. Yuli Fitriana',
+    namaArab: 'نياي الحاجة يولي فطريانة',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1982-03-14',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Pengajar Putri (Ilmu Hadis 4, Fiqih 4)',
+    tugasTambahanSatminkal: 'Pembina Majelis Putri',
+    statusKepegawaian: 'Tetap Yayasan',
+    tmtMulai: '2012-07-01',
+    pendidikanFormal: "Ma'had Aly",
+    pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
+    fanIlmu: ['Ilmu Hadis 4', 'Fiqih 4'],
+    noHP: '0812-2800-0016',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 2500000,
+  },
+  {
+    id: 'ust-17',
+    nip: '2022.07.042',
+    nik: '3326015505970017',
+    nama: 'Usth. Daffa Aulia Solestya',
+    namaArab: 'الأستاذة دفع أوليا سولستيا',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1997-05-15',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Wali Kelas 1 B PUTRI & Guru Fiqh',
+    tugasTambahanSatminkal: 'Wali Kelas 1 B PUTRI',
+    statusKepegawaian: 'Tetap Yayasan',
+    tmtMulai: '2022-07-01',
+    pendidikanFormal: 'S1 Pendidikan Islam',
+    pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
+    fanIlmu: ['Fiqh 1AB', 'Tafsir Ahkam 4'],
+    noHP: '0857-2800-0017',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 1850000,
+  },
+  {
+    id: 'ust-18',
+    nip: '2018.07.043',
+    nik: '3326015608850018',
+    nama: 'Usth. Hj. Nok Arofah',
+    namaArab: 'الأستاذة الحاجة نوق عرفة',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1985-08-16',
+    statusAktif: 'Aktif',
+    jabatanUtama: "Pengajar Putri (Ilmu Qur'an 3, Hadis Ahkam 3 & 4)",
+    statusKepegawaian: 'Tetap Yayasan',
+    tmtMulai: '2018-07-01',
+    pendidikanFormal: "S1 Ilmu Al-Qur'an",
+    pendidikanPesantren: "PP. Yanbu'ul Qur'an Kudus",
+    fanIlmu: ["Ilmu Qur'an 3", 'Hadis Ahkam 3', 'Hadis Ahkam 4'],
+    noHP: '0857-2800-0018',
+    alamat: 'Kedungwuni, Kab. Pekalongan',
+    honorPokok: 1950000,
+  },
+  {
+    id: 'ust-19',
+    nip: '2011.07.044',
+    nik: '3326015709790019',
+    nama: 'Nyai Hj. Sri Khannah',
+    namaArab: 'نياي الحاجة سري خنة',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1979-09-17',
+    statusAktif: 'Aktif',
+    jabatanUtama: "Pengajar Putri (Al-Qur'an Tajwid 1)",
+    tugasTambahanSatminkal: 'Sesepuh Majelis Tahfidz Putri',
+    statusKepegawaian: 'Tetap Yayasan',
+    tmtMulai: '2011-07-01',
+    pendidikanFormal: 'Pendidikan Diniyah Muadalah',
+    pendidikanPesantren: "PP. Al-Munawwir Krapyak",
+    fanIlmu: ["Alqur'an Tajwid 1"],
+    noHP: '0813-2800-0019',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 2400000,
+  },
+  {
+    id: 'ust-20',
+    nip: '2021.07.045',
+    nik: '3326015804960020',
+    nama: 'Usth. Nella Aprilia',
+    namaArab: 'الأستاذة نيلا أفريليا',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1996-04-18',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Wali Kelas 2 A PUTRI & Guru Fiqih',
+    tugasTambahanSatminkal: 'Wali Kelas 2 A PUTRI',
+    statusKepegawaian: 'Tetap Yayasan',
+    tmtMulai: '2021-07-01',
+    pendidikanFormal: 'S1 PAI',
+    pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
+    fanIlmu: ['Fiqih 2 AB', 'Fiqih 3'],
+    noHP: '0857-2800-0020',
+    alamat: 'Buaran, Kab. Pekalongan',
+    honorPokok: 1950000,
+  },
+  {
+    id: 'ust-21',
+    nip: '2020.07.046',
+    nik: '3326015911930021',
+    nama: 'Usth. Titik Diana Sari',
+    namaArab: 'الأستاذة تيتيك ديانا ساري',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1993-11-19',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Pengajar Putri (Nahwu 4, Ushul Fiqh 4)',
+    statusKepegawaian: 'Tetap Yayasan',
+    tmtMulai: '2020-07-01',
+    pendidikanFormal: 'S1 Hukum Keluarga Islam',
+    pendidikanPesantren: 'PP. Lirboyo Putri',
+    fanIlmu: ['Nahwu 4', 'Ushul Fiqh 4'],
+    noHP: '0857-2800-0021',
+    alamat: 'Wonopringgo, Kab. Pekalongan',
+    honorPokok: 1900000,
+  },
+  {
+    id: 'ust-22',
+    nip: '2021.08.047',
+    nik: '3326016002950022',
+    nama: 'Usth. Nurlailatul Fitriani',
+    namaArab: 'الأستاذة نور ليلة الفطرياني',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1995-02-20',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Wali Kelas 3 PUTRI & Guru Nahwu',
+    tugasTambahanSatminkal: 'Wali Kelas 3 A PUTRI',
+    statusKepegawaian: 'Tetap Yayasan',
+    tmtMulai: '2021-08-01',
+    pendidikanFormal: 'S1 Pendidikan Bahasa Arab',
+    pendidikanPesantren: 'PP. Al-Falah Ploso Putri',
+    fanIlmu: ['Nahwu 3', 'Nahwu 1'],
+    noHP: '0857-2800-0022',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 1900000,
+  },
+  {
+    id: 'ust-23',
+    nip: '2020.08.048',
+    nik: '3326016107940023',
+    nama: 'Usth. Nurul Hikmah',
+    namaArab: 'الأستاذة نور الحكمة',
+    gender: 'P',
+    tempatLahir: 'Batang',
+    tanggalLahir: '1994-07-21',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Wali Kelas 4 PUTRI & Guru Hadis/Akhlak',
+    tugasTambahanSatminkal: 'Wali Kelas 4 A PUTRI',
+    statusKepegawaian: 'Tetap Yayasan',
+    tmtMulai: '2020-08-01',
+    pendidikanFormal: 'S1 Ilmu Hadis',
+    pendidikanPesantren: 'PP. Futuhiyyah Putri',
+    fanIlmu: ['Hadis 2', 'Akhlak 4'],
+    noHP: '0857-2800-0023',
+    alamat: 'Batang, Kab. Batang',
+    honorPokok: 1900000,
+  },
+  {
+    id: 'ust-24',
+    nip: '2022.01.049',
+    nik: '3326016206960024',
+    nama: 'Usth. Rohmatul Ummah',
+    namaArab: 'الأستاذة رحمة الأمة',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1996-06-22',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Pengajar Putri (Tarekh 2, Tauhid 3)',
+    statusKepegawaian: 'Khidmah',
+    tmtMulai: '2022-01-05',
+    pendidikanFormal: 'S1 PAI',
+    pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
+    fanIlmu: ['Tarekh 2', 'Tauhid 3'],
+    noHP: '0857-2800-0024',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 1800000,
+  },
+  {
+    id: 'ust-25',
+    nip: '2022.07.050',
+    nik: '3326016301980025',
+    nama: 'Usth. Arinil Haq',
+    namaArab: 'الأستاذة أريني الحق',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1998-01-23',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Pengajar Putri (Nahwu 2 AB)',
+    statusKepegawaian: 'Khidmah',
+    tmtMulai: '2022-07-01',
+    pendidikanFormal: 'S1 PBA',
+    pendidikanPesantren: 'PP. Sarang Rembang Putri',
+    fanIlmu: ['Nahwu 2 AB'],
+    noHP: '0857-2800-0025',
+    alamat: 'Wiradesa, Kab. Pekalongan',
+    honorPokok: 1800000,
+  },
+  {
+    id: 'ust-26',
+    nip: '2022.08.051',
+    nik: '3326016410970026',
+    nama: 'Usth. Fachirotu Mina',
+    namaArab: 'الأستاذة فاخرة منا',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1997-10-24',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Pengajar Putri (Shorof 2, Shorof 3)',
+    statusKepegawaian: 'Khidmah',
+    tmtMulai: '2022-08-01',
+    pendidikanFormal: 'S1 PAI',
+    pendidikanPesantren: 'PP. Lirboyo Putri',
+    fanIlmu: ['Shorof 2', 'Shorof 3'],
+    noHP: '0857-2800-0026',
+    alamat: 'Kedungwuni, Kab. Pekalongan',
+    honorPokok: 1800000,
+  },
+  {
+    id: 'ust-27',
+    nip: '2023.07.052',
+    nik: '3326016503980027',
+    nama: 'Usth. Zaiimatul Arqois',
+    namaArab: 'الأستاذة زعيمة الأرقويس',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1998-03-25',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Wali Kelas 1 A PUTRI & Guru Tauhid/Fiqih',
+    tugasTambahanSatminkal: 'Wali Kelas 1 A PUTRI',
+    statusKepegawaian: 'Khidmah',
+    tmtMulai: '2023-07-01',
+    pendidikanFormal: 'S1 PAI',
+    pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
+    fanIlmu: ['Tauhid 1', 'Fiqih 2 C'],
+    noHP: '0857-2800-0027',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 1800000,
+  },
+  {
+    id: 'ust-28',
+    nip: '2023.08.053',
+    nik: '3326016605990028',
+    nama: 'Usth. Aghitsna Ayyu Shofiyya',
+    namaArab: 'الأستاذة أغثنا أي صفية',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1999-05-26',
+    statusAktif: 'Aktif',
+    jabatanUtama: "Wali Kelas 2 C PUTRI & Guru Tahaji/Nahwu",
+    tugasTambahanSatminkal: 'Wali Kelas 2 C PUTRI',
+    statusKepegawaian: 'Khidmah',
+    tmtMulai: '2023-08-01',
+    pendidikanFormal: 'S1 PBA',
+    pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
+    fanIlmu: ["Tahaji & Qiro'ah", 'Nahwu 2 C'],
+    noHP: '0857-2800-0028',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 1800000,
+  },
+  {
+    id: 'ust-29',
+    nip: '2024.01.054',
+    nik: '3326016708980029',
+    nama: 'Usth. Amilatul Amalia',
+    namaArab: 'الأستاذة عاملة العملية',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1998-08-27',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Pengajar Putri (Tauhid 2A, Akhlak 3, Tauhid 4)',
+    statusKepegawaian: 'Honorer',
+    tmtMulai: '2024-01-10',
+    pendidikanFormal: 'S1 Aqidah Filsafat',
+    pendidikanPesantren: 'PP. API Tegalrejo Putri',
+    fanIlmu: ['Tauhid 2A', 'Akhlak 3', 'Tauhid 4'],
+    noHP: '0857-2800-0029',
+    alamat: 'Doro, Kab. Pekalongan',
+    honorPokok: 1750000,
+  },
+  {
+    id: 'ust-30',
+    nip: '2024.07.055',
+    nik: '3326016812990030',
+    nama: 'Usth. Emi Sulistyowati',
+    namaArab: 'الأستاذة إيمي سولستياواتي',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1999-12-28',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Pengajar Putri (Akhlak 2)',
+    statusKepegawaian: 'Honorer',
+    tmtMulai: '2024-07-01',
+    pendidikanFormal: 'S1 PAI',
+    pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
+    fanIlmu: ['Akhlak 2'],
+    noHP: '0857-2800-0030',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 1700000,
+  },
+  {
+    id: 'ust-31',
+    nip: '2025.01.056',
+    nik: '3326016904000031',
+    nama: 'Usth. Aski Indana Zulfa',
+    namaArab: 'الأستاذة أسكي إندانا زلفى',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '2000-04-29',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Pengajar Putri (Akhlak 1)',
+    statusKepegawaian: 'Khidmah',
+    tmtMulai: '2025-01-05',
+    pendidikanFormal: 'S1 PAI',
+    pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
+    fanIlmu: ['Akhlak 1'],
+    noHP: '0857-2800-0031',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 1650000,
+  },
+  {
+    id: 'ust-32',
+    nip: '2024.07.057',
+    nik: '3326017009990032',
+    nama: 'Usth. Rahma Dina',
+    namaArab: 'الأستاذة رحمة دينا',
+    gender: 'P',
+    tempatLahir: 'Pekalongan',
+    tanggalLahir: '1999-09-30',
+    statusAktif: 'Aktif',
+    jabatanUtama: 'Wali Kelas 2 B PUTRI & Guru Tauhid/Shorof',
+    tugasTambahanSatminkal: 'Wali Kelas 2 B PUTRI',
+    statusKepegawaian: 'Khidmah',
+    tmtMulai: '2024-07-01',
+    pendidikanFormal: 'S1 PAI',
+    pendidikanPesantren: 'PP. NU Darussalam Karangdadap',
+    fanIlmu: ['Tauhid 2 BC', 'Shorof 1'],
+    noHP: '0857-2800-0032',
+    alamat: 'Karangdadap, Kab. Pekalongan',
+    honorPokok: 1800000,
+  },
 ];
+
+const EXTRA_GURU_USERS: UserAccount[] = SEED_USTADZ_LIST
+  .filter((u) => !CORE_SEED_USERS.some((c) => c.ustadzId === u.id))
+  .map((u) => {
+    const cleanSlug = u.nama
+      .toLowerCase()
+      .replace(/^(kh\.|nyai\s+hj\.|nyai\.|usth\.|ustzh\.|ustd\.|ust\.|m\.)\s*/g, '')
+      .replace(/[^a-z0-9]/g, '');
+    const waNormalized = (u.noHP || '085728000099').replace(/[^0-9]/g, '');
+    return {
+      id: `u-${u.id}`,
+      username: cleanSlug || u.id,
+      nama: u.nama,
+      email: `${cleanSlug || u.id}@darussalam.id`,
+      noWa: waNormalized,
+      password: 'darussalam2026',
+      ustadzId: u.id,
+      peran: 'guru_pengampu',
+      peranLabel: u.jabatanUtama,
+      avatar:
+        u.gender === 'P'
+          ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80'
+          : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      rolesAvailable: ['guru_pengampu'],
+      keterangan: `Akun pengajar individu: ${u.jabatanUtama} (${u.fanIlmu.join(', ')})`,
+    };
+  });
+
+SEED_USERS = [...CORE_SEED_USERS, ...EXTRA_GURU_USERS];
 
 /**
  * Kurikulum & Kitab Kuning + Rumus Pegon Makna Jawa
@@ -1525,23 +1968,23 @@ export interface GuruAvailabilityRule {
   alasanRequest?: string;
 }
 
-export const SEED_GURU_AVAILABILITY: GuruAvailabilityRule[] = [
-  { ustadzId: 'ust-1', ustadzNama: 'KH. Amin Maizun', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Fleksibel jadwal Pengasuh' },
-  { ustadzId: 'ust-2', ustadzNama: 'Ust. Syarif Hidayatullah', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Siap penuh semua jam diniyah' },
-  { ustadzId: 'ust-3', ustadzNama: 'Ust. Abdur Rahman', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Mukim pondok, siap semua jam' },
-  { ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', jam1Tersedia: false, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Jam 1 (Ashar) belum bisa karena bekerja pagi-sore; request mengajar Jam 2 & Jam 3' },
-  { ustadzId: 'ust-5', ustadzNama: 'Ust. Ahmad Mujiburrohman', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Siap semua jam' },
-  { ustadzId: 'ust-6', ustadzNama: 'Ust. Khoirul Umam', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Siap semua jam' },
-  { ustadzId: 'ust-7', ustadzNama: 'M. Abdul Fataah', jam1Tersedia: false, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Jam 1 bertugas administrasi keuangan' },
-  { ustadzId: 'ust-8', ustadzNama: 'Usth. Siti Maryam', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Khusus kelas Putri semua jam' },
-  { ustadzId: 'ust-9', ustadzNama: 'Ust. Abdul Fattah', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Siap Jam 1-3' },
-  { ustadzId: 'ust-10', ustadzNama: 'Ust. Muhammad Ali Ridho', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: false, alasanRequest: 'Jam 3 piket musyawarah malam' },
-  { ustadzId: 'ust-11', ustadzNama: 'Ust. Ahmadi', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Siap semua jam' },
-  { ustadzId: 'ust-12', ustadzNama: "Ust. Ahmad Rifa'i", jam1Tersedia: false, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Jam 1 kerja, siap Jam 2 & 3' },
-  { ustadzId: 'ust-13', ustadzNama: 'Ust. Haris Maulana', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Siap semua jam' },
-  { ustadzId: 'ust-14', ustadzNama: 'Ust. Izzul Huda', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Siap semua jam' },
-  { ustadzId: 'ust-15', ustadzNama: 'Ust. Zainuddin', jam1Tersedia: true, jam2Tersedia: true, jam3Tersedia: true, alasanRequest: 'Siap semua jam' },
-];
+const CUSTOM_AVAIL: Record<string, Partial<GuruAvailabilityRule>> = {
+  'ust-1': { alasanRequest: 'Fleksibel jadwal Pengasuh' },
+  'ust-4': { jam1Tersedia: false, alasanRequest: 'Jam 1 (Ashar) belum bisa karena bekerja pagi-sore; request mengajar Jam 2 & Jam 3' },
+  'ust-7': { jam1Tersedia: false, alasanRequest: 'Jam 1 bertugas administrasi keuangan' },
+  'ust-8': { alasanRequest: 'Khusus kelas Putri semua jam' },
+  'ust-10': { jam3Tersedia: false, alasanRequest: 'Jam 3 piket musyawarah malam' },
+  'ust-12': { jam1Tersedia: false, alasanRequest: 'Jam 1 kerja, siap Jam 2 & 3' },
+};
+
+export const SEED_GURU_AVAILABILITY: GuruAvailabilityRule[] = SEED_USTADZ_LIST.map((u) => ({
+  ustadzId: u.id,
+  ustadzNama: u.nama,
+  jam1Tersedia: CUSTOM_AVAIL[u.id]?.jam1Tersedia ?? true,
+  jam2Tersedia: CUSTOM_AVAIL[u.id]?.jam2Tersedia ?? true,
+  jam3Tersedia: CUSTOM_AVAIL[u.id]?.jam3Tersedia ?? true,
+  alasanRequest: CUSTOM_AVAIL[u.id]?.alasanRequest ?? (u.gender === 'P' ? 'Siap mengajar Madrasah Diniyah Putri' : 'Siap semua jam diniyah'),
+}));
 
 export interface JadwalMengajarSlot {
   id: string;
@@ -1676,18 +2119,42 @@ export interface UstadzPayrollItem {
   terakhirDibayar?: string;
 }
 
+const JTM_RESMI_BY_USTADZ: Record<string, number> = {
+  'ust-1': 4,
+  'ust-3': 8,
+  'ust-4': 8,
+  'ust-12': 8,
+  'ust-16': 5,
+  'ust-17': 8,
+  'ust-18': 6,
+  'ust-19': 6,
+  'ust-20': 11,
+  'ust-21': 5,
+  'ust-22': 9,
+  'ust-23': 8,
+  'ust-24': 8,
+  'ust-25': 8,
+  'ust-26': 8,
+  'ust-27': 8,
+  'ust-28': 10,
+  'ust-29': 6,
+  'ust-30': 6,
+  'ust-31': 4,
+  'ust-32': 8,
+};
+
 export const SEED_USTADZ_PAYROLL: UstadzPayrollItem[] = SEED_USTADZ_LIST.map((u, idx) => ({
   ustadzId: u.id,
   ustadzNama: u.nama,
   jabatan: u.jabatanUtama,
   domisili: u.alamat.toLowerCase().includes('karangdadap') && u.statusKepegawaian === 'Khidmah' ? 'Mukim' : 'Laju',
-  gajiPokok: u.id === 'ust-1' ? 1500000 : 400000,
+  gajiPokok: u.id === 'ust-1' || u.id === 'ust-16' || u.id === 'ust-19' ? 1500000 : 400000,
   tunjanganTransportasi: u.alamat.toLowerCase().includes('karangdadap') ? 100000 : 200000,
   tunjanganMasaKerja: Math.max(50000, (8 - Math.min(idx, 6)) * 50000),
   tunjanganKomunikasi: u.id === 'ust-1' || u.id === 'ust-2' || u.id === 'ust-5' ? 100000 : 50000,
-  tunjanganJabatan: u.id === 'ust-1' ? 500000 : u.id === 'ust-2' || u.id === 'ust-4' || u.id === 'ust-5' || u.id === 'ust-7' ? 250000 : 100000,
+  tunjanganJabatan: u.id === 'ust-1' || u.id === 'ust-16' ? 500000 : u.id === 'ust-2' || u.id === 'ust-4' || u.id === 'ust-5' || u.id === 'ust-7' ? 250000 : 100000,
   bisyarohTakhasus: u.id === 'ust-1' || u.id === 'ust-4' || u.id === 'ust-8' ? 250000 : 0,
-  jtmDiniyah: u.id === 'ust-1' ? 4 : u.id === 'ust-4' || u.id === 'ust-3' ? 8 : 6,
+  jtmDiniyah: JTM_RESMI_BY_USTADZ[u.id] ?? 6,
   jumlahHadir: 24,
   statusBayar: idx < 3 ? 'Dibayarkan' : 'Siap',
   terakhirDibayar: idx < 3 ? '2026-11-08' : undefined,
@@ -1770,8 +2237,13 @@ export const SEED_BISYAROH_HISTORY: BisyarohHistoryItem[] = [
 ];
 
 /**
- * Absensi Harian Guru Diniyah
+ * Absensi Harian Guru Diniyah, Ngaji Al-Qur'an Pagi & Ngaji Takhasus
  */
+export type ProgramAbsensiType =
+  | 'Madrasah Diniyah'
+  | "Ngaji Al-Qur'an Pagi (Ba'da Subuh)"
+  | 'Ngaji Takhasus';
+
 export interface AbsensiGuruRecord {
   id: string;
   tanggal: string;
@@ -1779,16 +2251,76 @@ export interface AbsensiGuruRecord {
   ustadzNama: string;
   kelas: string;
   mapel: string;
+  program?: ProgramAbsensiType;
   status: 'Hadir' | 'Izin' | 'Sakit' | 'Badal';
   pengganti?: string;
   waktuInput: string;
+  waktuCekOut?: string;
+  durasiKerja?: string;
+  statusKeterlambatan?: 'Tepat Waktu' | 'Terlambat';
+  menitTerlambat?: number;
+  fotoSelfieUrl?: string;
+  fotoCekOutUrl?: string;
+  koordinat?: string;
+  akurasiGps?: number;
+  lokasiLabel?: string;
+  waktuTimestamp?: string;
+  wajahCocok?: boolean;
+  verifikasiAtasan?: 'Terverifikasi' | 'Menunggu';
 }
 
+export interface IzinBadalGuruRequest {
+  id: string;
+  ustadzId: string;
+  ustadzNama: string;
+  tanggal: string;
+  jenis: 'Izin' | 'Sakit' | 'Badal' | 'Tugas Pondok';
+  program: ProgramAbsensiType;
+  guruBadalNama?: string;
+  alasan: string;
+  status: 'Menunggu' | 'Disetujui' | 'Ditolak';
+  disetujuiOleh?: string;
+  waktuPengajuan: string;
+}
+
+export const SEED_IZIN_BADAL_GURU: IzinBadalGuruRequest[] = [
+  {
+    id: 'ib-1',
+    ustadzId: 'ust-6',
+    ustadzNama: 'Ustadz Khoirul Umam',
+    tanggal: '2026-11-18',
+    jenis: 'Badal',
+    program: 'Ngaji Takhasus',
+    guruBadalNama: 'Ustadz Syarif Hidayatullah',
+    alasan: 'Koordinasi persiapan logistik peringatan Hari Pahlawan & agenda asrama.',
+    status: 'Disetujui',
+    disetujuiOleh: 'Ustadz Syarif Hidayatullah (Kepala Majlis Ma\'arif)',
+    waktuPengajuan: '2026-11-17 19:20',
+  },
+  {
+    id: 'ib-2',
+    ustadzId: 'ust-17',
+    ustadzNama: 'Ustadzah Dewi Masitoh',
+    tanggal: '2026-11-21',
+    jenis: 'Izin',
+    program: 'Madrasah Diniyah',
+    guruBadalNama: 'Ustadzah Nurul Aini',
+    alasan: 'Menghadiri agenda keluarga di Kajen, mohon izin badal 1 pertemuan.',
+    status: 'Menunggu',
+    waktuPengajuan: '2026-11-19 20:10',
+  },
+];
+
 export const SEED_ABSENSI_GURU: AbsensiGuruRecord[] = [
-  { id: 'ag-1', tanggal: '2026-11-09', ustadzId: 'ust-3', ustadzNama: 'Ust. Abdur Rahman', kelas: '2 A PUTRA', mapel: 'Fiqih (Matan Taqrib)', status: 'Hadir', waktuInput: '18:35' },
-  { id: 'ag-2', tanggal: '2026-11-09', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 B PUTRA', mapel: 'Nahwu (Matan Al-Ajurumiyyah)', status: 'Hadir', waktuInput: '18:32' },
-  { id: 'ag-3', tanggal: '2026-11-09', ustadzId: 'ust-5', ustadzNama: 'Ust. Ahmad Mujiburrohman', kelas: '1 A PUTRA', mapel: 'Shorof', status: 'Hadir', waktuInput: '18:40' },
-  { id: 'ag-4', tanggal: '2026-11-09', ustadzId: 'ust-6', ustadzNama: 'Ust. Khoirul Umam', kelas: '3 A PUTRA', mapel: 'Hadits', status: 'Badal', pengganti: 'Ust. Syarif Hidayatullah', waktuInput: '18:45' },
+  { id: 'ag-1', tanggal: '2026-11-19', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 B PUTRA', mapel: 'Nahwu (Matan Al-Ajurumiyyah)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:55', waktuCekOut: '21:05', durasiKerja: '03:10:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 18, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '19 Nov 2026 17:55 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
+  { id: 'ag-2', tanggal: '2026-11-18', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 A PUTRA', mapel: 'Nahwu (Al-Imrithi)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '18:12', waktuCekOut: '21:02', durasiKerja: '02:50:00', statusKeterlambatan: 'Terlambat', menitTerlambat: 12, koordinat: '-6.9765, 109.6832', akurasiGps: 24, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '18 Nov 2026 18:12 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
+  { id: 'ag-3', tanggal: '2026-11-17', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '3 A PUTRA', mapel: 'Nahwu (Nadhom Al-Imrithi)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:52', waktuCekOut: '21:00', durasiKerja: '03:08:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 15, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '17 Nov 2026 17:52 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
+  { id: 'ag-4', tanggal: '2026-11-16', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 B PUTRA', mapel: 'Nahwu (Matan Al-Ajurumiyyah)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:58', waktuCekOut: '21:04', durasiKerja: '03:06:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 21, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '16 Nov 2026 17:58 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
+  { id: 'ag-5', tanggal: '2026-11-19', ustadzId: 'ust-3', ustadzNama: 'Ust. Abdur Rahman', kelas: '2 A PUTRA', mapel: 'Fiqih (Matan Taqrib)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:50', waktuCekOut: '21:00', durasiKerja: '03:10:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 20, lokasiLabel: 'PP NU Darussalam Karangdadap', waktuTimestamp: '19 Nov 2026 17:50 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
+  { id: 'ag-6', tanggal: '2026-11-19', ustadzId: 'ust-5', ustadzNama: 'Ust. Ahmad Mujiburrohman', kelas: '1 A PUTRA', mapel: 'Shorof', program: "Ngaji Al-Qur'an Pagi (Ba'da Subuh)", status: 'Hadir', waktuInput: '05:05', waktuCekOut: '06:30', durasiKerja: '01:25:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 19, lokasiLabel: 'Masjid PP NU Darussalam', waktuTimestamp: '19 Nov 2026 05:05 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
+  { id: 'ag-7', tanggal: '2026-11-18', ustadzId: 'ust-6', ustadzNama: 'Ust. Khoirul Umam', kelas: '3 A PUTRA', mapel: 'Hadits', program: 'Ngaji Takhasus', status: 'Badal', pengganti: 'Ust. Syarif Hidayatullah', waktuInput: '16:15', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', lokasiLabel: 'PP NU Darussalam Karangdadap', waktuTimestamp: '18 Nov 2026 16:15 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
+  { id: 'ag-8', tanggal: '2026-11-19', ustadzId: 'ust-2', ustadzNama: 'Ust. Syarif Hidayatullah', kelas: '6 A PUTRA & PUTRI', mapel: 'Ushul Fiqih', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:48', waktuCekOut: '21:10', durasiKerja: '03:22:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 14, lokasiLabel: 'Kantor Majlis Ma\'arif PP NU Darussalam', waktuTimestamp: '19 Nov 2026 17:48 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
+  { id: 'ag-9', tanggal: '2026-11-19', ustadzId: 'ust-16', ustadzNama: 'Usth. Siti Aisyah', kelas: '1 A PUTRI', mapel: 'Fiqih Putri', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:54', waktuCekOut: '21:00', durasiKerja: '03:06:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9768, 109.6835', akurasiGps: 22, lokasiLabel: 'Komplek Madrasah Putri PP NU Darussalam', waktuTimestamp: '19 Nov 2026 17:54 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
 ];
 
 /**
@@ -1975,6 +2507,42 @@ export const SEED_KAS_TRANSACTIONS: KasTransaction[] = [
 /**
  * Agenda PHBI / PHBN (Kema'hadiyahan)
  */
+export interface AgendaPanitiaMember {
+  id: string;
+  jabatan: string;
+  nama: string;
+  tugasTupoksi: string;
+}
+
+export interface AgendaRabItem {
+  id: string;
+  uraian: string;
+  qty: number;
+  satuan: string;
+  hargaSatuan: number;
+}
+
+export interface AgendaRundownItem {
+  id: string;
+  waktu: string;
+  sesi: string;
+  penanggungJawab: string;
+  lokasi: string;
+}
+
+export interface AgendaProposalData {
+  latarBelakang: string;
+  tujuan: string;
+  status: 'Draf' | 'Diajukan' | 'Disetujui';
+}
+
+export interface AgendaLpjData {
+  ringkasanHasil: string;
+  totalRealisasi: number;
+  kendala: string;
+  status: 'Belum Disusun' | 'Draf' | 'Disahkan';
+}
+
 export interface AgendaKegiatanItem {
   id: string;
   nama: string;
@@ -1984,12 +2552,110 @@ export interface AgendaKegiatanItem {
   anggaran: number;
   status: 'Persiapan' | 'Berjalan' | 'Selesai';
   keterangan?: string;
+  sumberKalenderKode?: string;
+  panitiaList?: AgendaPanitiaMember[];
+  rabItems?: AgendaRabItem[];
+  rundownList?: AgendaRundownItem[];
+  proposal?: AgendaProposalData;
+  lpj?: AgendaLpjData;
 }
 
 export const SEED_AGENDA_KEGIATAN: AgendaKegiatanItem[] = [
-  { id: 'agk-1', nama: 'Peringatan Hari Santri Nasional (HSN 2026)', tanggal: '2026-10-22', lokasi: 'Halaman Utama PP NU Darussalam', ketuaPanitia: 'Ust. Khoirul Umam', anggaran: 27500000, status: 'Selesai', keterangan: 'Upacara bendera, kirab santri, dan bahtsul masail.' },
-  { id: 'agk-2', nama: 'Imtihan Semester Gasal 2026/2027', tanggal: '2026-12-06', lokasi: 'Ruang Ujian R1 - R7', ketuaPanitia: 'Ust. Nidhomul Muna Lana', anggaran: 10800000, status: 'Berjalan', keterangan: 'Ujian tulis pegon/Arab dan hafalan nadhom.' },
-  { id: 'agk-3', nama: "Peringatan Isra' Mi'raj 1448 H & Haflah Khotmil Kutub", tanggal: '2027-01-15', lokasi: 'Masjid & Halaman Pondok', ketuaPanitia: 'Ust. Ahmad Mujiburrohman', anggaran: 18000000, status: 'Persiapan', keterangan: 'Pengajian akbar bersama wali santri dan masyarakat.' },
+  {
+    id: 'agk-1',
+    nama: 'Peringatan Hari Santri Nasional (HSN 2026)',
+    tanggal: '2026-10-22',
+    lokasi: 'Halaman Utama PP NU Darussalam',
+    ketuaPanitia: 'Ust. Khoirul Umam',
+    anggaran: 27500000,
+    status: 'Selesai',
+    keterangan: 'Upacara bendera, kirab santri, dan bahtsul masail.',
+    sumberKalenderKode: 'LHS',
+    panitiaList: [
+      { id: 'pan-1', jabatan: 'Ketua Panitia', nama: 'Ust. Khoirul Umam', tugasTupoksi: 'Mengkoordinir seluruh seksi kegiatan HSN dan laporan pertanggungjawaban ke Pengasuh.' },
+      { id: 'pan-2', jabatan: 'Sekretaris', nama: 'Ust. Ahmad Mujiburrohman', tugasTupoksi: 'Menyusun surat undangan, perizinan kirab, serta proposal & LPJ kegiatan.' },
+      { id: 'pan-3', jabatan: 'Bendahara Acara', nama: 'M. Abdul Fataah', tugasTupoksi: 'Mengelola pencairan RAB, nota belanja, dan laporan realisasi keuangan.' },
+    ],
+    rabItems: [
+      { id: 'arab-1', uraian: 'Dekorasi Panggung, Banner & Sound System', qty: 1, satuan: 'Paket', hargaSatuan: 8500000 },
+      { id: 'arab-2', uraian: 'Konsumsi Santri, Asatidz & Tamu Undangan', qty: 450, satuan: 'Porsi', hargaSatuan: 25000 },
+      { id: 'arab-3', uraian: 'Hadiah Lomba Bahtsul Masail & Hadroh', qty: 1, satuan: 'Paket', hargaSatuan: 7750000 },
+    ],
+    rundownList: [
+      { id: 'rnd-1', waktu: '07.00 - 08.30', sesi: 'Upacara Hari Santri Nasional', penanggungJawab: 'Ust. Khoirul Umam', lokasi: 'Lapangan Utama' },
+      { id: 'rnd-2', waktu: '08.30 - 11.00', sesi: 'Kirab Santri & Penampilan Hadroh', penanggungJawab: 'Ust. Bahrul Ulum', lokasi: 'Kec. Karangdadap' },
+      { id: 'rnd-3', waktu: '19.30 - 22.00', sesi: 'Bahtsul Masail Kubro & Doa Kebangsaan', penanggungJawab: 'Ust. Syarif Hidayatullah', lokasi: 'Masjid Darussalam' },
+    ],
+    proposal: {
+      latarBelakang: 'Meneguhkan komitmen santri dalam menjaga tradisi Aswaja an-Nahdliyah dan kecintaan tanah air.',
+      tujuan: 'Membangun semangat khidmah santri serta mempererat ukhuwah bersama masyarakat Karangdadap.',
+      status: 'Disetujui',
+    },
+    lpj: {
+      ringkasanHasil: 'Seluruh rangkaian upacara, kirab, dan bahtsul masail diikuti 366 santri dengan tertib dan lancar.',
+      totalRealisasi: 26850000,
+      kendala: 'Hujan rintik menjelang sesi malam sehingga acara dipindah ke dalam serambi masjid.',
+      status: 'Disahkan',
+    },
+  },
+  {
+    id: 'agk-2',
+    nama: 'Imtihan Semester Gasal 2026/2027',
+    tanggal: '2026-12-12',
+    lokasi: 'Ruang Ujian R1 - R7',
+    ketuaPanitia: 'Ust. Nidhomul Muna Lana',
+    anggaran: 10800000,
+    status: 'Berjalan',
+    keterangan: 'Ujian tulis pegon/Arab dan hafalan nadhom.',
+    sumberKalenderKode: 'IMT 1',
+    panitiaList: [
+      { id: 'pan-4', jabatan: 'Ketua Panitia Imtihan', nama: 'Ust. Nidhomul Muna Lana', tugasTupoksi: 'Mengatur jadwal ujian, verifikasi naskah soal Pegon/Arab, dan tata tertib pengawas.' },
+      { id: 'pan-5', jabatan: 'Bendahara Imtihan', nama: 'M. Abdul Fataah', tugasTupoksi: 'Menghimpun iuran imtihan dan mendistribusikan bisyaroh pengawas serta korektor.' },
+    ],
+    rabItems: [
+      { id: 'arab-4', uraian: 'Penggandaan Blanko Soal & Kartu Imtihan (366 Santri)', qty: 1, satuan: 'Paket', hargaSatuan: 3800000 },
+      { id: 'arab-5', uraian: 'Bisyaroh Pengawas Ruang & Koreksi Soal', qty: 35, satuan: 'Orang', hargaSatuan: 200000 },
+    ],
+    rundownList: [
+      { id: 'rnd-4', waktu: '18.15 - 18.30', sesi: 'Apel Pengawas & Pengambilan Amplop Soal', penanggungJawab: 'Ust. Nidhomul Muna Lana', lokasi: 'Kantor Panitia' },
+      { id: 'rnd-5', waktu: '18.30 - 21.00', sesi: 'Pelaksanaan Ujian Sesi I & II', penanggungJawab: 'Pengawas R1 - R7', lokasi: 'Ruang Ujian R1 - R7' },
+    ],
+    proposal: {
+      latarBelakang: 'Evaluasi kemampuan penguasaan kitab kuning santri selama Cawu/Semester Gasal 2026/2027.',
+      tujuan: 'Mengukur capaian belajar serta menentukan kesiapan kenaikan/raport santri secara objektif.',
+      status: 'Disetujui',
+    },
+    lpj: { ringkasanHasil: '', totalRealisasi: 0, kendala: '', status: 'Belum Disusun' },
+  },
+  {
+    id: 'agk-3',
+    nama: "Peringatan Isra' Mi'raj 1448 H & Haflah Khotmil Kutub",
+    tanggal: '2027-01-06',
+    lokasi: 'Masjid & Halaman Pondok',
+    ketuaPanitia: 'Ust. Ahmad Mujiburrohman',
+    anggaran: 18000000,
+    status: 'Persiapan',
+    keterangan: 'Pengajian akbar bersama wali santri dan masyarakat.',
+    sumberKalenderKode: 'ISR',
+    panitiaList: [
+      { id: 'pan-6', jabatan: 'Ketua Panitia', nama: 'Ust. Ahmad Mujiburrohman', tugasTupoksi: 'Koordinasi pengisi mauidhoh hasanah, khotimin, dan seksi acara.' },
+      { id: 'pan-7', jabatan: 'Sie Keamanan & Parkir', nama: 'Ust. Bahrul Ulum', tugasTupoksi: 'Mengatur kelancaran lalu lintas tamu undangan dan wali santri.' },
+    ],
+    rabItems: [
+      { id: 'arab-6', uraian: 'Tenda Tamu, Panggung & Lighting', qty: 1, satuan: 'Paket', hargaSatuan: 7500000 },
+      { id: 'arab-7', uraian: 'Konsumsi Wali Santri & Masyarakat', qty: 700, satuan: 'Kotak', hargaSatuan: 15000 },
+    ],
+    rundownList: [
+      { id: 'rnd-6', waktu: '19.30 - 20.15', sesi: 'Pembacaan Maulid Simtudduror & Hadroh', penanggungJawab: 'Tim Hadroh Pondok', lokasi: 'Halaman Utama' },
+      { id: 'rnd-7', waktu: '20.15 - 22.30', sesi: 'Imtihan Publik Khotmil Kutub & Mauidhoh Hasanah', penanggungJawab: 'KH. Amin Maizun', lokasi: 'Panggung Utama' },
+    ],
+    proposal: {
+      latarBelakang: "Menghidupkan syiar peringatan Isra' Mi'raj Nabi Muhammad SAW serta apresiasi khataman kitab santri.",
+      tujuan: 'Menguatkan silaturahmi pesantren dengan wali santri dan masyarakat luas.',
+      status: 'Diajukan',
+    },
+    lpj: { ringkasanHasil: '', totalRealisasi: 0, kendala: '', status: 'Belum Disusun' },
+  },
 ];
 
 /**

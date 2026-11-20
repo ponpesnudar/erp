@@ -175,7 +175,7 @@ export const TemplateBlankoImtihan: React.FC<TemplateBlankoImtihanProps> = ({
 
       {/* LEMBAR BLANKO SOAL RESMI */}
       <div
-        className={`bg-white border-2 border-slate-900 p-6 sm:p-10 mx-auto shadow-2xl font-serif text-black printable-area ${paperWidthClass} ${paperMinHeightClass} flex flex-col justify-between`}
+        className={`bg-white border-2 border-slate-900 p-6 sm:p-10 print:p-2 print:border-0 print:shadow-none mx-auto shadow-2xl font-serif text-black printable-area ${paperWidthClass} ${paperMinHeightClass} print:min-h-0 flex flex-col justify-between`}
       >
         <div>
           {/* KOP SURAT UTAMA */}
@@ -366,7 +366,7 @@ export const TemplateBlankoImtihan: React.FC<TemplateBlankoImtihanProps> = ({
         </div>
 
         {/* Footer Lembar Ujian */}
-        <div className="mt-10 pt-3 border-t border-slate-400 text-center text-[11px] font-sans text-slate-500">
+        <div className="mt-10 print:mt-4 pt-3 border-t border-slate-400 text-center text-[11px] font-sans text-slate-500">
           Panitia Pelaksana Imtihan · Pondok Pesantren NU Darussalam Karangdadap Pekalongan · Dokumen Resmi Ujian ({effectivePaper})
         </div>
       </div>

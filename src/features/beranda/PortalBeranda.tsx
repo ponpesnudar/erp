@@ -14,6 +14,7 @@ import {
   UserPlus,
   KeyRound,
   Filter,
+  UserCheck,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -92,8 +93,8 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
     <div className="space-y-6">
       {/* Top Welcome Banner (Lampiran D style) */}
       <div className="rounded-3xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-900 text-white p-6 sm:p-8 shadow-xs border border-emerald-700/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-2 max-w-2xl">
-          <span className="px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-bold border border-amber-400/30">
+        <div className="space-y-2.5 max-w-2xl">
+          <span className="inline-block px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-bold border border-amber-400/30">
             Tahun Ajaran Aktif {currentTahunAjaran}
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
@@ -102,6 +103,18 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
           <p className="text-xs text-emerald-100 leading-relaxed">
             Selamat datang di Sistem ERP Pondok Pesantren NU Darussalam Karangdadap, Pekalongan. Seluruh administrasi santri, imtihan, persuratan, dan keuangan terintegrasi real-time.
           </p>
+          {!['wali_santri', 'kasir_kantin'].includes(activeRole) && (
+            <div className="pt-1 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onNavigate('sdm_absensi')}
+                className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-xs font-extrabold flex items-center gap-2 shadow-xs transition"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Buka Aplikasi Absensi Guru (Swafoto GPS)</span>
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
@@ -151,6 +164,18 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
                   badge: 'Harian',
                   color: 'text-blue-700 bg-blue-50',
                 },
+                ...(!['wali_santri', 'kasir_kantin'].includes(activeRole)
+                  ? [
+                      {
+                        id: 'sdm_absensi',
+                        title: 'SDM & Absensi Guru',
+                        desc: 'Cek in swafoto GPS mobile, rekapan absensi & monitoring SDM',
+                        icon: UserCheck,
+                        badge: 'Mobile GPS',
+                        color: 'text-emerald-800 bg-emerald-100',
+                      },
+                    ]
+                  : []),
                 {
                   id: 'sekretaris',
                   title: 'Sekretariat',

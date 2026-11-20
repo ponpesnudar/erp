@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
   const pendingCount = kotakMasuk.filter((k) => k.status === 'Menunggu').length;
 
   return (
-    <header className="sticky top-0 z-30 flex-none h-14 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 flex items-center justify-between text-xs text-slate-700 shadow-2xs">
+    <header className="sticky top-0 z-30 flex-none h-14 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 flex items-center justify-between text-xs text-slate-700 shadow-2xs no-print print:hidden">
       {/* Left: Breadcrumbs / Title */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-2 truncate">
@@ -299,7 +299,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Sync Status Modal */}
       {showStatusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 no-print">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
@@ -340,7 +340,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Module Grid Launcher Modal */}
       {showGridModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
           <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
@@ -357,6 +357,9 @@ export const Header: React.FC<HeaderProps> = ({
                 { id: 'beranda', name: 'Beranda Portal', desc: 'KPI & Akses Cepat' },
                 { id: 'imtihan', name: 'Imtihan & Nilai', desc: 'Soal, Denah, Kartu, Raport, RAB' },
                 { id: 'maarifan', name: "Ma'arifan Diniyah", desc: 'Absensi Guru & Santri, Kitab' },
+                ...( !['wali_santri', 'kasir_kantin'].includes(effectiveRole)
+                  ? [{ id: 'sdm_absensi', name: 'SDM & Absensi Guru', desc: 'Monitoring SDM & Absensi Mobile GPS' }]
+                  : [] ),
                 { id: 'sekretaris', name: 'Sekretaris', desc: 'Surat Masuk/Keluar & Data Santri' },
                 { id: 'bendahara', name: 'Bendahara', desc: 'Arus Kas, Gaji, Rekap Anggaran' },
                 { id: 'kemahadiyahan', name: "Kema'hadiyahan", desc: 'Bagan Jabatan & Acara PHBI' },
@@ -385,7 +388,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Switch Role Modal */}
       {showSwitchRoleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
             <h3 className="font-bold text-sm text-slate-900">Ganti Peran Aktif</h3>
             <p className="text-xs text-slate-500 mt-1">

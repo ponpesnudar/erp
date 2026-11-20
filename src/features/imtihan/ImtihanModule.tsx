@@ -33,6 +33,8 @@ import {
   PilihanGandaItem,
 } from '../../lib/store.ts';
 import { ModuleWorkflowFlowchart, WorkflowNode } from '../../components/common/ModuleWorkflowFlowchart.tsx';
+import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
+import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 import { validateRoom } from '../../lib/rules.ts';
 import {
   TemplateBlankoImtihan,
@@ -1453,7 +1455,7 @@ const SubTabReviewPanitia: React.FC = () => {
 
       {/* Review Drawer / Modal */}
       {activeSoal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print print:hidden">
           <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
@@ -1594,13 +1596,16 @@ const SubTabCetakBlankoSoal: React.FC = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => window.print()}
-            className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition shadow-xs flex items-center gap-2"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Cetak Lembar Blanko ({paperSize})</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <PrintOrientationControl recommended="portrait" />
+            <button
+              onClick={() => window.print()}
+              className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition shadow-xs flex items-center gap-2"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Cetak Lembar Blanko ({paperSize})</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-slate-100 text-xs">
@@ -2094,7 +2099,8 @@ const SubTabDenahUjian: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintOrientationControl recommended="portrait" />
             <button
               onClick={handleAcakUlang}
               className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5"
@@ -2465,7 +2471,13 @@ const SubTabJadwalMapel: React.FC = () => {
 
       {/* Table */}
       <div className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-4 printable-area">
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        <PrintKopPondok
+          variant="imtihan"
+          judulDokumen={`JADWAL RESMI MATA PELAJARAN IMTIHAN CAWU ${imtihanMaster.cawu}`}
+          subJudul={`Pelaksanaan: ${imtihanMaster.tanggalPelaksanaan} · Sinkronisasi Otomatis Kartu Imtihan`}
+          tahunAjaran={imtihanMaster.tahunAjaran}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 no-print">
           <div>
             <h3 className="font-bold text-sm text-slate-900">
               Jadwal Resmi Mapel Imtihan Cawu {imtihanMaster.cawu} · T.A. {imtihanMaster.tahunAjaran}
@@ -2474,7 +2486,8 @@ const SubTabJadwalMapel: React.FC = () => {
               Pelaksanaan: {imtihanMaster.tanggalPelaksanaan} · Perubahan jadwal otomatis sinkron ke Kartu Imtihan
             </p>
           </div>
-          <div className="flex items-center gap-2 no-print">
+          <div className="flex flex-wrap items-center gap-2 no-print">
+            <PrintOrientationControl recommended="landscape" />
             <button
               type="button"
               onClick={() => setShowAdd(true)}
@@ -2806,13 +2819,16 @@ const SubTabJagaPiket: React.FC = () => {
               Anti-bentrok otomatis: 1 ruang ujian hanya dapat diisi 1 pengawas pada hari &amp; jam yang sama.
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Cetak Jadwal Jaga</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintOrientationControl recommended="portrait" />
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Cetak Jadwal Jaga</span>
+            </button>
+          </div>
         </div>
 
         {toast && (
@@ -2936,7 +2952,13 @@ const SubTabJagaPiket: React.FC = () => {
 
       {/* Printable Schedule Table */}
       <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
-        <div className="text-center border-b border-slate-200 pb-3">
+        <PrintKopPondok
+          variant="imtihan"
+          judulDokumen={`JADWAL PENGAWAS RUANG & PIKET KANTOR IMTIHAN CAWU ${imtihanMaster.cawu}`}
+          subJudul={`Pelaksanaan: ${imtihanMaster.tanggalPelaksanaan} · Pengawasan Bebas Bentrok Ruang & Petugas`}
+          tahunAjaran={imtihanMaster.tahunAjaran}
+        />
+        <div className="text-center border-b border-slate-200 pb-3 no-print">
           <h3 className="font-black text-sm uppercase text-slate-900">
             JADWAL PENGAWAS RUANG & PIKET KANTOR IMTIHAN CAWU {imtihanMaster.cawu}
           </h3>

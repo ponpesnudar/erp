@@ -12,6 +12,7 @@ import {
 import { useAppStore } from '../../../lib/store.ts';
 import { nomorUjian } from '../../../lib/rules.ts';
 import type { SantriRecord, JadwalMaarifanItem } from '../../../data/seed/pondokData.ts';
+import { PrintOrientationControl } from '../../../components/common/PrintOrientationControl.tsx';
 
 function getMapelByTingkat(row: JadwalMaarifanItem, tingkat: number): string {
   switch (tingkat) {
@@ -209,18 +210,21 @@ export const KartuImtihanSubTab: React.FC = () => {
               <span>Kartu Peserta Imtihan (Latar Putih Siap Cetak Kertas Warna)</span>
             </h3>
             <p className="text-xs text-slate-500">
-              Rekomendasi layout cetak: <strong>Kertas F4 (6 kartu / lembar)</strong> atau <strong>Kertas A4 (4 kartu / lembar)</strong> — hemat kertas & presisi potong.
+              Rekomendasi layout cetak: <strong>Kertas F4 atau A4 (4 kartu lengkap per lembar)</strong> — latar putih hemat tinta &amp; siap cetak di kertas warna.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition shadow-xs flex items-center gap-2 shrink-0"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Cetak {targetCards.length} Kartu ({paperSize})</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <PrintOrientationControl recommended="portrait" />
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition shadow-xs flex items-center gap-2 shrink-0"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Cetak {targetCards.length} Kartu ({paperSize})</span>
+            </button>
+          </div>
         </div>
 
         {/* Mode, Target & Paper Size */}
@@ -299,7 +303,7 @@ export const KartuImtihanSubTab: React.FC = () => {
                   paperSize === 'F4' ? 'bg-white text-emerald-900 shadow-2xs' : 'text-slate-600'
                 }`}
               >
-                F4 (6 Kartu/Hal)
+                F4 (4 Kartu/Hal)
               </button>
               <button
                 type="button"
@@ -409,38 +413,44 @@ export const KartuImtihanSubTab: React.FC = () => {
         )}
       </div>
 
-      {/* PRINTABLE CARDS LIST */}
-      <div className="space-y-6 printable-card-sheet">
+      {/* Scoped Paper Size Override for Kartu Imtihan */}
+      <style>{`@media print { @page { size: ${paperSize === 'A4' ? '210mm 297mm' : '215mm 330mm'}; margin: 7mm 9mm; } }`}</style>
+
+      {/* PRINTABLE CARDS LIST (4 Kartu Lengkap per Lembar A4/F4) */}
+      <div className="space-y-3 print:space-y-1.5 printable-card-sheet printable-area">
         {targetCards.map(({ santri, noImt, ruangLabel }, cardIdx) => {
           const jadwalSantri = jadwalMaarifan.filter((j) => getMapelByTingkat(j, santri.tingkat) !== '-');
+          const cardHeightClass =
+            paperSize === 'A4'
+              ? 'min-h-[195px] print:min-h-[63mm] print:max-h-[66mm]'
+              : 'min-h-[210px] print:min-h-[71mm] print:max-h-[74mm]';
 
           return (
             <div
               key={santri.id}
-              className={`grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl mx-auto page-break-inside-avoid ${
-                (paperSize === 'A4' && (cardIdx + 1) % 2 === 0) ||
-                (paperSize === 'F4' && (cardIdx + 1) % 3 === 0)
-                  ? 'page-break-after'
-                  : ''
+              className={`grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-2.5 print:gap-2 max-w-5xl mx-auto page-break-inside-avoid ${
+                (cardIdx + 1) % 4 === 0 && cardIdx + 1 < targetCards.length ? 'page-break-after' : ''
               }`}
             >
               {/* SISI DEPAN KARTU (BACKGROUND PUTIH BERSIH UNTUK KERTAS WARNA) */}
-              <div className="bg-white border-[3px] border-[#1E3A8A] rounded-md p-4 font-sans text-[#1E3A8A] flex flex-col justify-between min-h-[250px]">
+              <div
+                className={`bg-white border-[2.5px] border-[#1E3A8A] rounded-md p-2.5 print:p-2 font-sans text-[#1E3A8A] flex flex-col justify-between ${cardHeightClass}`}
+              >
                 {/* Kop Kartu Arab + Stempel Logo Resmi */}
-                <div className="flex items-center justify-between border-b-2 border-[#1E3A8A] pb-2.5 gap-3">
+                <div className="flex items-center justify-between border-b-2 border-[#1E3A8A] pb-1 gap-2">
                   <div className="text-right flex-1 font-arabic" dir="rtl">
-                    <h3 className="text-base font-bold leading-tight">{cawuTitleArab}</h3>
-                    <h4 className="text-xs font-bold leading-snug">
+                    <h3 className="text-sm sm:text-[15px] font-bold leading-tight">{cawuTitleArab}</h3>
+                    <h4 className="text-[11px] sm:text-xs font-bold leading-snug">
                       بالمعهد الإسلامي النهضي دار السلام كاراغداداف فكالوغان
                     </h4>
-                    <p className="text-[11px] font-bold">للعام الدراسي {imtihanMaster.tahunHijriyahArab}</p>
+                    <p className="text-[10px] font-bold">للعام الدراسي {imtihanMaster.tahunHijriyahArab}</p>
                   </div>
 
-                  <div className="w-16 h-16 shrink-0 flex items-center justify-center">
+                  <div className="w-11 h-11 shrink-0 flex items-center justify-center">
                     <img
                       src="/assets/aistudio/ChatGPT_Image_Nov_6__2025__01_32_08_PM_64f70724.png"
                       alt="Logo Stempel Imtihan"
-                      className="w-15 h-15 object-contain"
+                      className="w-11 h-11 object-contain"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = '/assets/aistudio/preview__14__3b7f388f.webp';
                       }}
@@ -449,46 +459,46 @@ export const KartuImtihanSubTab: React.FC = () => {
                 </div>
 
                 {/* Biodata Peserta */}
-                <div className="space-y-1 text-xs font-bold my-2.5">
+                <div className="space-y-0.5 text-[11.5px] font-bold my-1 leading-snug">
                   <div className="flex">
-                    <span className="w-20 shrink-0">No. IMT</span>
-                    <span>: {noImt}</span>
+                    <span className="w-14 shrink-0">No. IMT</span>
+                    <span className="tabular-nums">: {noImt}</span>
                   </div>
                   <div className="flex">
-                    <span className="w-20 shrink-0">Nama</span>
+                    <span className="w-14 shrink-0">Nama</span>
                     <span className="uppercase truncate">: {santri.nama}</span>
                   </div>
                   <div className="flex">
-                    <span className="w-20 shrink-0">Kelas</span>
+                    <span className="w-14 shrink-0">Kelas</span>
                     <span>: {santri.kelas}</span>
                   </div>
                   <div className="flex">
-                    <span className="w-20 shrink-0">Ruang</span>
-                    <span>: {ruangLabel}</span>
+                    <span className="w-14 shrink-0">Ruang</span>
+                    <span className="truncate">: {ruangLabel}</span>
                   </div>
                 </div>
 
                 {/* Tanda Tangan */}
-                <div className="pt-2 border-t border-[#1E3A8A]/40 flex items-end justify-between text-[11px]">
-                  <div className="text-center w-36">
-                    <p className="font-semibold mb-9">Peserta</p>
-                    <p className="font-semibold">(...............................)</p>
+                <div className="pt-1 border-t border-[#1E3A8A]/40 flex items-end justify-between text-[10px]">
+                  <div className="text-center w-28">
+                    <p className="font-semibold mb-6">Peserta</p>
+                    <p className="font-semibold">(...........................)</p>
                   </div>
 
-                  <div className="text-center w-44">
-                    <p className="font-semibold mb-1">Ketua Imtihan</p>
-                    <div className="h-10 flex items-center justify-center">
+                  <div className="text-center w-48">
+                    <p className="font-semibold leading-none">Ketua Imtihan</p>
+                    <div className="h-10 min-w-[110px] flex items-center justify-center">
                       {imtihanMaster.ketuaImtihanTtdUrl ? (
                         <img
                           src={imtihanMaster.ketuaImtihanTtdUrl}
                           alt="TTD Ketua Imtihan"
-                          className="max-h-10 w-auto object-contain"
+                          className="max-h-10 w-auto min-w-[85px] object-contain"
                         />
                       ) : (
                         <div className="h-8" />
                       )}
                     </div>
-                    <p className="font-bold border-t border-[#1E3A8A]/40 pt-0.5">
+                    <p className="font-bold border-t border-[#1E3A8A]/40 pt-0.5 text-[10.5px] leading-tight">
                       {imtihanMaster.ketuaImtihanNama}
                     </p>
                   </div>
@@ -496,20 +506,22 @@ export const KartuImtihanSubTab: React.FC = () => {
               </div>
 
               {/* SISI BELAKANG KARTU (JADWAL PARAF PENGAWAS SINKRON MA'ARIFAN) */}
-              <div className="bg-white border-[3px] border-[#1E3A8A] rounded-md p-4 font-sans text-[#1E3A8A] flex flex-col justify-between min-h-[250px]">
-                <div className="text-center border-b-2 border-[#1E3A8A] pb-1.5 mb-2">
-                  <h3 className="font-extrabold text-xs tracking-wider uppercase">
+              <div
+                className={`bg-white border-[2.5px] border-[#1E3A8A] rounded-md p-2.5 print:p-2 font-sans text-[#1E3A8A] flex flex-col justify-between ${cardHeightClass}`}
+              >
+                <div className="text-center border-b-2 border-[#1E3A8A] pb-0.5 mb-1">
+                  <h3 className="font-extrabold text-[10.5px] tracking-wider uppercase leading-tight">
                     PONDOK PESANTREN NU DARUSSALAM PEKALONGAN
                   </h3>
                 </div>
 
-                <table className="w-full border-2 border-[#1E3A8A] border-collapse text-[10px] text-center flex-1">
+                <table className="w-full border-2 border-[#1E3A8A] border-collapse text-[9px] text-center flex-1">
                   <thead>
                     <tr className="border-b-2 border-[#1E3A8A] font-bold">
-                      <th className="border-r border-[#1E3A8A] py-1 px-1">Hari / Tanggal</th>
-                      <th className="border-r border-[#1E3A8A] py-1 px-1">Kelas {santri.tingkat}</th>
-                      <th className="border-r border-[#1E3A8A] py-1 px-1 w-8">Jam</th>
-                      <th className="py-1 px-1" colSpan={2}>Paraf Pengawas</th>
+                      <th className="border-r border-[#1E3A8A] py-[2px] px-1">Hari / Tanggal</th>
+                      <th className="border-r border-[#1E3A8A] py-[2px] px-1">Kelas {santri.tingkat}</th>
+                      <th className="border-r border-[#1E3A8A] py-[2px] px-1 w-6">Jam</th>
+                      <th className="py-[2px] px-1" colSpan={2}>Paraf Pengawas</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -519,21 +531,20 @@ export const KartuImtihanSubTab: React.FC = () => {
                       const parafNo2 = rIdx % 2 === 0 ? rIdx + 2 : '';
                       return (
                         <tr key={row.id} className="border-b border-[#1E3A8A]">
-                          <td className="border-r border-[#1E3A8A] py-0.5 px-1 font-bold leading-tight">
+                          <td className="border-r border-[#1E3A8A] py-[1.5px] px-1 font-bold leading-[1.1]">
                             {row.hari}
                             {row.tanggalUjian && (
-                              <>
-                                <br />
-                                <span className="text-[9px] font-normal">{row.tanggalUjian}</span>
-                              </>
+                              <span className="block text-[7.5px] font-normal">{row.tanggalUjian}</span>
                             )}
                           </td>
-                          <td className="border-r border-[#1E3A8A] py-0.5 px-1 font-semibold">{mapelName}</td>
-                          <td className="border-r border-[#1E3A8A] py-0.5 px-1 font-bold">{row.jamKe}</td>
-                          <td className="border-r border-[#1E3A8A] py-0.5 px-1 w-10 font-bold text-left align-top text-[9px]">
+                          <td className="border-r border-[#1E3A8A] py-[1.5px] px-1 font-semibold leading-[1.1]">
+                            {mapelName}
+                          </td>
+                          <td className="border-r border-[#1E3A8A] py-[1.5px] px-1 font-bold">{row.jamKe}</td>
+                          <td className="border-r border-[#1E3A8A] py-[1.5px] px-1 w-8 font-bold text-left align-top text-[8px]">
                             {parafNo1}
                           </td>
-                          <td className="py-0.5 px-1 w-10 font-bold text-left align-top text-[9px]">
+                          <td className="py-[1.5px] px-1 w-8 font-bold text-left align-top text-[8px]">
                             {parafNo2}
                           </td>
                         </tr>
@@ -541,7 +552,7 @@ export const KartuImtihanSubTab: React.FC = () => {
                     })}
                     {jadwalSantri.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="py-4 text-slate-400">
+                        <td colSpan={5} className="py-3 text-slate-400">
                           Belum ada jadwal terkonfigurasi
                         </td>
                       </tr>

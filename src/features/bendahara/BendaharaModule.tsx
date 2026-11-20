@@ -34,6 +34,8 @@ import {
 } from 'recharts';
 import { useAppStore } from '../../lib/store.ts';
 import { useAuth } from '../../lib/auth.ts';
+import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
+import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 
 export const BendaharaModule: React.FC = () => {
   const {
@@ -144,13 +146,16 @@ export const BendaharaModule: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => window.print()}
-          className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-900 transition flex items-center gap-1.5 shadow-xs"
-        >
-          <Printer className="w-3.5 h-3.5" />
-          <span>Cetak Laporan Keuangan</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <PrintOrientationControl recommended="landscape" />
+          <button
+            onClick={() => window.print()}
+            className="px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-900 transition flex items-center gap-1.5 shadow-xs"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Cetak Laporan Keuangan</span>
+          </button>
+        </div>
       </div>
 
       {/* 4 KPI Cards */}
@@ -254,7 +259,7 @@ export const BendaharaModule: React.FC = () => {
         return (
           <div className="space-y-5">
             {/* Recharts Financial Trend Visualization */}
-            <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4">
+            <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 no-print">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
@@ -378,7 +383,12 @@ export const BendaharaModule: React.FC = () => {
             </div>
 
             <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-6 printable-area">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <PrintKopPondok
+                judulDokumen={`LAPORAN REKAPITULASI REALISASI ANGGARAN — ${currentRekap.bulan.toUpperCase()} ${currentRekap.tahun}`}
+                subJudul={`Transparansi Anggaran Pesantren & Madrasah · Tahun Ajaran ${currentTahunAjaran}`}
+                tahunAjaran={currentTahunAjaran}
+              />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 no-print">
                 <div>
                   <h3 className="font-bold text-sm text-slate-900">
                     Laporan Rekapitulasi Realisasi Anggaran Pondok &amp; Madrasah
@@ -558,8 +568,13 @@ export const BendaharaModule: React.FC = () => {
             </div>
           </form>
 
-          <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs printable-area">
-            <h3 className="font-bold text-sm text-slate-900 mb-3">
+          <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs printable-area space-y-3">
+            <PrintKopPondok
+              judulDokumen="BUKU KAS HARIAN MASUK & KELUAR PONDOK PESANTREN"
+              subJudul={`Total Pemasukan: Rp ${kasMasukTotal.toLocaleString('id-ID')} · Total Pengeluaran: Rp ${kasKeluarTotal.toLocaleString('id-ID')} · Saldo Akhir: Rp ${kasSaldoAkhir.toLocaleString('id-ID')}`}
+              tahunAjaran={currentTahunAjaran}
+            />
+            <h3 className="font-bold text-sm text-slate-900 no-print">
               Buku Kas Harian Pondok Pesantren NU Darussalam
             </h3>
             <div className="overflow-x-auto">
@@ -793,9 +808,9 @@ export const BendaharaModule: React.FC = () => {
         };
 
         return (
-          <div className="space-y-5 printable-area">
+          <div className="space-y-5">
             {/* Header & Segmented Sub-View Switcher */}
-            <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4">
+            <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 no-print">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div>
                   <h3 className="font-bold text-sm text-slate-900">
@@ -818,6 +833,7 @@ export const BendaharaModule: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  <PrintOrientationControl recommended="landscape" />
                   <button
                     type="button"
                     onClick={() => window.print()}
@@ -1040,7 +1056,12 @@ export const BendaharaModule: React.FC = () => {
                 </div>
 
                 {/* Global Preview Table */}
-                <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4">
+                <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
+                  <PrintKopPondok
+                    judulDokumen={`REKAPITULASI BISYAROH DEWAN ASATIDZ — ${selectedBulan.toUpperCase()} 2026`}
+                    subJudul={`Total Anggaran: Rp ${grandTotalBisyaroh.toLocaleString('id-ID')} · Total Beban: ${totalJtmAll} JTM`}
+                    tahunAjaran={currentTahunAjaran}
+                  />
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
                     <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
                       {(['Semua', 'Siap', 'Dibayarkan'] as const).map((st) => (
@@ -1156,7 +1177,7 @@ export const BendaharaModule: React.FC = () => {
 
             {/* SUB-VIEW 2: INPUT & EDIT RINCIAN SPREADSHEET */}
             {bisyarohSubTab === 'edit' && (
-              <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4">
+              <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
                 <div className="flex flex-wrap items-center justify-between gap-2 no-print">
                   <p className="text-xs text-slate-500">
                     Formula Bisyaroh Diniyah: <span className="font-semibold text-emerald-800">((JTM Diniyah × Jumlah Hadir) ÷ 2) × Rp 10.000</span>. Edit nominal langsung di sel tabel.
@@ -1175,11 +1196,11 @@ export const BendaharaModule: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Print header info */}
-                <div className="hidden print:block text-center border-b-2 border-slate-800 pb-2 mb-2">
-                  <h2 className="text-sm font-bold uppercase">DAFTAR PENERIMAAN BISYAROH DEWAN ASATIDZ — PP NU DARUSSALAM KARANGDADAP</h2>
-                  <p className="text-[11px]">Bulan {selectedBulan} 2026 · Tahun Ajaran {currentTahunAjaran}</p>
-                </div>
+                <PrintKopPondok
+                  judulDokumen={`DAFTAR PENERIMAAN BISYAROH DEWAN ASATIDZ — ${selectedBulan.toUpperCase()} 2026`}
+                  subJudul={`Rincian Gaji Pokok, Tunjangan, & Bisyaroh Mengajar · T.A. ${currentTahunAjaran}`}
+                  tahunAjaran={currentTahunAjaran}
+                />
 
                 <div className="overflow-x-auto border border-slate-200 rounded-2xl">
                   <table className="w-full text-[11px] border-collapse">
@@ -1338,8 +1359,13 @@ export const BendaharaModule: React.FC = () => {
 
             {/* SUB-VIEW 3: RIWAYAT PENYALURAN BISYAROH */}
             {bisyarohSubTab === 'riwayat' && (
-              <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
+                <PrintKopPondok
+                  judulDokumen="RIWAYAT PENCAIRAN & PENYALURAN BISYAROH DEWAN ASATIDZ"
+                  subJudul={`Periode Filter: ${historyBulanFilter} · Total Terbayar: Rp ${totalHistoryFiltered.toLocaleString('id-ID')}`}
+                  tahunAjaran={currentTahunAjaran}
+                />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 no-print">
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                       <History className="w-4 h-4 text-emerald-700" />

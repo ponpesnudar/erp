@@ -21,12 +21,13 @@ import { TransaksiModule } from './features/transaksi/TransaksiModule.tsx';
 import { PSBModule } from './features/psb/PSBModule.tsx';
 import { HakAksesModule } from './features/akses/HakAksesModule.tsx';
 import { PanduanModule } from './features/panduan/PanduanModule.tsx';
+import { SdmAbsensiModule } from './features/sdm/SdmAbsensiModule.tsx';
 import { AIAssistantModal } from './components/common/AIAssistantModal.tsx';
 import { useOnlineStatus } from './components/pwa/usePWAInstall.ts';
 import { Search, X, WifiOff } from 'lucide-react';
 
 export default function App() {
-  const { darkMode, systemStatus, setSystemStatus } = useAppStore();
+  const { darkMode, systemStatus, setSystemStatus, printOrientation } = useAppStore();
   const { effectiveRole, currentUser } = useAuth();
   const isOnline = useOnlineStatus();
 
@@ -71,6 +72,7 @@ export default function App() {
     { id: 'imtihan_raport', name: 'Input Nilai & Cetak Raport', desc: 'Raport madrasah diniyah dengan predikat Arab', tab: 'imtihan' },
     { id: 'imtihan_rab', name: 'RAB Imtihan 1', desc: 'Rancangan anggaran kegiatan imtihan transparan', tab: 'imtihan' },
     { id: 'maarifan_absensi', name: 'Absensi Diniyah Salafiyah', desc: 'Presensi cepat Hadir Semua & riwayat', tab: 'maarifan' },
+    { id: 'sdm_absensi', name: 'SDM & Absensi Mobile Guru', desc: 'Dashboard Monitoring SDM, Cek In Selfie GPS, & Rekapan Absensi', tab: 'sdm_absensi' },
     { id: 'sekretaris_santri', name: 'Master Data Santri', desc: 'Data 366 santri putra & putri', tab: 'sekretaris' },
     { id: 'sekretaris_surat', name: 'Persuratan Resmi Yayasan', desc: 'Penomoran otomatis surat keluar/masuk', tab: 'sekretaris' },
     { id: 'bendahara_kas', name: 'Rekapitulasi Anggaran Bulanan', desc: 'Realisasi pemasukan vs pengeluaran kas', tab: 'bendahara' },
@@ -93,6 +95,7 @@ export default function App() {
     beranda: 'Beranda Portal',
     imtihan: 'Imtihan & Evaluasi Santri',
     maarifan: "Madrasah Diniyah (Ma'arifan)",
+    sdm_absensi: 'Dashboard Monitoring Guru, SDM & Absensi Mobile',
     sekretaris: 'Sekretariat & Data Santri',
     bendahara: 'Bendahara & Transparansi Anggaran',
     kemahadiyahan: "Kema'hadiyahan & Organisasi",
@@ -104,7 +107,8 @@ export default function App() {
   };
 
   return (
-    <div className={`${darkMode ? 'dark bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800'} min-h-screen selection:bg-emerald-200`}>
+    <div className={`${darkMode ? 'dark bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800'} min-h-screen selection:bg-emerald-200 ${printOrientation === 'landscape' ? 'print-landscape' : 'print-portrait'}`}>
+      <style>{`@media print { @page { size: ${printOrientation === 'landscape' ? '330mm 215mm' : '215mm 330mm'}; margin: 8mm 10mm; } }`}</style>
       {/* 1. PUBLIC LANDING PAGE */}
       {currentScreen === 'landing' && (
         <LandingPage
@@ -119,7 +123,10 @@ export default function App() {
       {/* 2. LOGIN PAGE */}
       {currentScreen === 'login' && (
         <LoginPage
-          onLoginSuccess={() => setCurrentScreen('erp')}
+          onLoginSuccess={(targetTab) => {
+            if (targetTab) setActiveTab(targetTab);
+            setCurrentScreen('erp');
+          }}
           onBackToLanding={() => setCurrentScreen('landing')}
         />
       )}
@@ -161,7 +168,18 @@ export default function App() {
                   <PortalBeranda onNavigate={(tab) => setActiveTab(tab)} />
                 )}
                 {activeTab === 'imtihan' && <ImtihanModule />}
-                {activeTab === 'maarifan' && <MaarifanModule />}
+                {activeTab === 'maarifan' && (
+                  <MaarifanModule onOpenSdmAbsensi={() => setActiveTab('sdm_absensi')} />
+                )}
+                {activeTab === 'sdm_absensi' && (
+                  <SdmAbsensiModule
+                    onNavigateErp={(tab) => setActiveTab(tab)}
+                    onLogout={() => {
+                      setCurrentScreen('login');
+                      setActiveTab('beranda');
+                    }}
+                  />
+                )}
                 {activeTab === 'sekretaris' && <SekretarisModule />}
                 {activeTab === 'bendahara' && <BendaharaModule />}
                 {activeTab === 'kemahadiyahan' && <KemahadiyahanModule />}
@@ -178,7 +196,7 @@ export default function App() {
 
       {/* Global Search Modal (Ctrl+K) */}
       {searchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-xs p-4 pt-20">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-xs p-4 pt-20 no-print print:hidden">
           <div className="w-full max-w-xl rounded-2xl bg-white p-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
               <Search className="w-4 h-4 text-slate-400" />
@@ -234,16 +252,18 @@ export default function App() {
 
       {/* Floating AI Assistant in ERP */}
       {currentScreen === 'erp' && (
-        <AIAssistantModal
-          mode="erp_internal"
-          activeModule={moduleTitles[activeTab]}
-          userRole={currentUser.peranLabel}
-        />
+        <div className="no-print print:hidden">
+          <AIAssistantModal
+            mode="erp_internal"
+            activeModule={moduleTitles[activeTab]}
+            userRole={currentUser.peranLabel}
+          />
+        </div>
       )}
 
       {/* Offline Toast Banner */}
       {!isOnline && (
-        <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-semibold text-white shadow-xl animate-in slide-in-from-bottom-2">
+        <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-semibold text-white shadow-xl animate-in slide-in-from-bottom-2 no-print print:hidden">
           <WifiOff className="w-4 h-4" />
           <span>Mode Offline — Data tersimpan di memori lokal dan akan disinkronkan saat online.</span>
         </div>

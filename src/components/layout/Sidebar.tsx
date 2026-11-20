@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   School,
+  UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../lib/auth.ts';
 import { useAppStore } from '../../lib/store.ts';
@@ -50,6 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'beranda', label: 'Beranda Portal', icon: Home },
     { id: 'imtihan', label: 'Imtihan & Nilai', icon: FileCheck, fiturId: 'imtihan_soal' },
     { id: 'maarifan', label: "Ma'arifan Diniyah", icon: BookOpen, fiturId: 'maarifan_absensi' },
+    { id: 'sdm_absensi', label: 'SDM & Absensi Guru', icon: UserCheck },
     { id: 'sekretaris', label: 'Sekretariat', icon: Mail, fiturId: 'sekretaris_persuratan' },
     { id: 'bendahara', label: 'Bendahara & Kas', icon: DollarSign, fiturId: 'bendahara_keuangan' },
     { id: 'kemahadiyahan', label: "Kema'hadiyahan", icon: Users2 },
@@ -63,6 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Filter items based on user role authorization
   const visibleItems = allNavItems.filter((item) => {
     if (item.id === 'beranda' || item.id === 'panduan') return true;
+    if (item.id === 'sdm_absensi') return !['wali_santri', 'kasir_kantin'].includes(effectiveRole);
     if (item.id === 'akses') return effectiveRole === 'admin_sistem';
     if (item.fiturId) return can(item.fiturId, 'baca');
     return true;
@@ -167,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {/* Desktop Sticky Sidebar */}
       <aside
-        className={`hidden md:block sticky top-0 h-screen shrink-0 transition-all duration-200 border-r border-emerald-900 shadow-md ${
+        className={`hidden md:block print:hidden sticky top-0 h-screen shrink-0 transition-all duration-200 border-r border-emerald-900 shadow-md no-print ${
           collapsed ? 'w-[72px]' : 'w-64'
         }`}
       >
@@ -176,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Mobile Drawer (When Opened) */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
+        <div className="fixed inset-0 z-50 flex md:hidden print:hidden no-print">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={onCloseMobile} />
           <div className="relative w-72 max-w-[80vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
             {sidebarContent}
@@ -184,9 +187,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Mobile Bottom Navigation (4-5 Primary Tabs) */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 h-14 bg-white border-t border-slate-200 md:hidden flex items-center justify-around px-2 shadow-lg no-print">
+      {/* Mobile Bottom Navigation (5 Primary Tabs — includes Absen Guru for Asatidz/Staff) */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 h-14 bg-white border-t border-slate-200 md:hidden print:hidden flex items-center justify-around px-2 shadow-lg no-print">
         <button
+          type="button"
           onClick={() => onSelectTab('beranda')}
           className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
             activeTab === 'beranda' ? 'text-emerald-800' : 'text-slate-500'
@@ -196,7 +200,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span>Beranda</span>
         </button>
 
+        {!['wali_santri', 'kasir_kantin'].includes(effectiveRole) ? (
+          <button
+            type="button"
+            onClick={() => onSelectTab('sdm_absensi')}
+            className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
+              activeTab === 'sdm_absensi' ? 'text-emerald-800' : 'text-slate-500'
+            }`}
+          >
+            <UserCheck className="w-4 h-4 mb-0.5" />
+            <span>Absen</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSelectTab('psb')}
+            className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
+              activeTab === 'psb' ? 'text-emerald-800' : 'text-slate-500'
+            }`}
+          >
+            <UserPlus className="w-4 h-4 mb-0.5" />
+            <span>PSB</span>
+          </button>
+        )}
+
         <button
+          type="button"
           onClick={() => onSelectTab('imtihan')}
           className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
             activeTab === 'imtihan' ? 'text-emerald-800' : 'text-slate-500'
@@ -207,6 +236,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={() => onSelectTab('transaksi')}
           className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
             activeTab === 'transaksi' ? 'text-emerald-800' : 'text-slate-500'
@@ -217,16 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => onSelectTab('psb')}
-          className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
-            activeTab === 'psb' ? 'text-emerald-800' : 'text-slate-500'
-          }`}
-        >
-          <UserPlus className="w-4 h-4 mb-0.5" />
-          <span>PSB</span>
-        </button>
-
-        <button
+          type="button"
           onClick={onToggleCollapse}
           className="flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold text-slate-500"
         >
