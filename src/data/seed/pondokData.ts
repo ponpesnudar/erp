@@ -470,6 +470,7 @@ export interface SantriRecord {
   saldoKartu: number;
   limitHarian: number;
   statusKartu: 'Aktif' | 'Terblokir';
+  statusPondok?: 'Aktif' | 'Boyong / Keluar' | 'Lulus / Alumni';
   isSantriNdalem?: boolean;
   // EMIS Extended Fields
   nisn?: string;
@@ -902,56 +903,93 @@ export interface RabItem {
   satuan: string;
   harga: number;
   jumlah: number;
+  realisasi?: number;
   kategori: 'Pemasukan' | 'Penggadaan' | 'Insentif' | 'Tunjangan' | 'Perlengkapan' | 'Konsumsi' | 'UsulanTambahan';
 }
 
+export const SEED_RAB_REALISASI_MAP: Record<string, number> = {
+  'rab-in-1': 10350000,
+  'rab-out-1': 825000,
+  'rab-out-2': 930000,
+  'rab-out-3': 1400000,
+  'rab-out-4': 690000,
+  'rab-out-5': 0,
+  'rab-out-6': 120000,
+  'rab-out-7': 250000,
+  'rab-out-8': 150000,
+  'rab-out-9': 150000,
+  'rab-out-10': 150000,
+  'rab-out-11': 300000,
+  'rab-out-12': 100000,
+  'rab-out-13': 100000,
+  'rab-out-14': 100000,
+  'rab-out-15': 150000,
+  'rab-out-16': 36000,
+  'rab-out-17': 76000,
+  'rab-out-18': 35000,
+  'rab-out-19': 35000,
+  'rab-out-20': 35000,
+  'rab-out-21': 0,
+  'rab-out-22': 170000,
+  'rab-out-23': 20000,
+  'rab-out-24': 15000,
+  'rab-out-25': 40000,
+  'rab-out-26': 20000,
+  'rab-out-27': 75000,
+  'rab-out-28': 50000,
+  'rab-out-29': 125000,
+  'rab-out-30': 0,
+  'rab-opt-1': 525000,
+  'rab-opt-2': 0,
+};
+
 export const SEED_RAB_IMTIHAN: RabItem[] = [
   // Pemasukan
-  { id: "rab-in-1", kategori: "Pemasukan", keterangan: "Iuran santri (pembayar)", qty: 360, satuan: "Santri", harga: 30000, jumlah: 10800000 },
+  { id: "rab-in-1", kategori: "Pemasukan", keterangan: "Iuran santri (pembayar)", qty: 360, satuan: "Santri", harga: 30000, jumlah: 10800000, realisasi: 10350000 },
 
   // 1. Penggadaan Soal
-  { id: "rab-out-1", kategori: "Penggadaan", keterangan: "Semua kelas (soal tertulis)", qty: 2901, satuan: "Lembar", harga: 300, jumlah: 870300 },
+  { id: "rab-out-1", kategori: "Penggadaan", keterangan: "Semua kelas (soal tertulis)", qty: 2901, satuan: "Lembar", harga: 300, jumlah: 870300, realisasi: 825000 },
 
   // 2. Insentif
-  { id: "rab-out-2", kategori: "Insentif", keterangan: "Penyusunan soal", qty: 93, satuan: "Paket", harga: 10000, jumlah: 930000 },
-  { id: "rab-out-3", kategori: "Insentif", keterangan: "Koreksi lembar jawaban", qty: 2807, satuan: "Lembar", harga: 1000, jumlah: 2807000 },
-  { id: "rab-out-4", kategori: "Insentif", keterangan: "Pengawas ruang 4 malam", qty: 138, satuan: "Jam", harga: 10000, jumlah: 1380000 },
-  { id: "rab-out-5", kategori: "Insentif", keterangan: "Pengisian rapor santri", qty: 366, satuan: "Santri", harga: 1000, jumlah: 366000 },
-  { id: "rab-out-6", kategori: "Insentif", keterangan: "Piket imtihan", qty: 12, satuan: "Orang", harga: 20000, jumlah: 240000 },
+  { id: "rab-out-2", kategori: "Insentif", keterangan: "Penyusunan soal", qty: 93, satuan: "Paket", harga: 10000, jumlah: 930000, realisasi: 930000 },
+  { id: "rab-out-3", kategori: "Insentif", keterangan: "Koreksi lembar jawaban", qty: 2807, satuan: "Lembar", harga: 1000, jumlah: 2807000, realisasi: 1400000 },
+  { id: "rab-out-4", kategori: "Insentif", keterangan: "Pengawas ruang 4 malam", qty: 138, satuan: "Jam", harga: 10000, jumlah: 1380000, realisasi: 690000 },
+  { id: "rab-out-5", kategori: "Insentif", keterangan: "Pengisian rapor santri", qty: 366, satuan: "Santri", harga: 1000, jumlah: 366000, realisasi: 0 },
+  { id: "rab-out-6", kategori: "Insentif", keterangan: "Piket imtihan", qty: 12, satuan: "Orang", harga: 20000, jumlah: 240000, realisasi: 120000 },
 
   // 3. Tunjangan Pokok Panitia
-  { id: "rab-out-7", kategori: "Tunjangan", keterangan: "Ketua Pelaksana", qty: 1, satuan: "Orang", harga: 250000, jumlah: 250000 },
-  { id: "rab-out-8", kategori: "Tunjangan", keterangan: "Wakil Ketua", qty: 1, satuan: "Orang", harga: 150000, jumlah: 150000 },
-  { id: "rab-out-9", kategori: "Tunjangan", keterangan: "Sekretaris (2 orang)", qty: 2, satuan: "Orang", harga: 150000, jumlah: 300000 },
-  { id: "rab-out-10", kategori: "Tunjangan", keterangan: "Bendahara (2 orang)", qty: 2, satuan: "Orang", harga: 150000, jumlah: 300000 },
-  { id: "rab-out-11", kategori: "Tunjangan", keterangan: "Pengeditan soal (2 orang)", qty: 2, satuan: "Orang", harga: 150000, jumlah: 300000 },
-  { id: "rab-out-12", kategori: "Tunjangan", keterangan: "Penggandaan soal", qty: 1, satuan: "Orang", harga: 100000, jumlah: 100000 },
-  { id: "rab-out-13", kategori: "Tunjangan", keterangan: "Perlengkapan", qty: 1, satuan: "Orang", harga: 100000, jumlah: 100000 },
-  { id: "rab-out-14", kategori: "Tunjangan", keterangan: "Konsumsi", qty: 1, satuan: "Orang", harga: 100000, jumlah: 100000 },
+  { id: "rab-out-7", kategori: "Tunjangan", keterangan: "Ketua Pelaksana", qty: 1, satuan: "Orang", harga: 250000, jumlah: 250000, realisasi: 250000 },
+  { id: "rab-out-8", kategori: "Tunjangan", keterangan: "Wakil Ketua", qty: 1, satuan: "Orang", harga: 150000, jumlah: 150000, realisasi: 150000 },
+  { id: "rab-out-9", kategori: "Tunjangan", keterangan: "Sekretaris (2 orang)", qty: 2, satuan: "Orang", harga: 150000, jumlah: 300000, realisasi: 150000 },
+  { id: "rab-out-10", kategori: "Tunjangan", keterangan: "Bendahara (2 orang)", qty: 2, satuan: "Orang", harga: 150000, jumlah: 300000, realisasi: 150000 },
+  { id: "rab-out-11", kategori: "Tunjangan", keterangan: "Pengeditan soal (2 orang)", qty: 2, satuan: "Orang", harga: 150000, jumlah: 300000, realisasi: 300000 },
+  { id: "rab-out-12", kategori: "Tunjangan", keterangan: "Penggandaan soal", qty: 1, satuan: "Orang", harga: 100000, jumlah: 100000, realisasi: 100000 },
+  { id: "rab-out-13", kategori: "Tunjangan", keterangan: "Perlengkapan", qty: 1, satuan: "Orang", harga: 100000, jumlah: 100000, realisasi: 100000 },
+  { id: "rab-out-14", kategori: "Tunjangan", keterangan: "Konsumsi", qty: 1, satuan: "Orang", harga: 100000, jumlah: 100000, realisasi: 100000 },
 
   // 4. Perlengkapan
-  { id: "rab-out-15", kategori: "Perlengkapan", keterangan: "HVS 70 F4 warna", qty: 2, satuan: "Rim", harga: 75000, jumlah: 150000 },
-  { id: "rab-out-16", kategori: "Perlengkapan", keterangan: "Lakban bening", qty: 3, satuan: "Pcs", harga: 12000, jumlah: 36000 },
-  { id: "rab-out-17", kategori: "Perlengkapan", keterangan: "Amplop soal", qty: 2, satuan: "Pack", harga: 38000, jumlah: 76000 },
-  { id: "rab-out-18", kategori: "Perlengkapan", keterangan: "Buffalo kuning", qty: 1, satuan: "Pack", harga: 35000, jumlah: 35000 },
-  { id: "rab-out-19", kategori: "Perlengkapan", keterangan: "Buffalo biru", qty: 1, satuan: "Pack", harga: 35000, jumlah: 35000 },
-  { id: "rab-out-20", kategori: "Perlengkapan", keterangan: "Buffalo hijau", qty: 1, satuan: "Pack", harga: 35000, jumlah: 35000 },
-  { id: "rab-out-21", kategori: "Perlengkapan", keterangan: "Amplop nilai", qty: 1, satuan: "Pack", harga: 38000, jumlah: 38000 },
+  { id: "rab-out-15", kategori: "Perlengkapan", keterangan: "HVS 70 F4 warna", qty: 2, satuan: "Rim", harga: 75000, jumlah: 150000, realisasi: 150000 },
+  { id: "rab-out-16", kategori: "Perlengkapan", keterangan: "Lakban bening", qty: 3, satuan: "Pcs", harga: 12000, jumlah: 36000, realisasi: 36000 },
+  { id: "rab-out-17", kategori: "Perlengkapan", keterangan: "Amplop soal", qty: 2, satuan: "Pack", harga: 38000, jumlah: 76000, realisasi: 76000 },
+  { id: "rab-out-18", kategori: "Perlengkapan", keterangan: "Buffalo kuning", qty: 1, satuan: "Pack", harga: 35000, jumlah: 35000, realisasi: 35000 },
+  { id: "rab-out-19", kategori: "Perlengkapan", keterangan: "Buffalo biru", qty: 1, satuan: "Pack", harga: 35000, jumlah: 35000, realisasi: 35000 },
+  { id: "rab-out-20", kategori: "Perlengkapan", keterangan: "Buffalo hijau", qty: 1, satuan: "Pack", harga: 35000, jumlah: 35000, realisasi: 35000 },
+  { id: "rab-out-21", kategori: "Perlengkapan", keterangan: "Amplop nilai", qty: 1, satuan: "Pack", harga: 38000, jumlah: 38000, realisasi: 0 },
 
   // 5. Konsumsi
-  { id: "rab-out-22", kategori: "Konsumsi", keterangan: "Snack makanan ringan 4 hari", qty: 4, satuan: "Hari", harga: 85000, jumlah: 340000 },
-  { id: "rab-out-23", kategori: "Konsumsi", keterangan: "Kopi", qty: 1, satuan: "Pack", harga: 20000, jumlah: 20000 },
-  { id: "rab-out-24", kategori: "Konsumsi", keterangan: "Teh", qty: 1, satuan: "Pack", harga: 15000, jumlah: 15000 },
-  { id: "rab-out-25", kategori: "Konsumsi", keterangan: "Gula pasir", qty: 2, satuan: "Kg", harga: 20000, jumlah: 40000 },
-  { id: "rab-out-26", kategori: "Konsumsi", keterangan: "Es batu 4 hari", qty: 4, satuan: "Hari", harga: 10000, jumlah: 40000 },
-  { id: "rab-out-27", kategori: "Konsumsi", keterangan: "Lemburan panitia 3 hari", qty: 3, satuan: "Hari", harga: 75000, jumlah: 225000 },
-  { id: "rab-out-28", kategori: "Konsumsi", keterangan: "Konsumsi rapat panitia", qty: 1, satuan: "Hari", harga: 50000, jumlah: 50000 },
-  { id: "rab-out-29", kategori: "Konsumsi", keterangan: "Lain-lain / insidental", qty: 1, satuan: "Paket", harga: 300000, jumlah: 300000 },
-  { id: "rab-out-30", kategori: "Konsumsi", keterangan: "Konsumsi MHF (Musabaqoh Hifdzi Nadhom)", qty: 1, satuan: "Hari", harga: 50000, jumlah: 50000 },
+  { id: "rab-out-22", kategori: "Konsumsi", keterangan: "Snack makanan ringan 4 hari", qty: 4, satuan: "Hari", harga: 85000, jumlah: 340000, realisasi: 170000 },
+  { id: "rab-out-23", kategori: "Konsumsi", keterangan: "Kopi", qty: 1, satuan: "Pack", harga: 20000, jumlah: 20000, realisasi: 20000 },
+  { id: "rab-out-24", kategori: "Konsumsi", keterangan: "Teh", qty: 1, satuan: "Pack", harga: 15000, jumlah: 15000, realisasi: 15000 },
+  { id: "rab-out-25", kategori: "Konsumsi", keterangan: "Gula pasir", qty: 2, satuan: "Kg", harga: 20000, jumlah: 40000, realisasi: 40000 },
+  { id: "rab-out-26", kategori: "Konsumsi", keterangan: "Es batu 4 hari", qty: 4, satuan: "Hari", harga: 10000, jumlah: 40000, realisasi: 20000 },
+  { id: "rab-out-27", kategori: "Konsumsi", keterangan: "Lemburan panitia 3 hari", qty: 3, satuan: "Hari", harga: 75000, jumlah: 225000, realisasi: 75000 },
+  { id: "rab-out-28", kategori: "Konsumsi", keterangan: "Konsumsi rapat panitia", qty: 1, satuan: "Hari", harga: 50000, jumlah: 50000, realisasi: 50000 },
+  { id: "rab-out-29", kategori: "Konsumsi", keterangan: "Lain-lain / insidental", qty: 1, satuan: "Paket", harga: 300000, jumlah: 300000, realisasi: 125000 },
+  { id: "rab-out-30", kategori: "Konsumsi", keterangan: "Konsumsi MHF (Musabaqoh Hifdzi Nadhom)", qty: 1, satuan: "Hari", harga: 50000, jumlah: 50000, realisasi: 0 },
 
   // Usulan Tambahan (Opsional)
-  { id: "rab-opt-1", kategori: "UsulanTambahan", keterangan: "Buku harian guru (nilai harian)", qty: 35, satuan: "Buku", harga: 15000, jumlah: 525000 },
-  { id: "rab-opt-2", kategori: "UsulanTambahan", keterangan: "Buku absensi saku guru", qty: 35, satuan: "Buku", harga: 5000, jumlah: 175000 },
+  { id: "rab-opt-1", kategori: "UsulanTambahan", keterangan: "Buku harian guru (nilai harian)", qty: 35, satuan: "Buku", harga: 15000, jumlah: 525000, realisasi: 525000 },
+  { id: "rab-opt-2", kategori: "UsulanTambahan", keterangan: "Buku absensi saku guru", qty: 35, satuan: "Buku", harga: 5000, jumlah: 175000, realisasi: 0 },
 ];
 
 /**
@@ -2386,6 +2424,80 @@ export type ProgramAbsensiType =
   | "Ngaji Al-Qur'an Pagi (Ba'da Subuh)"
   | 'Ngaji Takhasus';
 
+export interface AbsensiShiftConfig {
+  id: string;
+  nama: string;
+  program: ProgramAbsensiType;
+  jamMulai: string; // HH:MM
+  jamSelesai: string; // HH:MM
+  toleransiMenit: number;
+  lokasi: string;
+  aktif: boolean;
+}
+
+export const SEED_ABSENSI_SHIFT_CONFIGS: AbsensiShiftConfig[] = [
+  {
+    id: 'shift-subuh',
+    nama: "Ngaji Al-Qur'an Ba'da Subuh",
+    program: "Ngaji Al-Qur'an Pagi (Ba'da Subuh)",
+    jamMulai: '05:00',
+    jamSelesai: '06:00',
+    toleransiMenit: 10,
+    lokasi: 'Masjid Utama PP NU Darussalam',
+    aktif: true,
+  },
+  {
+    id: 'shift-takhasus-sore',
+    nama: 'Ngaji Takhasus Sore',
+    program: 'Ngaji Takhasus',
+    jamMulai: '16:00',
+    jamSelesai: '17:00',
+    toleransiMenit: 10,
+    lokasi: 'Serambi Dalem & Aula Pondok',
+    aktif: true,
+  },
+  {
+    id: 'shift-mds-1',
+    nama: 'Madrasah Diniyah — Jam Ke-1',
+    program: 'Madrasah Diniyah',
+    jamMulai: '18:00',
+    jamSelesai: '19:00',
+    toleransiMenit: 10,
+    lokasi: 'Komplek MDS PP NU Darussalam',
+    aktif: true,
+  },
+  {
+    id: 'shift-mds-2',
+    nama: 'Madrasah Diniyah — Jam Ke-2',
+    program: 'Madrasah Diniyah',
+    jamMulai: '19:00',
+    jamSelesai: '20:00',
+    toleransiMenit: 10,
+    lokasi: 'Komplek MDS PP NU Darussalam',
+    aktif: true,
+  },
+  {
+    id: 'shift-mds-3',
+    nama: 'Madrasah Diniyah — Jam Ke-3',
+    program: 'Madrasah Diniyah',
+    jamMulai: '20:00',
+    jamSelesai: '21:00',
+    toleransiMenit: 10,
+    lokasi: 'Komplek MDS PP NU Darussalam',
+    aktif: true,
+  },
+  {
+    id: 'shift-sorogan-malam',
+    nama: 'Ngaji Sorogan & Mutholaah Malam',
+    program: 'Ngaji Takhasus',
+    jamMulai: '21:00',
+    jamSelesai: '22:00',
+    toleransiMenit: 10,
+    lokasi: 'Aula Utama & Asrama Komplek',
+    aktif: true,
+  },
+];
+
 export interface AbsensiGuruRecord {
   id: string;
   tanggal: string;
@@ -2394,6 +2506,8 @@ export interface AbsensiGuruRecord {
   kelas: string;
   mapel: string;
   program?: ProgramAbsensiType;
+  sesiId?: string;
+  sesiNama?: string;
   status: 'Hadir' | 'Izin' | 'Sakit' | 'Badal';
   pengganti?: string;
   waktuInput: string;
@@ -2409,6 +2523,8 @@ export interface AbsensiGuruRecord {
   waktuTimestamp?: string;
   wajahCocok?: boolean;
   verifikasiAtasan?: 'Terverifikasi' | 'Menunggu';
+  sumberAbsen?: 'GPS Mobile' | 'Absen Pengajuan' | 'Input Manual';
+  catatanPengajuan?: string;
 }
 
 export interface IzinBadalGuruRequest {
@@ -2416,8 +2532,15 @@ export interface IzinBadalGuruRequest {
   ustadzId: string;
   ustadzNama: string;
   tanggal: string;
-  jenis: 'Izin' | 'Sakit' | 'Badal' | 'Tugas Pondok';
+  jenis: 'Absen Pengajuan' | 'Izin' | 'Sakit' | 'Badal' | 'Tugas Pondok';
   program: ProgramAbsensiType;
+  sesiId?: string;
+  sesiNama?: string;
+  jamMulaiDiajukan?: string;
+  jamSelesaiDiajukan?: string;
+  kelasMapel?: string;
+  kendalaKategori?: string;
+  buktiFotoUrl?: string;
   guruBadalNama?: string;
   alasan: string;
   status: 'Menunggu' | 'Disetujui' | 'Ditolak';
@@ -2426,6 +2549,23 @@ export interface IzinBadalGuruRequest {
 }
 
 export const SEED_IZIN_BADAL_GURU: IzinBadalGuruRequest[] = [
+  {
+    id: 'ib-0',
+    ustadzId: 'ust-3',
+    ustadzNama: 'Ustadz Abdur Rahman',
+    tanggal: '2026-11-20',
+    jenis: 'Absen Pengajuan',
+    program: 'Madrasah Diniyah',
+    sesiId: 'shift-mds-1',
+    sesiNama: 'Madrasah Diniyah — Jam Ke-1',
+    jamMulaiDiajukan: '18:00',
+    jamSelesaiDiajukan: '19:00',
+    kelasMapel: '2 A PUTRA · Fiqih (Matan Taqrib)',
+    kendalaKategori: 'Sinyal GPS Lemah / Tidak Terbaca',
+    alasan: 'Sinyal di ruang kelas lantai bawah sempat terputus saat jam masuk ke-1, mengajar berjalan penuh 1 jam.',
+    status: 'Menunggu',
+    waktuPengajuan: '2026-11-20 19:05',
+  },
   {
     id: 'ib-1',
     ustadzId: 'ust-6',
@@ -2454,15 +2594,15 @@ export const SEED_IZIN_BADAL_GURU: IzinBadalGuruRequest[] = [
 ];
 
 export const SEED_ABSENSI_GURU: AbsensiGuruRecord[] = [
-  { id: 'ag-1', tanggal: '2026-11-19', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 B PUTRA', mapel: 'Nahwu (Matan Al-Ajurumiyyah)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:55', waktuCekOut: '21:05', durasiKerja: '03:10:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 18, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '19 Nov 2026 17:55 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
-  { id: 'ag-2', tanggal: '2026-11-18', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 A PUTRA', mapel: 'Nahwu (Al-Imrithi)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '18:12', waktuCekOut: '21:02', durasiKerja: '02:50:00', statusKeterlambatan: 'Terlambat', menitTerlambat: 12, koordinat: '-6.9765, 109.6832', akurasiGps: 24, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '18 Nov 2026 18:12 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
-  { id: 'ag-3', tanggal: '2026-11-17', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '3 A PUTRA', mapel: 'Nahwu (Nadhom Al-Imrithi)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:52', waktuCekOut: '21:00', durasiKerja: '03:08:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 15, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '17 Nov 2026 17:52 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
-  { id: 'ag-4', tanggal: '2026-11-16', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 B PUTRA', mapel: 'Nahwu (Matan Al-Ajurumiyyah)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:58', waktuCekOut: '21:04', durasiKerja: '03:06:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 21, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '16 Nov 2026 17:58 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
-  { id: 'ag-5', tanggal: '2026-11-19', ustadzId: 'ust-3', ustadzNama: 'Ust. Abdur Rahman', kelas: '2 A PUTRA', mapel: 'Fiqih (Matan Taqrib)', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:50', waktuCekOut: '21:00', durasiKerja: '03:10:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 20, lokasiLabel: 'PP NU Darussalam Karangdadap', waktuTimestamp: '19 Nov 2026 17:50 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
-  { id: 'ag-6', tanggal: '2026-11-19', ustadzId: 'ust-5', ustadzNama: 'Ust. Ahmad Mujiburrohman', kelas: '1 A PUTRA', mapel: 'Shorof', program: "Ngaji Al-Qur'an Pagi (Ba'da Subuh)", status: 'Hadir', waktuInput: '05:05', waktuCekOut: '06:30', durasiKerja: '01:25:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 19, lokasiLabel: 'Masjid PP NU Darussalam', waktuTimestamp: '19 Nov 2026 05:05 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
-  { id: 'ag-7', tanggal: '2026-11-18', ustadzId: 'ust-6', ustadzNama: 'Ust. Khoirul Umam', kelas: '3 A PUTRA', mapel: 'Hadits', program: 'Ngaji Takhasus', status: 'Badal', pengganti: 'Ust. Syarif Hidayatullah', waktuInput: '16:15', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', lokasiLabel: 'PP NU Darussalam Karangdadap', waktuTimestamp: '18 Nov 2026 16:15 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
-  { id: 'ag-8', tanggal: '2026-11-19', ustadzId: 'ust-2', ustadzNama: 'Ust. Syarif Hidayatullah', kelas: '6 A PUTRA & PUTRI', mapel: 'Ushul Fiqih', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:48', waktuCekOut: '21:10', durasiKerja: '03:22:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 14, lokasiLabel: 'Kantor Majlis Ma\'arif PP NU Darussalam', waktuTimestamp: '19 Nov 2026 17:48 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
-  { id: 'ag-9', tanggal: '2026-11-19', ustadzId: 'ust-16', ustadzNama: 'Usth. Siti Aisyah', kelas: '1 A PUTRI', mapel: 'Fiqih Putri', program: 'Madrasah Diniyah', status: 'Hadir', waktuInput: '17:54', waktuCekOut: '21:00', durasiKerja: '03:06:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9768, 109.6835', akurasiGps: 22, lokasiLabel: 'Komplek Madrasah Putri PP NU Darussalam', waktuTimestamp: '19 Nov 2026 17:54 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi' },
+  { id: 'ag-1', tanggal: '2026-11-19', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 B PUTRA', mapel: 'Nahwu (Matan Al-Ajurumiyyah)', program: 'Madrasah Diniyah', sesiId: 'shift-mds-1', sesiNama: 'Madrasah Diniyah — Jam Ke-1', status: 'Hadir', waktuInput: '17:58', waktuCekOut: '19:02', durasiKerja: '01:04:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 18, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '19 Nov 2026 17:58 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi', sumberAbsen: 'GPS Mobile' },
+  { id: 'ag-2', tanggal: '2026-11-18', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 A PUTRA', mapel: 'Nahwu (Al-Imrithi)', program: 'Madrasah Diniyah', sesiId: 'shift-mds-2', sesiNama: 'Madrasah Diniyah — Jam Ke-2', status: 'Hadir', waktuInput: '19:12', waktuCekOut: '20:03', durasiKerja: '00:51:00', statusKeterlambatan: 'Terlambat', menitTerlambat: 12, koordinat: '-6.9765, 109.6832', akurasiGps: 24, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '18 Nov 2026 19:12 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi', sumberAbsen: 'GPS Mobile' },
+  { id: 'ag-3', tanggal: '2026-11-17', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '3 A PUTRA', mapel: 'Nahwu (Nadhom Al-Imrithi)', program: 'Madrasah Diniyah', sesiId: 'shift-mds-1', sesiNama: 'Madrasah Diniyah — Jam Ke-1', status: 'Hadir', waktuInput: '17:55', waktuCekOut: '19:00', durasiKerja: '01:05:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 15, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '17 Nov 2026 17:55 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi', sumberAbsen: 'GPS Mobile' },
+  { id: 'ag-4', tanggal: '2026-11-16', ustadzId: 'ust-4', ustadzNama: 'Ust. Nidhomul Muna Lana', kelas: '2 B PUTRA', mapel: 'Nahwu (Matan Al-Ajurumiyyah)', program: 'Madrasah Diniyah', sesiId: 'shift-mds-1', sesiNama: 'Madrasah Diniyah — Jam Ke-1', status: 'Hadir', waktuInput: '17:58', waktuCekOut: '19:01', durasiKerja: '01:03:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 21, lokasiLabel: 'Komplek MDS PP NU Darussalam', waktuTimestamp: '16 Nov 2026 17:58 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi', sumberAbsen: 'GPS Mobile' },
+  { id: 'ag-5', tanggal: '2026-11-19', ustadzId: 'ust-3', ustadzNama: 'Ust. Abdur Rahman', kelas: '2 A PUTRA', mapel: 'Fiqih (Matan Taqrib)', program: 'Madrasah Diniyah', sesiId: 'shift-mds-1', sesiNama: 'Madrasah Diniyah — Jam Ke-1', status: 'Hadir', waktuInput: '17:56', waktuCekOut: '19:00', durasiKerja: '01:04:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 20, lokasiLabel: 'PP NU Darussalam Karangdadap', waktuTimestamp: '19 Nov 2026 17:56 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi', sumberAbsen: 'GPS Mobile' },
+  { id: 'ag-6', tanggal: '2026-11-19', ustadzId: 'ust-5', ustadzNama: 'Ust. Ahmad Mujiburrohman', kelas: '1 A PUTRA', mapel: 'Shorof', program: "Ngaji Al-Qur'an Pagi (Ba'da Subuh)", sesiId: 'shift-subuh', sesiNama: "Ngaji Al-Qur'an Ba'da Subuh", status: 'Hadir', waktuInput: '05:04', waktuCekOut: '06:02', durasiKerja: '00:58:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 19, lokasiLabel: 'Masjid PP NU Darussalam', waktuTimestamp: '19 Nov 2026 05:04 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi', sumberAbsen: 'GPS Mobile' },
+  { id: 'ag-7', tanggal: '2026-11-18', ustadzId: 'ust-6', ustadzNama: 'Ust. Khoirul Umam', kelas: '3 A PUTRA', mapel: 'Hadits', program: 'Ngaji Takhasus', sesiId: 'shift-takhasus-sore', sesiNama: 'Ngaji Takhasus Sore', status: 'Badal', pengganti: 'Ust. Syarif Hidayatullah', waktuInput: '16:05', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', lokasiLabel: 'PP NU Darussalam Karangdadap', waktuTimestamp: '18 Nov 2026 16:05 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi', sumberAbsen: 'Input Manual' },
+  { id: 'ag-8', tanggal: '2026-11-19', ustadzId: 'ust-2', ustadzNama: 'Ust. Syarif Hidayatullah', kelas: '6 A PUTRA & PUTRI', mapel: 'Ushul Fiqih', program: 'Madrasah Diniyah', sesiId: 'shift-mds-2', sesiNama: 'Madrasah Diniyah — Jam Ke-2', status: 'Hadir', waktuInput: '18:55', waktuCekOut: '20:02', durasiKerja: '01:07:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9765, 109.6832', akurasiGps: 14, lokasiLabel: 'Kantor Majlis Ma\'arif PP NU Darussalam', waktuTimestamp: '19 Nov 2026 18:55 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi', sumberAbsen: 'GPS Mobile' },
+  { id: 'ag-9', tanggal: '2026-11-19', ustadzId: 'ust-16', ustadzNama: 'Usth. Siti Aisyah', kelas: '1 A PUTRI', mapel: 'Fiqih Putri', program: 'Madrasah Diniyah', sesiId: 'shift-mds-1', sesiNama: 'Madrasah Diniyah — Jam Ke-1', status: 'Hadir', waktuInput: '17:57', waktuCekOut: '19:00', durasiKerja: '01:03:00', statusKeterlambatan: 'Tepat Waktu', menitTerlambat: 0, koordinat: '-6.9768, 109.6835', akurasiGps: 22, lokasiLabel: 'Komplek Madrasah Putri PP NU Darussalam', waktuTimestamp: '19 Nov 2026 17:57 WIB', wajahCocok: true, verifikasiAtasan: 'Terverifikasi', sumberAbsen: 'GPS Mobile' },
 ];
 
 /**
@@ -2569,6 +2709,7 @@ export interface LahanItem {
   statusKepemilikan: 'Wakaf NU' | 'Milik Yayasan' | 'Hibah';
   noSertifikat: string;
   lokasi: string;
+  nilaiPerolehan?: number;
 }
 
 export interface GedungItem {
@@ -2579,6 +2720,8 @@ export interface GedungItem {
   luasBangunanM2: number;
   tahunBangun: number;
   kondisi: 'Baik' | 'Rusak Ringan' | 'Perlu Renovasi';
+  nilaiPerolehan?: number;
+  umurEkonomisTahun?: number;
 }
 
 export interface RuanganItem {
@@ -2600,17 +2743,19 @@ export interface PerlengkapanItem {
   satuan: string;
   lokasiRuang: string;
   kondisi: 'Layak' | 'Rusak Ringan' | 'Rusak Berat';
+  hargaSatuan?: number;
+  tahunPerolehan?: number;
 }
 
 export const SEED_LAHAN: LahanItem[] = [
-  { id: 'lhn-1', namaLahan: 'Komplek Utama & Masjid Darussalam', luasM2: 4200, statusKepemilikan: 'Wakaf NU', noSertifikat: 'WKF-3326-00142', lokasi: 'Jl. Raya Karangdadap Km 1' },
-  { id: 'lhn-2', namaLahan: 'Komplek Asrama Putri & Aula Barat', luasM2: 2850, statusKepemilikan: 'Milik Yayasan', noSertifikat: 'SHM-3326-00891', lokasi: 'Karangdadap Barat' },
+  { id: 'lhn-1', namaLahan: 'Komplek Utama & Masjid Darussalam', luasM2: 4200, statusKepemilikan: 'Wakaf NU', noSertifikat: 'WKF-3326-00142', lokasi: 'Jl. Raya Karangdadap Km 1', nilaiPerolehan: 1890000000 },
+  { id: 'lhn-2', namaLahan: 'Komplek Asrama Putri & Aula Barat', luasM2: 2850, statusKepemilikan: 'Milik Yayasan', noSertifikat: 'SHM-3326-00891', lokasi: 'Karangdadap Barat', nilaiPerolehan: 1282500000 },
 ];
 
 export const SEED_GEDUNG: GedungItem[] = [
-  { id: 'gdg-1', kode: 'GD-A', namaGedung: 'Gedung Madrasah Diniyah Utama', jumlahLantai: 2, luasBangunanM2: 960, tahunBangun: 2018, kondisi: 'Baik' },
-  { id: 'gdg-2', kode: 'GD-B', namaGedung: 'Asrama Putra Al-Falah & An-Nur', jumlahLantai: 2, luasBangunanM2: 820, tahunBangun: 2016, kondisi: 'Baik' },
-  { id: 'gdg-3', kode: 'GD-C', namaGedung: 'Asrama Putri Fatimah & Aisyah', jumlahLantai: 2, luasBangunanM2: 900, tahunBangun: 2021, kondisi: 'Baik' },
+  { id: 'gdg-1', kode: 'GD-A', namaGedung: 'Gedung Madrasah Diniyah Utama', jumlahLantai: 2, luasBangunanM2: 960, tahunBangun: 2018, kondisi: 'Baik', nilaiPerolehan: 1450000000, umurEkonomisTahun: 25 },
+  { id: 'gdg-2', kode: 'GD-B', namaGedung: 'Asrama Putra Al-Falah & An-Nur', jumlahLantai: 2, luasBangunanM2: 820, tahunBangun: 2016, kondisi: 'Baik', nilaiPerolehan: 1120000000, umurEkonomisTahun: 25 },
+  { id: 'gdg-3', kode: 'GD-C', namaGedung: 'Asrama Putri Fatimah & Aisyah', jumlahLantai: 2, luasBangunanM2: 900, tahunBangun: 2021, kondisi: 'Baik', nilaiPerolehan: 1380000000, umurEkonomisTahun: 25 },
 ];
 
 export const SEED_RUANGAN: RuanganItem[] = [
@@ -2621,10 +2766,10 @@ export const SEED_RUANGAN: RuanganItem[] = [
 ];
 
 export const SEED_PERLENGKAPAN: PerlengkapanItem[] = [
-  { id: 'prl-1', kodeBarang: 'INV-001', namaBarang: 'Meja Belajar Kayu Lipat', kategori: 'Mebel', jumlah: 180, satuan: 'Unit', lokasiRuang: 'Gedung Madrasah Diniyah Utama', kondisi: 'Layak' },
-  { id: 'prl-2', kodeBarang: 'INV-002', namaBarang: 'Proyektor LCD & Layar Presentasi', kategori: 'Elektronik', jumlah: 3, satuan: 'Set', lokasiRuang: 'Aula Utama Lt. 1', kondisi: 'Layak' },
-  { id: 'prl-3', kodeBarang: 'INV-003', namaBarang: 'Sound System Masjid & Aula', kategori: 'Elektronik', jumlah: 2, satuan: 'Set', lokasiRuang: 'Masjid Darussalam', kondisi: 'Layak' },
-  { id: 'prl-4', kodeBarang: 'INV-004', namaBarang: 'Kitab Referensi Maktabah (Kutubus Sittah & Fathul Qorib)', kategori: 'Kitab/Perpustakaan', jumlah: 120, satuan: 'Jilid', lokasiRuang: 'Perpustakaan Pondok', kondisi: 'Layak' },
+  { id: 'prl-1', kodeBarang: 'INV-001', namaBarang: 'Meja Belajar Kayu Lipat', kategori: 'Mebel', jumlah: 180, satuan: 'Unit', lokasiRuang: 'Gedung Madrasah Diniyah Utama', kondisi: 'Layak', hargaSatuan: 275000, tahunPerolehan: 2023 },
+  { id: 'prl-2', kodeBarang: 'INV-002', namaBarang: 'Proyektor LCD & Layar Presentasi', kategori: 'Elektronik', jumlah: 3, satuan: 'Set', lokasiRuang: 'Aula Utama Lt. 1', kondisi: 'Layak', hargaSatuan: 6500000, tahunPerolehan: 2024 },
+  { id: 'prl-3', kodeBarang: 'INV-003', namaBarang: 'Sound System Masjid & Aula', kategori: 'Elektronik', jumlah: 2, satuan: 'Set', lokasiRuang: 'Masjid Darussalam', kondisi: 'Layak', hargaSatuan: 12500000, tahunPerolehan: 2023 },
+  { id: 'prl-4', kodeBarang: 'INV-004', namaBarang: 'Kitab Referensi Maktabah (Kutubus Sittah & Fathul Qorib)', kategori: 'Kitab/Perpustakaan', jumlah: 120, satuan: 'Jilid', lokasiRuang: 'Perpustakaan Pondok', kondisi: 'Layak', hargaSatuan: 185000, tahunPerolehan: 2024 },
 ];
 
 /**
@@ -2638,14 +2783,25 @@ export interface KasTransaction {
   uraian: string;
   nominal: number;
   penanggungJawab: string;
+  kodeAkun?: string;
+  namaAkun?: string;
+  noSumber?: string;
+  tipeSumber?: string;
 }
 
 export const SEED_KAS_TRANSACTIONS: KasTransaction[] = [
-  { id: 'kas-1', tanggal: '2026-11-01', tipe: 'Masuk', kategori: 'Syahriyah Santri', uraian: 'Penerimaan Syahriyah Bulanan (350 Santri)', nominal: 36750000, penanggungJawab: 'M. Abdul Fataah' },
-  { id: 'kas-2', tanggal: '2026-11-03', tipe: 'Keluar', kategori: 'Konsumsi & Dapur', uraian: 'Belanja Beras & Lauk Pauk Santri Pekan 1', nominal: 11200000, penanggungJawab: 'M. Abdul Fataah' },
-  { id: 'kas-3', tanggal: '2026-11-05', tipe: 'Masuk', kategori: 'Iuran Imtihan', uraian: 'Setoran Iuran Imtihan 1 (360 Santri × 30rb)', nominal: 10800000, penanggungJawab: 'Ust. Nidhomul Muna Lana' },
-  { id: 'kas-4', tanggal: '2026-11-08', tipe: 'Keluar', kategori: 'Bisyaroh Asatidz', uraian: 'Pencairan Honor Mengajar Dewan Asatidz Bulan Nov', nominal: 18500000, penanggungJawab: 'M. Abdul Fataah' },
-  { id: 'kas-5', tanggal: '2026-11-09', tipe: 'Keluar', kategori: 'Operasional Listrik & Air', uraian: 'Pembayaran Tagihan Listrik PLN & PDAM Pondok', nominal: 3450000, penanggungJawab: 'M. Abdul Fataah' },
+  { id: 'kas-1', tanggal: '2026-11-01', tipe: 'Masuk', kategori: 'Syahriyah Santri', uraian: 'Penerimaan Syahriyah Bulanan (350 Santri)', nominal: 52500000, penanggungJawab: 'M. Abdul Fataah', kodeAkun: '4001.01', namaAkun: 'Pendapatan Syahriyah Bulanan', noSumber: 'BKM-2401', tipeSumber: 'Penerimaan' },
+  { id: 'kas-2', tanggal: '2026-11-02', tipe: 'Masuk', kategori: 'Daftar Ulang', uraian: 'Pelunasan Daftar Ulang Santri Baru & Lama Tahap 2', nominal: 18400000, penanggungJawab: 'M. Abdul Fataah', kodeAkun: '4001.02', namaAkun: 'Pendapatan Daftar Ulang', noSumber: 'BKM-2402', tipeSumber: 'Penerimaan' },
+  { id: 'kas-3', tanggal: '2026-11-03', tipe: 'Keluar', kategori: 'Konsumsi & Dapur', uraian: 'Belanja Beras & Lauk Pauk Santri Pekan 1', nominal: 11200000, penanggungJawab: 'M. Abdul Fataah', kodeAkun: '5101.01', namaAkun: 'Biaya Konsumsi & Dapur Santri', noSumber: 'BKK-2381', tipeSumber: 'Pembayaran' },
+  { id: 'kas-4', tanggal: '2026-11-05', tipe: 'Masuk', kategori: 'Iuran Imtihan', uraian: 'Setoran Iuran Imtihan 1 (360 Santri × 30rb)', nominal: 10800000, penanggungJawab: 'Ust. Nidhomul Muna Lana', kodeAkun: '4001.03', namaAkun: 'Pendapatan Iuran Imtihan', noSumber: 'BKM-2403', tipeSumber: 'Penerimaan' },
+  { id: 'kas-5', tanggal: '2026-11-06', tipe: 'Masuk', kategori: "Agenda Kema'hadiyahan", uraian: 'Setoran Iuran Peringatan Hari Santri & Haflah', nominal: 9250000, penanggungJawab: 'Ust. Khoirul Umam', kodeAkun: '4001.04', namaAkun: "Pendapatan Agenda Kema'hadiyahan", noSumber: 'BKM-2404', tipeSumber: 'Penerimaan' },
+  { id: 'kas-6', tanggal: '2026-11-08', tipe: 'Keluar', kategori: 'Bisyaroh Asatidz', uraian: 'Pencairan Honor Mengajar Dewan Asatidz Bulan Nov', nominal: 18500000, penanggungJawab: 'M. Abdul Fataah', kodeAkun: '6101.01', namaAkun: 'Gaji & Bisyaroh Asatidz', noSumber: 'BKK-2385', tipeSumber: 'Pembayaran' },
+  { id: 'kas-7', tanggal: '2026-11-09', tipe: 'Keluar', kategori: 'Operasional Listrik & Air', uraian: 'Token Listrik Gedung Madin ID 524510945680', nominal: 1665500, penanggungJawab: 'M. Abdul Fataah', kodeAkun: '6203.01', namaAkun: 'Biaya Listrik, Air & Utilitas', noSumber: 'BKK-2387', tipeSumber: 'Pembayaran' },
+  { id: 'kas-8', tanggal: '2026-11-12', tipe: 'Keluar', kategori: 'Operasional Listrik & Air', uraian: 'Pembayaran Tagihan Listrik PLN & PDAM Asrama Putri', nominal: 3450000, penanggungJawab: 'M. Abdul Fataah', kodeAkun: '6203.01', namaAkun: 'Biaya Listrik, Air & Utilitas', noSumber: 'BKK-2404', tipeSumber: 'Pembayaran' },
+  { id: 'kas-9', tanggal: '2026-11-14', tipe: 'Keluar', kategori: 'Pemeliharaan Aset', uraian: 'Perbaikan Atap & Pengecatan Ruang Kelas R1-R4', nominal: 4250000, penanggungJawab: 'M. Abdul Fataah', kodeAkun: '6204.01', namaAkun: 'Biaya Pemeliharaan Gedung & Alat', noSumber: 'BKK-2412', tipeSumber: 'Pembayaran' },
+  { id: 'kas-10', tanggal: '2026-11-16', tipe: 'Keluar', kategori: 'Pembelian Aset Tetap', uraian: 'Pengadaan Kipas Dinding & Meja Belajar Tambahan', nominal: 6800000, penanggungJawab: 'M. Abdul Fataah', kodeAkun: '1203.01', namaAkun: 'Peralatan & Inventaris Sarpras', noSumber: 'BKK-2418', tipeSumber: 'Pembelian Aset' },
+  { id: 'kas-11', tanggal: '2026-11-18', tipe: 'Keluar', kategori: 'Konsumsi & Dapur', uraian: 'Belanja Dapur Santri & Air Minum Galon Pekan 3', nominal: 11850000, penanggungJawab: 'M. Abdul Fataah', kodeAkun: '5101.01', namaAkun: 'Biaya Konsumsi & Dapur Santri', noSumber: 'BKK-2422', tipeSumber: 'Pembayaran' },
+  { id: 'kas-12', tanggal: '2026-11-20', tipe: 'Keluar', kategori: "Biaya Agenda Kema'hadiyahan", uraian: 'Pelunasan Konsumsi & Perlengkapan Imtihan Awal', nominal: 5400000, penanggungJawab: 'Ust. Nidhomul Muna Lana', kodeAkun: '6202.01', namaAkun: "Biaya Operasional & Kegiatan Pondok", noSumber: 'BKK-2429', tipeSumber: 'Pembayaran' },
 ];
 
 /**
@@ -2879,4 +3035,223 @@ export const SEED_TITIPAN_WALI: TitipanWaliRecord[] = [
     petugasPos: 'Ust. Bahrul Ulum',
   },
 ];
+
+/**
+ * Ledger Independen Santri & Tagihan Bendahara
+ * (Terpisah/snapshot dari Sekretaris agar tanggungan santri Boyong / Keluar tetap tercatat meski dihapus di Sekretaris)
+ */
+export type KategoriTagihanSantri =
+  | 'Syahriyah Bulanan'
+  | 'Daftar Ulang'
+  | "Agenda Kema'hadiyahan"
+  | 'Lainnya';
+
+export interface BendaharaSantriProfile {
+  id: string;
+  refSantriId?: string;
+  nis: string;
+  nama: string;
+  gender: 'L' | 'P';
+  kelas: string;
+  kamar: string;
+  namaWali: string;
+  hpWali: string;
+  statusPondok: 'Aktif' | 'Boyong / Keluar' | 'Lulus / Alumni';
+  sumberData: 'Sekretaris' | 'Manual Bendahara';
+  terhapusDiSekretaris?: boolean;
+  catatanKeuangan?: string;
+}
+
+export interface TagihanSantriRiwayatBayar {
+  id: string;
+  tanggal: string;
+  nominal: number;
+  metode: string;
+  petugas: string;
+  catatan?: string;
+}
+
+export interface TagihanSantriItem {
+  id: string;
+  ledgerId: string;
+  kategori: KategoriTagihanSantri;
+  judulTagihan: string;
+  periode: string;
+  agendaId?: string;
+  nominalTagihan: number;
+  nominalTerbayar: number;
+  status: 'Belum Lunas' | 'Cicilan' | 'Lunas';
+  jatuhTempo: string;
+  tanggalBayarTerakhir?: string;
+  metodeTerakhir?: string;
+  riwayatBayar: TagihanSantriRiwayatBayar[];
+}
+
+const initialActiveLedgers: BendaharaSantriProfile[] = SEED_SANTRI_LIST.slice(0, 12).map((s) => ({
+  id: `bs-${s.id}`,
+  refSantriId: s.id,
+  nis: s.nis,
+  nama: s.nama,
+  gender: s.gender,
+  kelas: s.kelas,
+  kamar: s.kamar,
+  namaWali: s.namaWali,
+  hpWali: s.hpWali,
+  statusPondok: 'Aktif',
+  sumberData: 'Sekretaris',
+  terhapusDiSekretaris: false,
+}));
+
+const boyongSeedLedgers: BendaharaSantriProfile[] = [
+  {
+    id: 'bs-boyong-1',
+    nis: '23.0942',
+    nama: 'MUHAMMAD FAIZAL AKBAR',
+    gender: 'L',
+    kelas: '3 A PUTRA',
+    kamar: 'An-Nur 2',
+    namaWali: 'Bpk. H. Ahmad Fauzi',
+    hpWali: '081326778890',
+    statusPondok: 'Boyong / Keluar',
+    sumberData: 'Manual Bendahara',
+    terhapusDiSekretaris: true,
+    catatanKeuangan: 'Sudah boyong Oktober 2026 namun masih memiliki tunggakan Syahriyah 2 bulan & Daftar Ulang.',
+  },
+  {
+    id: 'bs-boyong-2',
+    nis: '24.1188',
+    nama: 'SITI MARWAH KHAIRUNNISA',
+    gender: 'P',
+    kelas: '2 B PUTRI',
+    kamar: 'Aisyah 3',
+    namaWali: 'Ibu Siti Aminah',
+    hpWali: '085741223344',
+    statusPondok: 'Boyong / Keluar',
+    sumberData: 'Sekretaris',
+    terhapusDiSekretaris: true,
+    catatanKeuangan: 'Keluar sementara karena pindah domisili; tanggungan Agenda HSN & Syahriyah masih dicicil.',
+  },
+];
+
+export const SEED_BENDAHARA_SANTRI: BendaharaSantriProfile[] = [
+  ...initialActiveLedgers,
+  ...boyongSeedLedgers,
+];
+
+export const SEED_TAGIHAN_SANTRI: TagihanSantriItem[] = (() => {
+  const items: TagihanSantriItem[] = [];
+  initialActiveLedgers.forEach((bs, idx) => {
+    const isPaidNov = idx % 3 === 0;
+    const isPartialNov = idx % 3 === 1;
+    items.push({
+      id: `tag-syh-nov-${bs.id}`,
+      ledgerId: bs.id,
+      kategori: 'Syahriyah Bulanan',
+      judulTagihan: 'Syahriyah Bulan November 2026',
+      periode: 'November 2026',
+      nominalTagihan: 150000,
+      nominalTerbayar: isPaidNov ? 150000 : isPartialNov ? 75000 : 0,
+      status: isPaidNov ? 'Lunas' : isPartialNov ? 'Cicilan' : 'Belum Lunas',
+      jatuhTempo: '2026-11-10',
+      tanggalBayarTerakhir: isPaidNov || isPartialNov ? '2026-11-05' : undefined,
+      metodeTerakhir: isPaidNov || isPartialNov ? 'Transfer BSI' : undefined,
+      riwayatBayar: isPaidNov
+        ? [{ id: `rb-${bs.id}-1`, tanggal: '2026-11-05', nominal: 150000, metode: 'Transfer BSI', petugas: 'M. Abdul Fataah', catatan: 'Lunas via VA BSI' }]
+        : isPartialNov
+        ? [{ id: `rb-${bs.id}-1`, tanggal: '2026-11-05', nominal: 75000, metode: 'Tunai Loket', petugas: 'M. Abdul Fataah', catatan: 'Cicilan tahap 1' }]
+        : [],
+    });
+
+    const isPaidDu = idx % 2 === 0;
+    items.push({
+      id: `tag-du-26-${bs.id}`,
+      ledgerId: bs.id,
+      kategori: 'Daftar Ulang',
+      judulTagihan: 'Daftar Ulang & Buku Wajib T.A. 2026/2027',
+      periode: 'T.A. 2026/2027',
+      nominalTagihan: 450000,
+      nominalTerbayar: isPaidDu ? 450000 : 250000,
+      status: isPaidDu ? 'Lunas' : 'Cicilan',
+      jatuhTempo: '2026-07-31',
+      tanggalBayarTerakhir: '2026-07-20',
+      metodeTerakhir: 'Tunai Loket',
+      riwayatBayar: [
+        {
+          id: `rb-du-${bs.id}`,
+          tanggal: '2026-07-20',
+          nominal: isPaidDu ? 450000 : 250000,
+          metode: 'Tunai Loket',
+          petugas: 'M. Abdul Fataah',
+        },
+      ],
+    });
+
+    items.push({
+      id: `tag-agk-imt-${bs.id}`,
+      ledgerId: bs.id,
+      kategori: "Agenda Kema'hadiyahan",
+      judulTagihan: 'Iuran Imtihan Semester Gasal 2026/2027',
+      periode: 'Desember 2026',
+      agendaId: 'agk-2',
+      nominalTagihan: 30000,
+      nominalTerbayar: idx < 5 ? 30000 : 0,
+      status: idx < 5 ? 'Lunas' : 'Belum Lunas',
+      jatuhTempo: '2026-12-05',
+      tanggalBayarTerakhir: idx < 5 ? '2026-11-05' : undefined,
+      metodeTerakhir: idx < 5 ? 'Tunai Loket' : undefined,
+      riwayatBayar:
+        idx < 5
+          ? [{ id: `rb-agk-${bs.id}`, tanggal: '2026-11-05', nominal: 30000, metode: 'Tunai Loket', petugas: 'Ust. Nidhomul Muna Lana' }]
+          : [],
+    });
+  });
+
+  // Tunggakan Santri Boyong / Keluar yang tetap terjaga
+  items.push(
+    {
+      id: 'tag-boyong-1a',
+      ledgerId: 'bs-boyong-1',
+      kategori: 'Syahriyah Bulanan',
+      judulTagihan: 'Tunggakan Syahriyah Sep - Okt 2026 (2 Bulan)',
+      periode: 'Sep - Okt 2026',
+      nominalTagihan: 300000,
+      nominalTerbayar: 0,
+      status: 'Belum Lunas',
+      jatuhTempo: '2026-10-10',
+      riwayatBayar: [],
+    },
+    {
+      id: 'tag-boyong-1b',
+      ledgerId: 'bs-boyong-1',
+      kategori: 'Daftar Ulang',
+      judulTagihan: 'Sisa Daftar Ulang T.A. 2026/2027',
+      periode: 'T.A. 2026/2027',
+      nominalTagihan: 450000,
+      nominalTerbayar: 200000,
+      status: 'Cicilan',
+      jatuhTempo: '2026-08-15',
+      tanggalBayarTerakhir: '2026-08-10',
+      metodeTerakhir: 'Tunai Loket',
+      riwayatBayar: [{ id: 'rb-by-1b', tanggal: '2026-08-10', nominal: 200000, metode: 'Tunai Loket', petugas: 'M. Abdul Fataah', catatan: 'DP awal' }],
+    },
+    {
+      id: 'tag-boyong-2a',
+      ledgerId: 'bs-boyong-2',
+      kategori: "Agenda Kema'hadiyahan",
+      judulTagihan: 'Iuran Peringatan Hari Santri Nasional (HSN 2026)',
+      periode: 'Oktober 2026',
+      agendaId: 'agk-1',
+      nominalTagihan: 75000,
+      nominalTerbayar: 25000,
+      status: 'Cicilan',
+      jatuhTempo: '2026-10-20',
+      tanggalBayarTerakhir: '2026-10-18',
+      metodeTerakhir: 'Transfer QRIS',
+      riwayatBayar: [{ id: 'rb-by-2a', tanggal: '2026-10-18', nominal: 25000, metode: 'Transfer QRIS', petugas: 'M. Abdul Fataah' }],
+    }
+  );
+
+  return items;
+})();
+
 

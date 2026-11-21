@@ -9,15 +9,17 @@ import {
   Edit2,
   Save,
   TrendingUp,
-  Percent,
   FileSpreadsheet,
   Users,
   RefreshCw,
   X,
+  Wallet,
+  BarChart3,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAppStore } from '../../../lib/store.ts';
 import { triggerReliablePrint } from '../../../lib/printHelper.ts';
-import { RabItem } from '../../../data/seed/pondokData.ts';
+import { RabItem, SEED_RAB_REALISASI_MAP } from '../../../data/seed/pondokData.ts';
 import { PrintOrientationControl } from '../../../components/common/PrintOrientationControl.tsx';
 
 export interface BisyarohGuruRow {
@@ -149,6 +151,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
   const [formVolume, setFormVolume] = useState<number>(1);
   const [formSatuan, setFormSatuan] = useState<string>('Paket');
   const [formHargaSatuan, setFormHargaSatuan] = useState<number>(10000);
+  const [formRealisasi, setFormRealisasi] = useState<number>(0);
 
   // Total terhitung otomatis dari volume * hargaSatuan
   const formTotalOtomatis = useMemo(() => {
@@ -159,29 +162,90 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
   const [includeUsulan, setIncludeUsulan] = useState<boolean>(true);
   const [activeFilter, setActiveFilter] = useState<string>('Semua');
 
-  // Kalkulasi Real-time RAB
+  const getItemRealisasi = (item: RabItem): number => {
+    return item.realisasi ?? SEED_RAB_REALISASI_MAP[item.id] ?? 0;
+  };
+
+  // Kalkulasi Real-time RAB (Pagu vs Realisasi & Sisa Anggaran)
   const stats = useMemo(() => {
-    const totalPemasukan = rabImtihan
-      .filter((r) => r.kategori === 'Pemasukan')
-      .reduce((sum, r) => sum + r.qty * r.harga, 0);
+    const sumPagu = (arr: RabItem[]) => arr.reduce((sum, r) => sum + r.qty * r.harga, 0);
+    const sumRealisasi = (arr: RabItem[]) =>
+      arr.reduce((sum, r) => sum + (r.realisasi ?? SEED_RAB_REALISASI_MAP[r.id] ?? 0), 0);
 
-    const totalPengeluaranPokok = rabImtihan
-      .filter((r) => r.kategori !== 'Pemasukan' && r.kategori !== 'UsulanTambahan')
-      .reduce((sum, r) => sum + r.qty * r.harga, 0);
+    const incomeItems = rabImtihan.filter((r) => r.kategori === 'Pemasukan');
+    const pokokItems = rabImtihan.filter(
+      (r) => r.kategori !== 'Pemasukan' && r.kategori !== 'UsulanTambahan'
+    );
+    const usulanItems = rabImtihan.filter((r) => r.kategori === 'UsulanTambahan');
+    const activeExpenseItems = includeUsulan ? [...pokokItems, ...usulanItems] : pokokItems;
 
-    const totalUsulan = rabImtihan
-      .filter((r) => r.kategori === 'UsulanTambahan')
-      .reduce((sum, r) => sum + r.qty * r.harga, 0);
+    const totalPemasukan = sumPagu(incomeItems);
+    const realisasiPemasukan = sumRealisasi(incomeItems);
+
+    const totalPengeluaranPokok = sumPagu(pokokItems);
+    const realisasiPengeluaranPokok = sumRealisasi(pokokItems);
+
+    const totalUsulan = sumPagu(usulanItems);
+    const realisasiUsulan = sumRealisasi(usulanItems);
+
+    const totalPaguBelanja = sumPagu(activeExpenseItems);
+    const totalRealisasiBelanja = sumRealisasi(activeExpenseItems);
+    const totalSisaBelanja = totalPaguBelanja - totalRealisasiBelanja;
+    const persenSerapanBelanja =
+      totalPaguBelanja > 0 ? (totalRealisasiBelanja / totalPaguBelanja) * 100 : 0;
+    const persenTerkumpul =
+      totalPemasukan > 0 ? (realisasiPemasukan / totalPemasukan) * 100 : 0;
 
     const saldoPokok = totalPemasukan - totalPengeluaranPokok;
     const saldoAkhir = totalPemasukan - (totalPengeluaranPokok + (includeUsulan ? totalUsulan : 0));
+    const saldoKasNyata = realisasiPemasukan - totalRealisasiBelanja;
+
+    const perKategori = kategoriList
+      .filter((k) => k !== 'Pemasukan')
+      .map((kat) => {
+        const rows = rabImtihan.filter((r) => r.kategori === kat);
+        const pagu = sumPagu(rows);
+        const realisasi = sumRealisasi(rows);
+        const sisa = pagu - realisasi;
+        const pct = pagu > 0 ? (realisasi / pagu) * 100 : 0;
+        const status =
+          pagu === 0
+            ? 'Kosong'
+            : realisasi > pagu
+            ? 'Overbudget'
+            : pct >= 99.5
+            ? 'Terealisasi Penuh'
+            : pct >= 80
+            ? 'Mendekati Pagu'
+            : 'Tersedia';
+        return {
+          kategori: kat,
+          label: kategoriLabels[kat],
+          itemCount: rows.length,
+          pagu,
+          realisasi,
+          sisa,
+          pct,
+          status,
+        };
+      });
 
     return {
       totalPemasukan,
+      realisasiPemasukan,
+      persenTerkumpul,
       totalPengeluaranPokok,
+      realisasiPengeluaranPokok,
       totalUsulan,
+      realisasiUsulan,
+      totalPaguBelanja,
+      totalRealisasiBelanja,
+      totalSisaBelanja,
+      persenSerapanBelanja,
       saldoPokok,
       saldoAkhir,
+      saldoKasNyata,
+      perKategori,
     };
   }, [rabImtihan, includeUsulan]);
 
@@ -313,6 +377,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
     setFormVolume(1);
     setFormSatuan(kategoriTarget === 'Insentif' || kategoriTarget === 'Tunjangan' ? 'Orang' : 'Paket');
     setFormHargaSatuan(25000);
+    setFormRealisasi(0);
     setShowItemModal(true);
   };
 
@@ -325,6 +390,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
     setFormVolume(item.qty);
     setFormSatuan(item.satuan);
     setFormHargaSatuan(item.harga);
+    setFormRealisasi(getItemRealisasi(item));
     setShowItemModal(true);
   };
 
@@ -342,6 +408,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
         satuan: formSatuan.trim() || 'Paket',
         harga: Math.max(0, formHargaSatuan),
         jumlah: formTotalOtomatis,
+        realisasi: Math.max(0, formRealisasi),
       });
     } else {
       addRabItem({
@@ -351,6 +418,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
         satuan: formSatuan.trim() || 'Paket',
         harga: Math.max(0, formHargaSatuan),
         jumlah: formTotalOtomatis,
+        realisasi: Math.max(0, formRealisasi),
       });
     }
 
@@ -376,6 +444,14 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
     });
   };
 
+  const handleInlineRealisasiChange = (item: RabItem, newRealisasi: number) => {
+    const real = isNaN(newRealisasi) ? 0 : Math.max(0, newRealisasi);
+    updateRabItem({
+      ...item,
+      realisasi: real,
+    });
+  };
+
   const handleInlineDeskripsiChange = (item: RabItem, newDesc: string) => {
     updateRabItem({
       ...item,
@@ -388,6 +464,28 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
       ...item,
       satuan: newSat,
     });
+  };
+
+  const handleBatchRealisasiMatchPagu = () => {
+    rabImtihan.forEach((item) => {
+      updateRabItem({
+        ...item,
+        realisasi: item.qty * item.harga,
+      });
+    });
+    setBisyarohToast('Seluruh realisasi item disamakan 100% dengan pagu anggaran RAB.');
+    setTimeout(() => setBisyarohToast(''), 3500);
+  };
+
+  const handleBatchRealisasiClear = () => {
+    rabImtihan.forEach((item) => {
+      updateRabItem({
+        ...item,
+        realisasi: 0,
+      });
+    });
+    setBisyarohToast('Seluruh realisasi item direset ke Rp 0 (Mode Perencanaan Awal).');
+    setTimeout(() => setBisyarohToast(''), 3500);
   };
 
   const formatRpOrDash = (val: number) => (val > 0 ? val.toLocaleString('id-ID') : '-');
@@ -455,19 +553,16 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
                     <FileSpreadsheet className="w-4 h-4" />
                   </span>
                   <h3 className="font-bold text-sm text-slate-900">
-                    Rancangan Anggaran Biaya (RAB) Imtihan {imtihanMaster.cawu}
+                    Akuntansi &amp; RAB Imtihan {imtihanMaster.cawu}
                   </h3>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
-                    Kalkulasi Otomatis Aktif
-                  </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Input kategori, deskripsi, volume, satuan, dan harga satuan. Total jumlah dan saldo dihitung seketika.
+                  Pantau realisasi vs pagu anggaran per pos biaya secara real-time. Edit langsung kolom Volume, Harga Satuan, atau Realisasi (Rp) di tabel.
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <PrintOrientationControl recommended="portrait" compact />
+                <PrintOrientationControl recommended="landscape" compact />
                 <button
                   type="button"
                   onClick={() => handleOpenTambah()}
@@ -514,7 +609,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
               type="button"
               onClick={() =>
                 triggerReliablePrint({
-                  title: 'Rancangan Anggaran Biaya (RAB) Imtihan 1',
+                  title: 'Rancangan Anggaran & Realisasi Biaya (RAB) Imtihan 1',
                   orientation: printOrientation,
                   paperSize: 'F4',
                   targetElement: rabPrintRef.current,
@@ -528,60 +623,228 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
           </div>
         </div>
 
-        {/* 4 Kartu Real-time Summary */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-          <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-800">Total Pemasukan (Iuran)</span>
-              <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+        {/* 4 Kartu Real-time Akuntansi: Pagu vs Realisasi & Sisa Anggaran */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-1">
+          {/* Card 1: Penerimaan Iuran */}
+          <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col justify-between gap-2">
+            <div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-600">Realisasi Pemasukan</span>
+                <DollarSign className="w-4 h-4 text-emerald-700" />
+              </div>
+              <p className="text-xl font-black text-emerald-900 mt-1 tabular-nums whitespace-nowrap">
+                Rp {stats.realisasiPemasukan.toLocaleString('id-ID')}
+              </p>
+              <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums flex items-center justify-between">
+                <span>Pagu: Rp {stats.totalPemasukan.toLocaleString('id-ID')}</span>
+                <span className="font-bold text-emerald-800">{stats.persenTerkumpul.toFixed(1)}%</span>
+              </div>
             </div>
-            <p className="text-xl font-black text-emerald-950 mt-1 tabular-nums whitespace-nowrap">
-              Rp {stats.totalPemasukan.toLocaleString('id-ID')}
-            </p>
-            <p className="text-[10px] text-emerald-700 mt-0.5">360 Santri @ Rp 30.000</p>
+            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-600 transition-all duration-300 rounded-full"
+                style={{ width: `${Math.min(100, stats.persenTerkumpul)}%` }}
+              />
+            </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-rose-50/70 border border-rose-200">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-rose-800">Pengeluaran Pokok</span>
-              <TrendingUp className="w-3.5 h-3.5 text-rose-600" />
+          {/* Card 2: Serapan Pengeluaran */}
+          <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col justify-between gap-2">
+            <div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-600">Realisasi Pengeluaran</span>
+                <TrendingUp className="w-4 h-4 text-slate-700" />
+              </div>
+              <p className="text-xl font-black text-slate-900 mt-1 tabular-nums whitespace-nowrap">
+                Rp {stats.totalRealisasiBelanja.toLocaleString('id-ID')}
+              </p>
+              <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums flex items-center justify-between">
+                <span>Pagu: Rp {stats.totalPaguBelanja.toLocaleString('id-ID')}</span>
+                <span
+                  className={`font-bold ${
+                    stats.persenSerapanBelanja > 100
+                      ? 'text-rose-700'
+                      : stats.persenSerapanBelanja >= 80
+                      ? 'text-amber-700'
+                      : 'text-emerald-700'
+                  }`}
+                >
+                  {stats.persenSerapanBelanja.toFixed(1)}% Terpakai
+                </span>
+              </div>
             </div>
-            <p className="text-xl font-black text-rose-950 mt-1 tabular-nums whitespace-nowrap">
-              Rp {stats.totalPengeluaranPokok.toLocaleString('id-ID')}
-            </p>
-            <p className="text-[10px] text-rose-700 mt-0.5">5 Kategori Pokok Panitia</p>
+            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 rounded-full ${
+                  stats.persenSerapanBelanja > 100
+                    ? 'bg-rose-600'
+                    : stats.persenSerapanBelanja >= 80
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-600'
+                }`}
+                style={{ width: `${Math.min(100, stats.persenSerapanBelanja)}%` }}
+              />
+            </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-amber-800">Saldo Pokok (Surplus)</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
+          {/* Card 3: Sisa Anggaran */}
+          <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col justify-between gap-2">
+            <div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-600">Sisa Anggaran (Variance)</span>
+                {stats.totalSisaBelanja < 0 ? (
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                )}
+              </div>
+              <p
+                className={`text-xl font-black mt-1 tabular-nums whitespace-nowrap ${
+                  stats.totalSisaBelanja < 0 ? 'text-rose-700' : 'text-slate-900'
+                }`}
+              >
+                {stats.totalSisaBelanja < 0 ? '-' : ''}Rp{' '}
+                {Math.abs(stats.totalSisaBelanja).toLocaleString('id-ID')}
+              </p>
+              <div className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
+                <span>Status Anggaran</span>
+                <span
+                  className={`font-bold ${
+                    stats.totalSisaBelanja < 0 ? 'text-rose-700' : 'text-emerald-700'
+                  }`}
+                >
+                  {stats.totalSisaBelanja < 0
+                    ? 'Overbudget'
+                    : `${Math.max(0, 100 - stats.persenSerapanBelanja).toFixed(1)}% Tersisa`}
+                </span>
+              </div>
             </div>
-            <p className="text-xl font-black text-amber-950 mt-1 tabular-nums whitespace-nowrap">
-              Rp {stats.saldoPokok.toLocaleString('id-ID')}
-            </p>
-            <p className="text-[10px] text-amber-700 mt-0.5">Pemasukan - Pengeluaran Pokok</p>
+            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 rounded-full ${
+                  stats.totalSisaBelanja < 0 ? 'bg-rose-600' : 'bg-sky-600'
+                }`}
+                style={{
+                  width: `${Math.min(100, Math.max(0, 100 - stats.persenSerapanBelanja))}%`,
+                }}
+              />
+            </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-purple-800">
-                {includeUsulan ? 'Saldo Akhir (Usulan Masuk)' : 'Saldo Murni'}
-              </span>
-              <Percent className="w-3.5 h-3.5 text-purple-600" />
+          {/* Card 4: Saldo Kas Nyata & Proyeksi */}
+          <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col justify-between gap-2">
+            <div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-600">Saldo Kas Nyata Saat Ini</span>
+                <Wallet className="w-4 h-4 text-emerald-700" />
+              </div>
+              <p
+                className={`text-xl font-black mt-1 tabular-nums whitespace-nowrap ${
+                  stats.saldoKasNyata < 0 ? 'text-rose-700' : 'text-emerald-900'
+                }`}
+              >
+                Rp {stats.saldoKasNyata.toLocaleString('id-ID')}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5 tabular-nums">
+                Proyeksi Saldo Akhir: Rp {stats.saldoAkhir.toLocaleString('id-ID')}
+              </p>
             </div>
-            <p className="text-xl font-black text-purple-950 mt-1 tabular-nums whitespace-nowrap">
-              Rp {stats.saldoAkhir.toLocaleString('id-ID')}
-            </p>
-            <label className="text-[10px] text-purple-900 font-medium flex items-center gap-1 cursor-pointer mt-0.5">
+            <label className="text-[11px] text-slate-700 font-semibold flex items-center gap-1.5 cursor-pointer pt-1 border-t border-slate-100">
               <input
                 type="checkbox"
                 checked={includeUsulan}
                 onChange={(e) => setIncludeUsulan(e.target.checked)}
-                className="rounded text-purple-700 focus:ring-0 w-3 h-3"
+                className="rounded text-emerald-700 focus:ring-0 w-3.5 h-3.5"
               />
               <span>Sertakan Usulan (+Rp {stats.totalUsulan.toLocaleString('id-ID')})</span>
             </label>
+          </div>
+        </div>
+
+        {/* Panel Real-Time Progress Bar per Pos Biaya */}
+        <div className="pt-3 border-t border-slate-100 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-emerald-800" />
+              <h4 className="text-xs font-bold text-slate-900">
+                Realisasi vs Pagu Anggaran per Pos Biaya
+              </h4>
+              <span className="text-[11px] text-slate-500">· Klik pos biaya untuk filter tabel</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+              <button
+                type="button"
+                onClick={handleBatchRealisasiMatchPagu}
+                className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 font-semibold transition"
+              >
+                Samakan Realisasi = Pagu
+              </button>
+              <button
+                type="button"
+                onClick={handleBatchRealisasiClear}
+                className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold transition"
+              >
+                Nolkan Realisasi
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {stats.perKategori.map((pos) => {
+              const isSelected = activeFilter === pos.kategori;
+              const isOver = pos.sisa < 0;
+              const barColor = isOver
+                ? 'bg-rose-600'
+                : pos.pct >= 85
+                ? 'bg-amber-500'
+                : 'bg-emerald-600';
+              const statusTextColor = isOver
+                ? 'text-rose-700'
+                : pos.pct >= 85
+                ? 'text-amber-700'
+                : 'text-emerald-700';
+
+              return (
+                <button
+                  key={pos.kategori}
+                  type="button"
+                  onClick={() =>
+                    setActiveFilter(isSelected ? 'Semua' : pos.kategori)
+                  }
+                  className={`text-left p-3 rounded-xl border transition ${
+                    isSelected
+                      ? 'bg-emerald-50/70 border-emerald-600 ring-1 ring-emerald-600'
+                      : 'bg-slate-50/60 border-slate-200 hover:bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-bold text-slate-900 truncate">
+                      {pos.label}
+                    </span>
+                    <span className={`font-bold shrink-0 tabular-nums ${statusTextColor}`}>
+                      {pos.pct.toFixed(1)}%
+                    </span>
+                  </div>
+
+                  <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden my-2">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                      style={{ width: `${Math.min(100, Math.max(0, pos.pct))}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] tabular-nums text-slate-600">
+                    <span>
+                      Real: <strong className="text-slate-900">Rp {pos.realisasi.toLocaleString('id-ID')}</strong>
+                      <span className="text-slate-400"> / {pos.pagu.toLocaleString('id-ID')}</span>
+                    </span>
+                    <span className={`font-bold ${statusTextColor}`}>
+                      {isOver ? 'Over ' : 'Sisa '}Rp {Math.abs(pos.sisa).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -607,13 +870,12 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
 
       {/* 
         ========================================================================
-        DOKUMEN CETAK & SPREADSHEET TABEL RAB
-        Kategori | Deskripsi | Volume | Satuan | Harga Satuan | Total | Aksi
+        DOKUMEN CETAK & TABEL AKUNTANSI MODERN RAB IMTIHAN
         ========================================================================
       */}
       <div
         ref={rabPrintRef}
-        className="bg-white border-2 border-slate-800 p-6 sm:p-10 shadow-xl printable-area font-sans text-black max-w-4xl mx-auto space-y-6"
+        className="bg-white border-2 border-slate-800 p-5 sm:p-8 shadow-xl printable-area font-sans text-black max-w-6xl mx-auto space-y-5"
       >
         
         {/* Banner Kop Panitia Resmi */}
@@ -641,185 +903,320 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
         {/* Judul Rincian Anggaran */}
         <div className="text-center space-y-1">
           <h2 className="text-base sm:text-lg font-black tracking-wide uppercase text-black">
-            RANCANGAN ANGGARAN KEGIATAN IMTIHAN 1
+            LAPORAN ANGGARAN &amp; REALISASI BIAYA (RAB) IMTIHAN {imtihanMaster.cawu}
           </h2>
           <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase">
-            PONDOK PESANTREN NU DARUSSALAM KARANGDADAP · TAHUN AJARAN 2026/2027
+            PONDOK PESANTREN NU DARUSSALAM KARANGDADAP · TAHUN AJARAN {imtihanMaster.tahunAjaran}
           </h3>
           <p className="text-[11px] sm:text-xs italic font-semibold text-slate-700">
             Pelaksanaan: malam 6 s.d. malam 9 Desember 2026
           </p>
         </div>
 
-        {/* Tabel Spreadsheet */}
+        {/* Tabel Akuntansi Modern RAB & Realisasi */}
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse border-2 border-black">
+          <table className="w-full text-xs border-collapse border-2 border-slate-900">
             <thead>
-              <tr className="bg-[#D1E7DD] border-b-2 border-black font-bold text-slate-900">
-                <th className="border border-black py-2 px-3 text-left">DESKRIPSI (URAIAN)</th>
-                <th className="border border-black py-2 px-2 text-center w-16">VOLUME</th>
-                <th className="border border-black py-2 px-2 text-center w-24">SATUAN</th>
-                <th className="border border-black py-2 px-3 text-right w-28">HARGA SATUAN</th>
-                <th className="border border-black py-2 px-3 text-right w-32">TOTAL (JUMLAH)</th>
-                <th className="border border-black py-2 px-2 text-center w-20 no-print">AKSI</th>
+              <tr className="bg-emerald-900 text-white border-b-2 border-slate-900 font-bold">
+                <th className="border border-slate-700 py-2.5 px-3 text-left min-w-[200px]">
+                  POS BIAYA / URAIAN
+                </th>
+                <th className="border border-slate-700 py-2.5 px-1.5 text-center w-14">VOL</th>
+                <th className="border border-slate-700 py-2.5 px-2 text-center w-20">SATUAN</th>
+                <th className="border border-slate-700 py-2.5 px-2 text-right w-24">HARGA</th>
+                <th className="border border-slate-700 py-2.5 px-2.5 text-right w-28">
+                  PAGU RAB (Rp)
+                </th>
+                <th className="border border-slate-700 py-2.5 px-2.5 text-right w-32">
+                  REALISASI (Rp)
+                </th>
+                <th className="border border-slate-700 py-2.5 px-2.5 text-right min-w-[155px]">
+                  SISA &amp; SERAPAN
+                </th>
+                <th className="border border-slate-700 py-2.5 px-2 text-center w-16 no-print">
+                  AKSI
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-400">
+            <tbody className="divide-y divide-slate-300">
               {kategoriList.map((kat) => {
                 if (activeFilter !== 'Semua' && activeFilter !== kat) return null;
 
                 const itemsInCat = rabImtihan.filter((r) => r.kategori === kat);
-                const subtotalCat = itemsInCat.reduce((sum, r) => sum + r.qty * r.harga, 0);
+                const subtotalPagu = itemsInCat.reduce((sum, r) => sum + r.qty * r.harga, 0);
+                const subtotalRealisasi = itemsInCat.reduce(
+                  (sum, r) => sum + getItemRealisasi(r),
+                  0
+                );
+                const subtotalSisa = subtotalPagu - subtotalRealisasi;
+                const subtotalPct = subtotalPagu > 0 ? (subtotalRealisasi / subtotalPagu) * 100 : 0;
+                const isOverCat = kat !== 'Pemasukan' && subtotalSisa < 0;
 
                 return (
                   <React.Fragment key={kat}>
-                    {/* Header Baris Kategori */}
-                    <tr className="bg-slate-200/90 font-black border-t-2 border-b border-black text-slate-900">
-                      <td colSpan={4} className="py-1.5 px-3 border border-black tracking-wide">
+                    {/* Header Baris Kategori dengan Progress Pos Biaya */}
+                    <tr className="bg-slate-100 font-black border-t-2 border-b border-slate-800 text-slate-900">
+                      <td colSpan={4} className="py-2 px-3 border border-slate-400 tracking-wide">
                         {kategoriLabels[kat]}
                       </td>
-                      <td className="py-1.5 px-3 border border-black text-right tabular-nums whitespace-nowrap">
-                        Rp {subtotalCat.toLocaleString('id-ID')}
+                      <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums whitespace-nowrap">
+                        Rp {subtotalPagu.toLocaleString('id-ID')}
                       </td>
-                      <td className="py-1 px-1 border border-black text-center no-print">
+                      <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums whitespace-nowrap text-emerald-950">
+                        Rp {subtotalRealisasi.toLocaleString('id-ID')}
+                      </td>
+                      <td className="py-1.5 px-2.5 border border-slate-400">
+                        <div className="flex items-center justify-between text-[11px] tabular-nums">
+                          <span className={isOverCat ? 'text-rose-700' : 'text-slate-800'}>
+                            {isOverCat ? 'Over ' : 'Sisa '}
+                            {Math.abs(subtotalSisa).toLocaleString('id-ID')}
+                          </span>
+                          <span className={isOverCat ? 'text-rose-700' : 'text-emerald-800'}>
+                            {subtotalPct.toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-300 rounded-full overflow-hidden mt-1">
+                          <div
+                            className={`h-full rounded-full ${
+                              kat === 'Pemasukan'
+                                ? 'bg-emerald-600'
+                                : isOverCat
+                                ? 'bg-rose-600'
+                                : subtotalPct >= 85
+                                ? 'bg-amber-500'
+                                : 'bg-emerald-600'
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(0, subtotalPct))}%` }}
+                          />
+                        </div>
+                      </td>
+                      <td className="py-1 px-1 border border-slate-400 text-center no-print">
                         <button
                           type="button"
                           onClick={() => handleOpenTambah(kat)}
-                          className="px-2 py-0.5 rounded bg-white hover:bg-slate-300 text-[11px] font-bold text-slate-800 transition border border-slate-300"
+                          className="px-2 py-0.5 rounded bg-white hover:bg-slate-200 text-[11px] font-bold text-slate-800 transition border border-slate-300"
                           title={`Tambah baris di ${kat}`}
                         >
-                          + Tambah
+                          + Baris
                         </button>
                       </td>
                     </tr>
 
-                    {/* Baris-baris Item */}
-                    {itemsInCat.map((item) => (
-                      <tr key={item.id} className="hover:bg-amber-50/40 transition group bg-white">
-                        {/* Deskripsi (Keterangan) */}
-                        <td className="border border-black py-1.5 px-2">
-                          <input
-                            type="text"
-                            value={item.keterangan}
-                            onChange={(e) => handleInlineDeskripsiChange(item, e.target.value)}
-                            className="w-full bg-transparent border-0 focus:ring-1 focus:ring-emerald-700 focus:bg-white rounded px-1 py-0.5 text-xs text-black font-medium"
-                          />
-                        </td>
+                    {/* Baris-baris Item Akuntansi */}
+                    {itemsInCat.map((item) => {
+                      const paguItem = item.qty * item.harga;
+                      const realItem = getItemRealisasi(item);
+                      const sisaItem = paguItem - realItem;
+                      const pctItem = paguItem > 0 ? (realItem / paguItem) * 100 : 0;
+                      const isOverItem = kat !== 'Pemasukan' && sisaItem < 0;
 
-                        {/* Volume (QTY) */}
-                        <td className="border border-black py-1.5 px-1 text-center">
-                          <input
-                            type="number"
-                            min="0"
-                            value={item.qty}
-                            onChange={(e) => handleInlineVolumeChange(item, parseFloat(e.target.value) || 0)}
-                            className="w-full text-center bg-transparent border-0 focus:ring-1 focus:ring-emerald-700 focus:bg-white rounded py-0.5 text-xs tabular-nums font-bold text-black"
-                          />
-                        </td>
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50/80 transition bg-white">
+                          {/* Deskripsi */}
+                          <td className="border border-slate-300 py-1.5 px-2">
+                            <input
+                              type="text"
+                              value={item.keterangan}
+                              onChange={(e) => handleInlineDeskripsiChange(item, e.target.value)}
+                              className="w-full bg-transparent border-0 focus:ring-1 focus:ring-emerald-700 focus:bg-white rounded px-1 py-0.5 text-xs text-black font-medium"
+                            />
+                          </td>
 
-                        {/* Satuan */}
-                        <td className="border border-black py-1.5 px-1 text-center">
-                          <input
-                            type="text"
-                            value={item.satuan}
-                            onChange={(e) => handleInlineSatuanChange(item, e.target.value)}
-                            className="w-full text-center bg-transparent border-0 focus:ring-1 focus:ring-emerald-700 focus:bg-white rounded py-0.5 text-xs text-slate-700"
-                          />
-                        </td>
+                          {/* Volume */}
+                          <td className="border border-slate-300 py-1.5 px-1 text-center">
+                            <input
+                              type="number"
+                              min="0"
+                              value={item.qty}
+                              onChange={(e) =>
+                                handleInlineVolumeChange(item, parseFloat(e.target.value) || 0)
+                              }
+                              className="w-full text-center bg-transparent border-0 focus:ring-1 focus:ring-emerald-700 focus:bg-white rounded py-0.5 text-xs tabular-nums font-bold text-black"
+                            />
+                          </td>
 
-                        {/* Harga Satuan */}
-                        <td className="border border-black py-1.5 px-2 text-right">
-                          <input
-                            type="number"
-                            min="0"
-                            step="500"
-                            value={item.harga}
-                            onChange={(e) => handleInlineHargaSatuanChange(item, parseFloat(e.target.value) || 0)}
-                            className="w-full text-right bg-transparent border-0 focus:ring-1 focus:ring-emerald-700 focus:bg-white rounded py-0.5 text-xs tabular-nums text-black"
-                          />
-                        </td>
+                          {/* Satuan */}
+                          <td className="border border-slate-300 py-1.5 px-1 text-center">
+                            <input
+                              type="text"
+                              value={item.satuan}
+                              onChange={(e) => handleInlineSatuanChange(item, e.target.value)}
+                              className="w-full text-center bg-transparent border-0 focus:ring-1 focus:ring-emerald-700 focus:bg-white rounded py-0.5 text-xs text-slate-700"
+                            />
+                          </td>
 
-                        {/* Total Otomatis (Volume * Harga Satuan) */}
-                        <td className="border border-black py-1.5 px-3 text-right tabular-nums font-bold text-black whitespace-nowrap bg-slate-50/50">
-                          Rp {(item.qty * item.harga).toLocaleString('id-ID')}
-                        </td>
+                          {/* Harga Satuan */}
+                          <td className="border border-slate-300 py-1.5 px-1.5 text-right">
+                            <input
+                              type="number"
+                              min="0"
+                              step="500"
+                              value={item.harga}
+                              onChange={(e) =>
+                                handleInlineHargaSatuanChange(item, parseFloat(e.target.value) || 0)
+                              }
+                              className="w-full text-right bg-transparent border-0 focus:ring-1 focus:ring-emerald-700 focus:bg-white rounded py-0.5 text-xs tabular-nums text-slate-800"
+                            />
+                          </td>
 
-                        {/* Aksi Baris: Edit Dialog & Hapus */}
-                        <td className="border border-black py-1.5 px-1 text-center no-print">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEdit(item)}
-                              className="p-1 text-slate-500 hover:text-emerald-700 rounded transition"
-                              title="Edit item di dialog"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deleteRabItem(item.id)}
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded transition"
-                              title="Hapus baris"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          {/* Pagu Anggaran */}
+                          <td className="border border-slate-300 py-1.5 px-2.5 text-right tabular-nums font-bold text-slate-900 whitespace-nowrap bg-slate-50/60">
+                            {paguItem.toLocaleString('id-ID')}
+                          </td>
+
+                          {/* Realisasi (Inline Editable) */}
+                          <td className="border border-slate-300 py-1.5 px-1.5 text-right bg-emerald-50/20">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1000"
+                              value={realItem}
+                              onChange={(e) =>
+                                handleInlineRealisasiChange(item, parseFloat(e.target.value) || 0)
+                              }
+                              aria-label={`Realisasi ${item.keterangan}`}
+                              className="w-full text-right bg-transparent border-0 focus:ring-1 focus:ring-emerald-700 focus:bg-white rounded px-1 py-0.5 text-xs tabular-nums font-bold text-emerald-950"
+                            />
+                          </td>
+
+                          {/* Sisa Anggaran & Mini Progress Bar */}
+                          <td className="border border-slate-300 py-1.5 px-2.5">
+                            <div className="flex items-center justify-between gap-2 text-[11px] tabular-nums">
+                              <span
+                                className={`font-bold ${
+                                  isOverItem
+                                    ? 'text-rose-700'
+                                    : sisaItem === 0
+                                    ? 'text-slate-600'
+                                    : 'text-slate-800'
+                                }`}
+                              >
+                                {isOverItem ? '-' : ''}
+                                {Math.abs(sisaItem).toLocaleString('id-ID')}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold ${
+                                  isOverItem
+                                    ? 'text-rose-700'
+                                    : pctItem >= 99.5
+                                    ? 'text-emerald-700'
+                                    : pctItem >= 75
+                                    ? 'text-amber-700'
+                                    : 'text-slate-500'
+                                }`}
+                              >
+                                {pctItem.toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  kat === 'Pemasukan'
+                                    ? 'bg-emerald-600'
+                                    : isOverItem
+                                    ? 'bg-rose-600'
+                                    : pctItem >= 99.5
+                                    ? 'bg-emerald-600'
+                                    : pctItem >= 75
+                                    ? 'bg-amber-500'
+                                    : 'bg-sky-600'
+                                }`}
+                                style={{ width: `${Math.min(100, Math.max(0, pctItem))}%` }}
+                              />
+                            </div>
+                          </td>
+
+                          {/* Aksi Baris */}
+                          <td className="border border-slate-300 py-1.5 px-1 text-center no-print">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(item)}
+                                className="p-1 text-slate-500 hover:text-emerald-700 rounded transition"
+                                title="Edit item di dialog"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteRabItem(item.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 rounded transition"
+                                title="Hapus baris"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </React.Fragment>
                 );
               })}
 
-              {/* Rekapitulasi Akhir Tabel */}
-              <tr className="border-t-2 border-black bg-slate-100 font-bold">
-                <td colSpan={4} className="py-2 px-3 border border-black text-right uppercase">
-                  TOTAL PEMASUKAN :
+              {/* Rekapitulasi Akhir Akuntansi */}
+              <tr className="border-t-2 border-slate-900 bg-slate-100 font-bold">
+                <td colSpan={4} className="py-2 px-3 border border-slate-400 text-right uppercase">
+                  TOTAL PEMASUKAN (IURAN) :
                 </td>
-                <td className="py-2 px-3 border border-black text-right tabular-nums font-black text-emerald-950">
+                <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums font-black text-emerald-950">
                   Rp {stats.totalPemasukan.toLocaleString('id-ID')}
                 </td>
-                <td className="border border-black no-print"></td>
+                <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums font-black text-emerald-900">
+                  Rp {stats.realisasiPemasukan.toLocaleString('id-ID')}
+                </td>
+                <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums text-[11px] font-bold text-slate-700">
+                  Kurang Rp {Math.max(0, stats.totalPemasukan - stats.realisasiPemasukan).toLocaleString('id-ID')} ({stats.persenTerkumpul.toFixed(1)}%)
+                </td>
+                <td className="border border-slate-400 no-print"></td>
               </tr>
 
               <tr className="bg-slate-100 font-bold">
-                <td colSpan={4} className="py-2 px-3 border border-black text-right uppercase">
-                  TOTAL PENGELUARAN POKOK :
+                <td colSpan={4} className="py-2 px-3 border border-slate-400 text-right uppercase">
+                  TOTAL PENGELUARAN POKOK (5 POS) :
                 </td>
-                <td className="py-2 px-3 border border-black text-right tabular-nums font-black text-rose-950">
+                <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums font-black text-rose-950">
                   Rp {stats.totalPengeluaranPokok.toLocaleString('id-ID')}
                 </td>
-                <td className="border border-black no-print"></td>
+                <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums font-black text-slate-900">
+                  Rp {stats.realisasiPengeluaranPokok.toLocaleString('id-ID')}
+                </td>
+                <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums text-[11px] font-bold text-emerald-800">
+                  Sisa Rp {(stats.totalPengeluaranPokok - stats.realisasiPengeluaranPokok).toLocaleString('id-ID')}
+                </td>
+                <td className="border border-slate-400 no-print"></td>
               </tr>
 
-              <tr className="bg-amber-100/80 font-black border-b border-black">
-                <td colSpan={4} className="py-2 px-3 border border-black text-right uppercase text-amber-950">
-                  SALDO POKOK UJIAN (SURPLUS) :
-                </td>
-                <td className="py-2 px-3 border border-black text-right tabular-nums text-sm font-black text-amber-950">
-                  Rp {stats.saldoPokok.toLocaleString('id-ID')}
-                </td>
-                <td className="border border-black no-print"></td>
-              </tr>
-
-              <tr className="bg-purple-50 font-bold border-b border-black">
-                <td colSpan={4} className="py-2 px-3 border border-black text-right uppercase text-purple-900">
+              <tr className="bg-purple-50 font-bold border-b border-slate-400">
+                <td colSpan={4} className="py-2 px-3 border border-slate-400 text-right uppercase text-purple-950">
                   TOTAL USULAN TAMBAHAN (OPSIONAL) :
                 </td>
-                <td className="py-2 px-3 border border-black text-right tabular-nums font-black text-purple-950">
+                <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums font-black text-purple-950">
                   Rp {stats.totalUsulan.toLocaleString('id-ID')}
                 </td>
-                <td className="border border-black no-print"></td>
+                <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums font-black text-purple-950">
+                  Rp {stats.realisasiUsulan.toLocaleString('id-ID')}
+                </td>
+                <td className="py-2 px-2.5 border border-slate-400 text-right tabular-nums text-[11px] font-bold text-purple-900">
+                  Sisa Rp {(stats.totalUsulan - stats.realisasiUsulan).toLocaleString('id-ID')}
+                </td>
+                <td className="border border-slate-400 no-print"></td>
               </tr>
 
-              <tr className="bg-[#C8E6C9] font-black border-2 border-black">
-                <td colSpan={4} className="py-2.5 px-3 border border-black text-right uppercase text-emerald-950">
-                  SALDO AKHIR BILA USULAN DISETUJUI :
+              <tr className="bg-[#D1E7DD] font-black border-2 border-slate-900">
+                <td colSpan={4} className="py-2.5 px-3 border border-slate-800 text-right uppercase text-emerald-950">
+                  SALDO AKHIR (PROYEKSI PAGU vs KAS NYATA REALISASI) :
                 </td>
-                <td className="py-2.5 px-3 border border-black text-right tabular-nums text-sm font-black text-emerald-950">
-                  Rp {(stats.saldoPokok - stats.totalUsulan).toLocaleString('id-ID')}
+                <td className="py-2.5 px-2.5 border border-slate-800 text-right tabular-nums text-xs font-black text-emerald-950">
+                  Rp {stats.saldoAkhir.toLocaleString('id-ID')}
                 </td>
-                <td className="border border-black no-print"></td>
+                <td className="py-2.5 px-2.5 border border-slate-800 text-right tabular-nums text-xs font-black text-emerald-950">
+                  Rp {stats.saldoKasNyata.toLocaleString('id-ID')}
+                </td>
+                <td className="py-2.5 px-2.5 border border-slate-800 text-right tabular-nums text-[11px] font-black text-emerald-950">
+                  {stats.persenSerapanBelanja.toFixed(1)}% Serapan Belanja
+                </td>
+                <td className="border border-slate-800 no-print"></td>
               </tr>
             </tbody>
           </table>
@@ -1438,31 +1835,54 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
                 </div>
               </div>
 
-              {/* 5. Harga Satuan */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Harga Satuan (Rp)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="500"
-                  required
-                  value={formHargaSatuan}
-                  onChange={(e) => setFormHargaSatuan(parseFloat(e.target.value) || 0)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs tabular-nums focus:outline-hidden focus:ring-2 focus:ring-emerald-700"
-                />
+              {/* 5. Harga Satuan & Realisasi */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Harga Satuan (Rp)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="500"
+                    required
+                    value={formHargaSatuan}
+                    onChange={(e) => setFormHargaSatuan(parseFloat(e.target.value) || 0)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs tabular-nums focus:outline-hidden focus:ring-2 focus:ring-emerald-700"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Realisasi Saat Ini (Rp)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={formRealisasi}
+                    onChange={(e) => setFormRealisasi(parseFloat(e.target.value) || 0)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs tabular-nums font-bold text-emerald-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-700"
+                  />
+                </div>
               </div>
 
-              {/* 6. Total (Kalkulasi Otomatis Volume * Harga Satuan) */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-700 block">Total Kalkulasi Otomatis:</span>
-                  <span className="text-[11px] text-slate-500">
-                    {formVolume} {formSatuan} × Rp {formHargaSatuan.toLocaleString('id-ID')}
+              {/* 6. Ringkasan Pagu vs Realisasi */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-slate-700 block">Pagu Anggaran:</span>
+                    <span className="text-[11px] text-slate-500">
+                      {formVolume} {formSatuan} × Rp {formHargaSatuan.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <span className="font-black text-sm text-slate-900 tabular-nums">
+                    Rp {formTotalOtomatis.toLocaleString('id-ID')}
                   </span>
                 </div>
-                <span className="font-black text-sm text-emerald-900 tabular-nums">
-                  Rp {formTotalOtomatis.toLocaleString('id-ID')}
-                </span>
+                <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200 tabular-nums">
+                  <span className="text-slate-600">
+                    Sisa Anggaran: <strong className={formTotalOtomatis - formRealisasi < 0 ? 'text-rose-700' : 'text-emerald-800'}>Rp {(formTotalOtomatis - formRealisasi).toLocaleString('id-ID')}</strong>
+                  </span>
+                  <span className="font-bold text-slate-700">
+                    Serapan {formTotalOtomatis > 0 ? ((formRealisasi / formTotalOtomatis) * 100).toFixed(1) : '0.0'}%
+                  </span>
+                </div>
               </div>
 
               {/* Tombol Simpan / Batal */}

@@ -50,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const allNavItems: NavItem[] = [
     { id: 'beranda', label: 'Beranda Portal', icon: Home },
     { id: 'imtihan', label: 'Imtihan & Nilai', icon: FileCheck, fiturId: 'imtihan_soal' },
+    { id: 'munaqosyah', label: 'Munaqosyah 3D', icon: School, badge: '3D' },
     { id: 'maarifan', label: "Ma'arifan Diniyah", icon: BookOpen, fiturId: 'maarifan_absensi' },
     { id: 'sdm_absensi', label: 'SDM & Absensi Guru', icon: UserCheck },
     { id: 'sekretaris', label: 'Sekretariat', icon: Mail, fiturId: 'sekretaris_persuratan' },
@@ -65,6 +66,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Filter items based on user role authorization
   const visibleItems = allNavItems.filter((item) => {
     if (item.id === 'beranda' || item.id === 'panduan') return true;
+    if (item.id === 'munaqosyah') {
+      return ['admin_sistem', 'pengasuh', 'kepala_madin', 'ketua_imtihan', 'guru_pengampu', 'sekretaris'].includes(
+        effectiveRole
+      );
+    }
     if (item.id === 'sdm_absensi') return !['wali_santri', 'kasir_kantin'].includes(effectiveRole);
     if (item.id === 'akses') return effectiveRole === 'admin_sistem';
     if (item.fiturId) return can(item.fiturId, 'baca');

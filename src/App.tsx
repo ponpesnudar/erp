@@ -22,6 +22,7 @@ import { PSBModule } from './features/psb/PSBModule.tsx';
 import { HakAksesModule } from './features/akses/HakAksesModule.tsx';
 import { PanduanModule } from './features/panduan/PanduanModule.tsx';
 import { SdmAbsensiModule } from './features/sdm/SdmAbsensiModule.tsx';
+import { MunaqosyahModule } from './features/munaqosyah/MunaqosyahModule.tsx';
 import { AIAssistantModal } from './components/common/AIAssistantModal.tsx';
 import { PrintPreviewModal } from './components/common/PrintPreviewModal.tsx';
 import { useOnlineStatus } from './components/pwa/usePWAInstall.ts';
@@ -72,6 +73,7 @@ export default function App() {
     { id: 'imtihan_kartu', name: 'Kartu Peserta Imtihan', desc: 'Cetak kartu format 2MD#079 dan jadwal paraf', tab: 'imtihan' },
     { id: 'imtihan_raport', name: 'Input Nilai & Cetak Raport', desc: 'Raport madrasah diniyah dengan predikat Arab', tab: 'imtihan' },
     { id: 'imtihan_rab', name: 'RAB Imtihan 1', desc: 'Rancangan anggaran kegiatan imtihan transparan', tab: 'imtihan' },
+    { id: 'munaqosyah_3d', name: 'Munaqosyah Kitab 3D', desc: "Sidang 4 Bangku Penyimak Kelas 3 (Imrithi, Fathul Qorib) & Kelas 6 (Alfiyah, Fathul Mu'in)", tab: 'munaqosyah' },
     { id: 'maarifan_absensi', name: 'Absensi Diniyah Salafiyah', desc: 'Presensi cepat Hadir Semua & riwayat', tab: 'maarifan' },
     { id: 'sdm_absensi', name: 'SDM & Absensi Mobile Guru', desc: 'Dashboard Monitoring SDM, Cek In Selfie GPS, & Rekapan Absensi', tab: 'sdm_absensi' },
     { id: 'sekretaris_santri', name: 'Master Data Santri', desc: 'Data 366 santri putra & putri', tab: 'sekretaris' },
@@ -95,6 +97,7 @@ export default function App() {
   const moduleTitles: Record<string, string> = {
     beranda: 'Beranda Portal',
     imtihan: 'Imtihan & Evaluasi Santri',
+    munaqosyah: 'Munaqosyah Kitab & Al-Qur\'an 3D',
     maarifan: "Madrasah Diniyah (Ma'arifan)",
     sdm_absensi: 'Dashboard Monitoring Guru, SDM & Absensi Mobile',
     sekretaris: 'Sekretariat & Data Santri',
@@ -169,6 +172,7 @@ export default function App() {
                   <PortalBeranda onNavigate={(tab) => setActiveTab(tab)} />
                 )}
                 {activeTab === 'imtihan' && <ImtihanModule />}
+                {activeTab === 'munaqosyah' && <MunaqosyahModule />}
                 {activeTab === 'maarifan' && (
                   <MaarifanModule onOpenSdmAbsensi={() => setActiveTab('sdm_absensi')} />
                 )}

@@ -7,5 +7,7 @@ export * from './DenahPondok3D.tsx';
 export * from './BlankoNilaiSubTab.tsx';
 export * from './KoreksianKitabSubTab.tsx';
 export * from './DenahKampus2DSubTab.tsx';
+export * from './ImtihanNeuralDashboard.tsx';
+export * from './SidangKenaikanSubTab.tsx';
 
 

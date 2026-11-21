@@ -10,6 +10,7 @@ import {
   Building2,
   Users,
   X,
+  Upload,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
 import { triggerReliablePrint } from '../../lib/printHelper.ts';
@@ -18,17 +19,20 @@ import { DetailSantriForm } from '../../components/common/DetailSantriForm.tsx';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 import { LandingEditorTab } from './LandingEditorTab.tsx';
+import { ImportSantriModal } from './ImportSantriModal.tsx';
 import type { SantriRecord } from '../../data/seed/pondokData.ts';
 
 export const SekretarisModule: React.FC = () => {
   const {
     santriList,
     addSantri,
+    bulkAddSantri,
     updateSantri,
     deleteSantri,
     suratList,
     addSurat,
     nisConfig,
+    nisCounter,
     updateNISConfig,
     pengurusStruktur,
     addPengurus,
@@ -54,9 +58,10 @@ export const SekretarisModule: React.FC = () => {
   const [searchSantri, setSearchSantri] = useState<string>('');
   const [filterGender, setFilterGender] = useState<string>('Semua');
 
-  // DetailSantriForm Modal State
+  // DetailSantriForm & Bulk Import Modal State
   const [santriFormMode, setSantriFormMode] = useState<'create' | 'edit' | null>(null);
   const [editingSantri, setEditingSantri] = useState<SantriRecord | undefined>(undefined);
+  const [showImportModal, setShowImportModal] = useState<boolean>(false);
 
   // Surat Form State
   const [showSuratModal, setShowSuratModal] = useState<boolean>(false);
@@ -303,6 +308,15 @@ export const SekretarisModule: React.FC = () => {
 
               <button
                 type="button"
+                onClick={() => setShowImportModal(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Impor Data Putra/Putri</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => {
                   setEditingSantri(undefined);
                   setSantriFormMode('create');
@@ -337,6 +351,7 @@ export const SekretarisModule: React.FC = () => {
                   <th className="py-2.5 px-3">NIS</th>
                   <th className="py-2.5 px-3">Nama Santri & NIK</th>
                   <th className="py-2.5 px-3">Kelas & Kamar</th>
+                  <th className="py-2.5 px-3">Status Pondok</th>
                   <th className="py-2.5 px-3">Nama Wali & No. HP</th>
                   <th className="py-2.5 px-3">Asal Daerah</th>
                   <th className="py-2.5 px-3 text-right no-print">Aksi EMIS</th>
@@ -362,6 +377,27 @@ export const SekretarisModule: React.FC = () => {
                       </span>
                       <span>{santri.kamar}</span>
                     </td>
+                    <td className="py-2.5 px-3">
+                      <select
+                        value={santri.statusPondok || 'Aktif'}
+                        onChange={(e) => {
+                          const next = e.target.value as 'Aktif' | 'Boyong / Keluar' | 'Lulus / Alumni';
+                          updateSantri(santri.id, { statusPondok: next });
+                          notify(
+                            `Status ${santri.nama} diubah ke ${next}. Catatan tagihan di Bendahara tetap tersinkron aman.`
+                          );
+                        }}
+                        className={`rounded-lg border px-2 py-1 text-[11px] font-bold ${
+                          (santri.statusPondok || 'Aktif') === 'Boyong / Keluar'
+                            ? 'border-rose-300 bg-rose-50 text-rose-800'
+                            : 'border-slate-200 bg-white text-slate-800'
+                        }`}
+                      >
+                        <option value="Aktif">Aktif</option>
+                        <option value="Boyong / Keluar">Boyong / Keluar</option>
+                        <option value="Lulus / Alumni">Lulus / Alumni</option>
+                      </select>
+                    </td>
                     <td className="py-2.5 px-3 text-slate-600">
                       {santri.namaWali}
                       <span className="block text-[10px] text-slate-400">{santri.hpWali}</span>
@@ -384,7 +420,9 @@ export const SekretarisModule: React.FC = () => {
                           type="button"
                           onClick={() => {
                             deleteSantri(santri.id);
-                            notify(`Data santri ${santri.nama} dihapus.`);
+                            notify(
+                              `Data santri ${santri.nama} dihapus dari Sekretaris (arsip tunggungan & tagihan di Bendahara tetap aman terjaga).`
+                            );
                           }}
                           className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
                         >
@@ -1215,6 +1253,20 @@ export const SekretarisModule: React.FC = () => {
             </div>
           </form>
         </div>
+      )}
+
+      {showImportModal && (
+        <ImportSantriModal
+          existingSantri={santriList}
+          nisConfig={nisConfig}
+          nisCounter={nisCounter}
+          onImport={(items) => {
+            const count = bulkAddSantri(items);
+            setShowImportModal(false);
+            notify(`Berhasil mengimpor ${count} data santri Putra/Putri ke Buku Induk Master.`);
+          }}
+          onClose={() => setShowImportModal(false)}
+        />
       )}
     </div>
   );

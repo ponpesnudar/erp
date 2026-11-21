@@ -4,9 +4,7 @@ import {
   Bell,
   Sun,
   Moon,
-  Smartphone,
   LogOut,
-  User,
   ShieldAlert,
   ChevronDown,
   CheckCircle2,
@@ -58,7 +56,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [showGridModal, setShowGridModal] = useState(false);
   const [showSwitchRoleModal, setShowSwitchRoleModal] = useState(false);
 
-  const pendingCount = kotakMasuk.filter((k) => k.status === 'Menunggu').length;
+  const visibleKotakMasuk = kotakMasuk.filter((k) => k.modul !== 'Sidang Kenaikan');
+  const pendingCount = visibleKotakMasuk.filter((k) => k.status === 'Menunggu').length;
 
   return (
     <header className="sticky top-0 z-30 flex-none h-14 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 flex items-center justify-between text-xs text-slate-700 shadow-2xs no-print print:hidden">
@@ -175,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <div className="mt-3 space-y-2 max-h-72 overflow-y-auto">
-                {kotakMasuk.map((k) => (
+                {visibleKotakMasuk.map((k) => (
                   <div
                     key={k.id}
                     onClick={() => {

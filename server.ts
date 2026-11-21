@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
+import { resolveLocalBahtsulMasail } from './src/lib/bahtsulMasailData.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -177,6 +178,203 @@ Untuk setiap butir soal, keluarkan JSON terstruktur berisi array "items":
         err instanceof Error
           ? err.message
           : 'Gagal mengonversi soal ke Arab/Pegon.',
+    });
+  }
+});
+
+// Forum Bahtsul Masail AI (4 Madzhab Klasik Berbasis Kitab Mu'tabarah)
+app.post('/api/bahtsul-masail', async (req, res) => {
+  let cleanAsilah = '';
+  try {
+    const { asilah = '' } = req.body as { asilah?: string };
+    cleanAsilah = asilah.trim();
+    if (!cleanAsilah) {
+      return res.status(400).json({ error: "Harap masukkan permasalahan (as'ilah) yang akan dibahas." });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.json({
+        ...resolveLocalBahtsulMasail(cleanAsilah),
+        fallbackSource: 'kitab_lbm_local',
+      });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+    });
+
+    const systemPrompt = `Anda adalah Dewan Mushahih & Perumus Lembaga Bahtsul Masail (LBM) Pondok Pesantren NU Darussalam Karangdadap.
+Tugas Anda: Membahas permasalahan fiqih kontemporer maupun klasik ("${cleanAsilah}") secara objektif menurut metodologi pesantren NU (qauli, ilhaqi, manhaji) dengan menelaah 4 Madzhab Mu'tabarah: Syafi'iyah, Hanafiyah, Malikiyah, dan Hanabilah.
+Keluarkan JSON sesuai skema dengan rujukan kitab mu'tabarah asli (seperti Tuhfatul Muhtaj, Fathul Mu'in, Al-Majmu', Raddul Muhtar, Fathul Qadir, Mawahibul Jalil, Al-Mughni, Kassyaf al-Qina'), ibarat Arab berharokat yang akurat, Juz/Halaman, Bab, pendapat mu'tamad, kaidah fiqhiyah, serta rumusan singkat untuk papan sidang.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+      config: {
+        temperature: 0.25,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            judulRingkas: { type: Type.STRING },
+            masalahArab: { type: Type.STRING },
+            asalJawaban: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  madzhab: { type: Type.STRING },
+                  ringkasanKitab: { type: Type.STRING },
+                },
+                required: ['madzhab', 'ringkasanKitab'],
+              },
+            },
+            petaPendapat: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  madzhab: { type: Type.STRING },
+                  arabLabel: { type: Type.STRING },
+                  statusBadge: { type: Type.STRING },
+                  ringkasStance: { type: Type.STRING },
+                },
+                required: ['madzhab', 'arabLabel', 'statusBadge', 'ringkasStance'],
+              },
+            },
+            pendapatPerMadzhab: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  madzhab: { type: Type.STRING },
+                  arabLabel: { type: Type.STRING },
+                  kode: { type: Type.STRING },
+                  ringkasanHukum: { type: Type.STRING },
+                  penjelasan: { type: Type.STRING },
+                  rincian: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  pendapatMutamad: { type: Type.STRING },
+                  ulamaQuotes: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        namaUlama: { type: Type.STRING },
+                        kitabHalaman: { type: Type.STRING },
+                        terjemah: { type: Type.STRING },
+                        teksArab: { type: Type.STRING },
+                      },
+                      required: ['namaUlama', 'kitabHalaman', 'terjemah', 'teksArab'],
+                    },
+                  },
+                  dalilQuranHadits: { type: Type.STRING },
+                  kaidahFiqhiyah: { type: Type.STRING },
+                  rujukanKitabDetail: {
+                    type: Type.OBJECT,
+                    properties: {
+                      judulKitab: { type: Type.STRING },
+                      judulArab: { type: Type.STRING },
+                      pengarang: { type: Type.STRING },
+                      juzHalaman: { type: Type.STRING },
+                      bab: { type: Type.STRING },
+                      teksArabLengkap: { type: Type.STRING },
+                      highlightArab: { type: Type.STRING },
+                      terjemahan: { type: Type.STRING },
+                    },
+                    required: [
+                      'judulKitab',
+                      'judulArab',
+                      'pengarang',
+                      'juzHalaman',
+                      'bab',
+                      'teksArabLengkap',
+                      'highlightArab',
+                      'terjemahan',
+                    ],
+                  },
+                },
+                required: [
+                  'madzhab',
+                  'arabLabel',
+                  'kode',
+                  'ringkasanHukum',
+                  'penjelasan',
+                  'rincian',
+                  'pendapatMutamad',
+                  'ulamaQuotes',
+                  'dalilQuranHadits',
+                  'kaidahFiqhiyah',
+                  'rujukanKitabDetail',
+                ],
+              },
+            },
+            rumusanSidang: {
+              type: Type.OBJECT,
+              properties: {
+                ringkasanPapan: { type: Type.STRING },
+                tarjihMushahih: { type: Type.STRING },
+                langkahPengambilanHukum: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      judul: { type: Type.STRING },
+                      deskripsi: { type: Type.STRING },
+                    },
+                    required: ['judul', 'deskripsi'],
+                  },
+                },
+                kaidahDipakai: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      arab: { type: Type.STRING },
+                      arti: { type: Type.STRING },
+                    },
+                    required: ['arab', 'arti'],
+                  },
+                },
+              },
+              required: ['ringkasanPapan', 'tarjihMushahih', 'langkahPengambilanHukum', 'kaidahDipakai'],
+            },
+          },
+          required: [
+            'judulRingkas',
+            'masalahArab',
+            'asalJawaban',
+            'petaPendapat',
+            'pendapatPerMadzhab',
+            'rumusanSidang',
+          ],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    return res.json({
+      id: `bm-ai-${Date.now()}`,
+      asilah: cleanAsilah,
+      tanggalSidang: new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+      peringatan:
+        "Dalam beramal, ikuti satu madzhab secara utuh (umumnya Syafi'i). Jangan mencampur pendapat yang paling ringan dari beberapa madzhab (talfiq). Bila ragu, tanyakan kepada kiai atau masyayikh pondok.",
+      isAiGenerated: true,
+      ...parsed,
+    });
+  } catch (err) {
+    console.warn(
+      'Fallback /api/bahtsul-masail ke telaah Kitab Mu\'tabarah LBM:',
+      err instanceof Error ? err.message : err
+    );
+    return res.json({
+      ...resolveLocalBahtsulMasail(cleanAsilah || "Hukum fiqih kontemporer menurut 4 madzhab"),
+      fallbackSource: 'kitab_lbm_local',
     });
   }
 });

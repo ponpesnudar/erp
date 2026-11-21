@@ -23,6 +23,9 @@ export const TransaksiModule: React.FC = () => {
     santriList,
     transaksiList,
     titipanWali,
+    bendaharaSantriList,
+    tagihanSantriList,
+    bayarTagihanSantri,
     topUpSaldo,
     prosesBelanjaKantin,
     updateLimitHarian,
@@ -50,6 +53,8 @@ export const TransaksiModule: React.FC = () => {
   const [topUpNominal, setTopUpNominal] = useState<number>(50000);
   const [topUpMetode, setTopUpMetode] = useState<string>('QRIS / Virtual Account BCA');
   const [topUpMessage, setTopUpMessage] = useState<string>('');
+  const [waliBillMetode, setWaliBillMetode] = useState<string>('Virtual Account BSI');
+  const [waliBillMessage, setWaliBillMessage] = useState<string>('');
 
   // POS menu items catalog
   const posCatalog = [
@@ -487,6 +492,129 @@ export const TransaksiModule: React.FC = () => {
                 Kirim Top Up Sekarang (Simulasi)
               </button>
             </form>
+
+            {/* Tagihan Syahriyah Bulanan, Daftar Ulang & Agenda Kema'hadiyahan (Terhubung ke Bendahara) */}
+            <div className="pt-5 border-t border-slate-200 space-y-3">
+              {(() => {
+                const childLedger = bendaharaSantriList.find(
+                  (b) => b.refSantriId === childSantri.id || b.nis === childSantri.nis
+                );
+                const childBills = childLedger
+                  ? tagihanSantriList.filter((t) => t.ledgerId === childLedger.id)
+                  : [];
+                const totalSisaChild = childBills.reduce(
+                  (s, t) => s + Math.max(0, t.nominalTagihan - t.nominalTerbayar),
+                  0
+                );
+
+                return (
+                  <>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-emerald-700" />
+                          <span>Pembayaran Syahriyah Bulanan, Daftar Ulang &amp; Agenda Kema&apos;hadiyahan</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          Pembayaran langsung terverifikasi ke Buku Kas &amp; Piutang Bendahara Pondok.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-extrabold tabular-nums text-rose-700">
+                          Total Tanggungan: Rp {totalSisaChild.toLocaleString('id-ID')}
+                        </span>
+                        <select
+                          value={waliBillMetode}
+                          onChange={(e) => setWaliBillMetode(e.target.value)}
+                          className="rounded-lg border border-slate-300 px-2.5 py-1 text-[11px] font-semibold bg-white"
+                        >
+                          <option value="Virtual Account BSI">VA BSI</option>
+                          <option value="QRIS Pondok">QRIS Pondok</option>
+                          <option value="Transfer Bank BRI">Transfer BRI</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {waliBillMessage && (
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                        <span>{waliBillMessage}</span>
+                      </div>
+                    )}
+
+                    {childBills.length === 0 ? (
+                      <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center text-xs text-slate-500">
+                        Belum ada tagihan Syahriyah, Daftar Ulang, atau Agenda untuk {childSantri.nama}.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                        {childBills.map((bill) => {
+                          const sisa = Math.max(0, bill.nominalTagihan - bill.nominalTerbayar);
+                          return (
+                            <div
+                              key={bill.id}
+                              className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                            >
+                              <div>
+                                <p className="font-bold text-slate-900">{bill.judulTagihan}</p>
+                                <p className="text-[11px] text-slate-500">
+                                  {bill.kategori} · Periode {bill.periode} · Tempo {bill.jatuhTempo} ·{' '}
+                                  <span
+                                    className={`font-bold ${
+                                      bill.status === 'Lunas'
+                                        ? 'text-emerald-700'
+                                        : bill.status === 'Cicilan'
+                                        ? 'text-amber-700'
+                                        : 'text-rose-700'
+                                    }`}
+                                  >
+                                    {bill.status}
+                                  </span>
+                                </p>
+                              </div>
+                              <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                                <div className="text-right">
+                                  <p className="font-extrabold tabular-nums text-slate-900">
+                                    {sisa > 0
+                                      ? `Sisa Rp ${sisa.toLocaleString('id-ID')}`
+                                      : `Rp ${bill.nominalTagihan.toLocaleString('id-ID')}`}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 tabular-nums">
+                                    Terbayar Rp {bill.nominalTerbayar.toLocaleString('id-ID')}
+                                  </p>
+                                </div>
+                                {sisa > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      bayarTagihanSantri(
+                                        bill.id,
+                                        sisa,
+                                        waliBillMetode,
+                                        `Dibayar oleh Wali via Portal (${waliBillMetode})`
+                                      );
+                                      setWaliBillMessage(
+                                        `Pembayaran ${bill.judulTagihan} Rp ${sisa.toLocaleString('id-ID')} berhasil diposting ke Bendahara Pondok.`
+                                      );
+                                      setTimeout(() => setWaliBillMessage(''), 4500);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold whitespace-nowrap"
+                                  >
+                                    Bayar Lunas
+                                  </button>
+                                ) : (
+                                  <span className="text-[11px] font-bold text-emerald-700">Lunas</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
 
             {/* Monitoring Paket & Titipan Wali Santri */}
             <div className="pt-5 border-t border-slate-200 space-y-3">

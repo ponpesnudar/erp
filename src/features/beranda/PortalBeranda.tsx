@@ -455,12 +455,18 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
                 <span>Kotak Masuk Persetujuan</span>
               </h4>
               <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">
-                {kotakMasuk.filter((k) => k.status === 'Menunggu').length}
+                {
+                  kotakMasuk.filter(
+                    (k) => k.status === 'Menunggu' && k.modul !== 'Sidang Kenaikan'
+                  ).length
+                }
               </span>
             </div>
 
             <div className="mt-3 space-y-2.5">
-              {kotakMasuk.map((item) => (
+              {kotakMasuk
+                .filter((item) => item.modul !== 'Sidang Kenaikan')
+                .map((item) => (
                 <div
                   key={item.id}
                   onClick={() => onNavigate(item.linkTab)}

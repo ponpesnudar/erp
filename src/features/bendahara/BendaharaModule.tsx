@@ -37,6 +37,23 @@ import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import { useAuth } from '../../lib/auth.ts';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
+import { LaporanKeuanganSubTab } from './components/LaporanKeuanganSubTab.tsx';
+import { TagihanSantriSubTab } from './components/TagihanSantriSubTab.tsx';
+
+const KAS_GL_ACCOUNTS = [
+  { code: '4001.01', name: 'Pendapatan Syahriyah Bulanan', defaultKat: 'Syahriyah Santri', tipe: 'Masuk' as const },
+  { code: '4001.02', name: 'Pendapatan Daftar Ulang', defaultKat: 'Daftar Ulang Santri', tipe: 'Masuk' as const },
+  { code: '4001.03', name: 'Pendapatan Iuran Imtihan', defaultKat: 'Iuran Imtihan', tipe: 'Masuk' as const },
+  { code: '4001.04', name: "Pendapatan Agenda Kema'hadiyahan", defaultKat: "Agenda Kema'hadiyahan", tipe: 'Masuk' as const },
+  { code: '4001.09', name: 'Pendapatan Lain-lain Pondok', defaultKat: 'Infaq / Lainnya', tipe: 'Masuk' as const },
+  { code: '5101.01', name: 'Biaya Konsumsi & Dapur Santri', defaultKat: 'Konsumsi & Dapur', tipe: 'Keluar' as const },
+  { code: '6101.01', name: 'Gaji & Bisyaroh Asatidz', defaultKat: 'Bisyaroh Asatidz', tipe: 'Keluar' as const },
+  { code: '6202.01', name: 'Biaya Operasional & Kegiatan Pondok', defaultKat: 'Agenda Kegiatan', tipe: 'Keluar' as const },
+  { code: '6203.01', name: 'Biaya Listrik, Air & Utilitas', defaultKat: 'Operasional Listrik & Air', tipe: 'Keluar' as const },
+  { code: '6204.01', name: 'Biaya Pemeliharaan Gedung & Alat', defaultKat: 'Pemeliharaan Sarpras', tipe: 'Keluar' as const },
+  { code: '1203.01', name: 'Peralatan & Inventaris Sarpras (Aset Tetap)', defaultKat: 'Pembelian Aset Tetap', tipe: 'Keluar' as const },
+  { code: '6209.01', name: 'Biaya Administrasi & Lainnya', defaultKat: 'Administrasi Pondok', tipe: 'Keluar' as const },
+];
 
 export const BendaharaModule: React.FC = () => {
   const {
@@ -73,13 +90,14 @@ export const BendaharaModule: React.FC = () => {
   const [historySearch, setHistorySearch] = useState<string>('');
 
   const [activeTab, setActiveTab] = useState<
-    'rekap_bulanan' | 'cashflow' | 'monitoring_jajan' | 'penggajian'
+    'rekap_bulanan' | 'tagihan_santri' | 'laporan_akuntansi' | 'cashflow' | 'monitoring_jajan' | 'penggajian'
   >('rekap_bulanan');
   const [selectedBulan, setSelectedBulan] = useState<string>('November');
 
   // Cashflow Form State
   const [kasTanggal, setKasTanggal] = useState(new Date().toISOString().substring(0, 10));
   const [kasTipe, setKasTipe] = useState<'Masuk' | 'Keluar'>('Masuk');
+  const [kasKodeAkun, setKasKodeAkun] = useState('4001.01');
   const [kasKategori, setKasKategori] = useState('Syahriyah Santri');
   const [kasUraian, setKasUraian] = useState('');
   const [kasNominal, setKasNominal] = useState(500000);
@@ -121,6 +139,7 @@ export const BendaharaModule: React.FC = () => {
   const handleAddKas = (e: React.FormEvent) => {
     e.preventDefault();
     if (!kasUraian.trim() || kasNominal <= 0) return;
+    const acc = KAS_GL_ACCOUNTS.find((a) => a.code === kasKodeAkun);
     addKasTransaction({
       tanggal: kasTanggal,
       tipe: kasTipe,
@@ -128,6 +147,8 @@ export const BendaharaModule: React.FC = () => {
       uraian: kasUraian,
       nominal: kasNominal,
       penanggungJawab: kasPJ,
+      kodeAkun: acc?.code || kasKodeAkun,
+      namaAkun: acc?.name,
     });
     setKasUraian('');
   };
@@ -234,13 +255,15 @@ export const BendaharaModule: React.FC = () => {
       <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2 overflow-x-auto no-print">
         {[
           { id: 'rekap_bulanan', label: 'Rekapitulasi & Grafik Bulanan' },
+          { id: 'laporan_akuntansi', label: 'Laporan Keuangan' },
+          { id: 'tagihan_santri', label: 'Pembayaran Bulanan & Daftar Ulang' },
           { id: 'cashflow', label: `Buku Kas Masuk / Keluar (${kasTransactions.length})` },
           { id: 'monitoring_jajan', label: 'Monitoring Jajan Santri' },
           { id: 'penggajian', label: `Manajemen Bisyaroh (${ustadzPayroll.length})` },
         ].map((tb) => (
           <button
             key={tb.id}
-            onClick={() => setActiveTab(tb.id as any)}
+            onClick={() => setActiveTab(tb.id as typeof activeTab)}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition ${
               activeTab === tb.id
                 ? 'bg-emerald-800 text-white'
@@ -251,6 +274,12 @@ export const BendaharaModule: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {/* SUB-MENU BARU 1: TAGIHAN & PEMBAYARAN SANTRI (SYAHRIYAH, DAFTAR ULANG, AGENDA) */}
+      {activeTab === 'tagihan_santri' && <TagihanSantriSubTab />}
+
+      {/* SUB-MENU BARU 2: NERACA, LABA/RUGI & CASHFLOW (DETAIL LAPORAN + DRILL-DOWN + ASET SARPRAS) */}
+      {activeTab === 'laporan_akuntansi' && <LaporanKeuanganSubTab />}
 
       {/* TAB 1: REKAPITULASI ANGGARAN & GRAFIK TREN BULANAN */}
       {activeTab === 'rekap_bulanan' && (() => {
@@ -536,13 +565,25 @@ export const BendaharaModule: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block font-bold text-slate-600 mb-1">Pos Kategori</label>
-              <input
-                type="text"
-                value={kasKategori}
-                onChange={(e) => setKasKategori(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 p-2"
-              />
+              <label className="block font-bold text-slate-600 mb-1">Akun GL &amp; Pos Kategori</label>
+              <select
+                value={kasKodeAkun}
+                onChange={(e) => {
+                  const chosen = KAS_GL_ACCOUNTS.find((a) => a.code === e.target.value);
+                  setKasKodeAkun(e.target.value);
+                  if (chosen) {
+                    setKasKategori(chosen.defaultKat);
+                    setKasTipe(chosen.tipe);
+                  }
+                }}
+                className="w-full rounded-xl border border-slate-300 p-2 font-semibold"
+              >
+                {KAS_GL_ACCOUNTS.map((acc) => (
+                  <option key={acc.code} value={acc.code}>
+                    {acc.code} · {acc.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="sm:col-span-2">
               <label className="block font-bold text-slate-600 mb-1">Uraian Transaksi</label>

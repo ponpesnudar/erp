@@ -10,6 +10,7 @@ import {
   SEED_MAPEL_IMTIHAN,
   RabItem,
   SEED_RAB_IMTIHAN,
+  SEED_RAB_REALISASI_MAP,
   RekapAnggaranBulan,
   SEED_REKAP_ANGGARAN_BULANAN,
   JabatanOrganisasi,
@@ -26,6 +27,8 @@ import {
   SEED_ABSENSI_GURU,
   IzinBadalGuruRequest,
   SEED_IZIN_BADAL_GURU,
+  AbsensiShiftConfig,
+  SEED_ABSENSI_SHIFT_CONFIGS,
   ProgramAbsensiType,
   ImtihanMasterConfig,
   ImtihanRoomConfig,
@@ -44,6 +47,11 @@ import {
   SEED_PERLENGKAPAN,
   KasTransaction,
   SEED_KAS_TRANSACTIONS,
+  BendaharaSantriProfile,
+  TagihanSantriItem,
+  KategoriTagihanSantri,
+  SEED_BENDAHARA_SANTRI,
+  SEED_TAGIHAN_SANTRI,
   AgendaKegiatanItem,
   SEED_AGENDA_KEGIATAN,
   JadwalKeamananItem,
@@ -69,6 +77,10 @@ import {
   LandingPageConfig,
   DEFAULT_LANDING_CONFIG,
 } from '../data/seed/pondokData.ts';
+import {
+  MunaqosyahRecord,
+  SEED_MUNAQOSYAH_RECORDS,
+} from '../data/seed/munaqosyahData.ts';
 import {
   RuangUjian,
   generateSeating,
@@ -276,6 +288,8 @@ export interface ActiveGuruShiftSession {
   ustadzId: string;
   tanggal: string;
   program: ProgramAbsensiType;
+  shiftId?: string;
+  sesiNama?: string;
   status: 'bertugas' | 'istirahat' | 'selesai';
   checkInIso: string;
   checkInDisplay: string;
@@ -285,6 +299,48 @@ export interface ActiveGuruShiftSession {
   breakStartedIso?: string;
   shiftStartTarget: string;
   shiftEndTarget: string;
+}
+
+export interface SidangKenaikanRecord {
+  santriId: string;
+  rataCawu1: number;
+  rataCawu2: number;
+  sakitCount: number;
+  bolosCount: number;
+  nilaiUbudiyah: number;
+  nilaiAmaliyah: number;
+  nilaiMqk: number;
+  keputusan: 'Belum Diputuskan' | 'Naik Kelas' | 'Naik Bersyarat' | 'Tidak Naik';
+  catatanSidang?: string;
+  diputuskanOleh?: string;
+  waktuUpdate?: string;
+}
+
+export interface SidangKenaikanHistoryEntry {
+  id: string;
+  waktu: string;
+  santriId: string;
+  santriNama: string;
+  santriNis: string;
+  kelas: string;
+  nilaiAkhir: number;
+  kkm: number;
+  keputusanSebelumnya: string;
+  keputusanBaru: string;
+  catatan?: string;
+  oleh: string;
+  peranOleh: string;
+}
+
+export interface SidangJadwalInfo {
+  tanggalSidang: string;
+  waktuSidang: string;
+  lokasiSidang: string;
+  pimpinanSidang: string;
+  statusJadwal: 'Belum Dijadwalkan' | 'Dijadwalkan' | 'Selesai';
+  catatanUndangan?: string;
+  diperbaruiOleh?: string;
+  diperbaruiPada?: string;
 }
 
 export interface AppState {
@@ -300,6 +356,8 @@ export interface AppState {
   offlineQueueCount: number;
   pengasuhTtdUrl?: string;
   waliKelasTtdMap: Record<string, string>;
+  pengasuhTtdScale: number;
+  waliKelasTtdScale: number;
 
   // Master Data & Config
   nisConfig: NISConfig;
@@ -318,6 +376,7 @@ export interface AppState {
   jadwalMaarifan: JadwalMaarifanItem[];
   absensiGuruList: AbsensiGuruRecord[];
   izinBadalGuruList: IzinBadalGuruRequest[];
+  absensiShiftConfigs: AbsensiShiftConfig[];
   activeGuruShiftMap: Record<string, ActiveGuruShiftSession>;
   sdmNotifEnabled: boolean;
   pinPengesahanMap: Record<string, string>;
@@ -341,6 +400,8 @@ export interface AppState {
 
   // Bendahara & Kema'hadiyahan & BK
   kasTransactions: KasTransaction[];
+  bendaharaSantriList: BendaharaSantriProfile[];
+  tagihanSantriList: TagihanSantriItem[];
   bisyarohHistory: BisyarohHistoryItem[];
   agendaKegiatan: AgendaKegiatanItem[];
   jadwalKeamanan: JadwalKeamananItem[];
@@ -360,6 +421,7 @@ export interface AppState {
   psbList: PSBApplicant[];
   suratList: SuratItem[];
   pelanggaranList: PelanggaranRecord[];
+  munaqosyahRecords: MunaqosyahRecord[];
 
   // Actions
   loginAs: (userId: string) => void;
@@ -372,6 +434,8 @@ export interface AppState {
   addAuditLog: (modul: string, aksi: string, keterangan: string) => void;
   setPengasuhTtdUrl: (url?: string) => void;
   setWaliKelasTtd: (kelas: string, url?: string) => void;
+  setPengasuhTtdScale: (scalePx: number) => void;
+  setWaliKelasTtdScale: (scalePx: number) => void;
   addUserAccount: (user: Omit<UserAccount, 'id'>) => void;
   updateUserAccount: (id: string, data: Partial<UserAccount>) => void;
   deleteUserAccount: (id: string) => void;
@@ -384,6 +448,7 @@ export interface AppState {
 
   // Santri CRUD
   addSantri: (data: Omit<SantriRecord, 'id'>) => void;
+  bulkAddSantri: (items: Omit<SantriRecord, 'id'>[]) => number;
   updateSantri: (id: string, data: Partial<SantriRecord>) => void;
   deleteSantri: (id: string) => void;
 
@@ -435,6 +500,15 @@ export interface AppState {
   addJagaPiket: (data: Omit<JagaPiketRecord, 'id'>) => void;
   updateJagaPiket: (id: string, data: Partial<JagaPiketRecord>) => void;
   deleteJagaPiket: (id: string) => void;
+  sidangKenaikanRecords: Record<string, SidangKenaikanRecord>;
+  sidangKenaikanHistory: SidangKenaikanHistoryEntry[];
+  sidangJadwal: SidangJadwalInfo;
+  sidangKkm: number;
+  pendingImtihanSubTab: string | null;
+  setPendingImtihanSubTab: (subTab: string | null) => void;
+  setSidangKkm: (kkm: number) => void;
+  updateSidangJadwal: (jadwal: Partial<SidangJadwalInfo>, belowKkmCount?: number) => void;
+  upsertSidangKenaikan: (rec: SidangKenaikanRecord, meta?: { santriNama?: string; santriNis?: string; kelas?: string; nilaiAkhir?: number }) => void;
 
   // Maarifan
   saveAbsensi: (session: Omit<AbsensiSession, 'id' | 'waktuSimpan'>) => void;
@@ -449,6 +523,7 @@ export interface AppState {
     ustadzId: string;
     ustadzNama: string;
     program: ProgramAbsensiType;
+    shiftId?: string;
     kelas: string;
     mapel: string;
     fotoSelfieUrl?: string;
@@ -465,6 +540,10 @@ export interface AppState {
   approveIzinBadalGuru: (id: string, status: 'Disetujui' | 'Ditolak', reviewerName: string) => void;
   verifyAbsensiGuruRecord: (id: string, status: 'Terverifikasi' | 'Menunggu') => void;
   verifyAbsensiGuruBatch: (ids: string[], status: 'Terverifikasi' | 'Menunggu') => void;
+  addAbsensiShiftConfig: (cfg: Omit<AbsensiShiftConfig, 'id'>) => void;
+  updateAbsensiShiftConfig: (id: string, cfg: Partial<AbsensiShiftConfig>) => void;
+  deleteAbsensiShiftConfig: (id: string) => void;
+  resetAbsensiShiftConfigs: () => void;
   toggleSdmNotif: () => void;
   setUserPinPengesahan: (userId: string, pin: string) => void;
   updateKurikulumMatrixCell: (rowId: string, kelasKey: 'kelas1' | 'kelas2' | 'kelas3' | 'kelas4' | 'kelas5' | 'kelas6', kitab: string, jtm: number) => void;
@@ -477,9 +556,32 @@ export interface AppState {
   addJadwalMengajarSlot: (slot: Omit<JadwalMengajarSlot, 'id'>) => void;
   deleteJadwalMengajarSlot: (id: string) => void;
 
-  // Bendahara & Penggajian
+  // Bendahara & Penggajian & Tagihan Santri
   addKasTransaction: (trx: Omit<KasTransaction, 'id'>) => void;
   deleteKasTransaction: (id: string) => void;
+  syncBendaharaSantriFromSekretaris: () => { added: number; updated: number; preservedBoyong: number };
+  addBendaharaSantriManual: (data: Omit<BendaharaSantriProfile, 'id' | 'sumberData'>) => string;
+  updateBendaharaSantriStatus: (ledgerId: string, statusPondok: BendaharaSantriProfile['statusPondok'], catatanKeuangan?: string) => void;
+  addTagihanSantri: (data: {
+    ledgerId: string;
+    kategori: KategoriTagihanSantri;
+    judulTagihan: string;
+    periode: string;
+    nominalTagihan: number;
+    jatuhTempo: string;
+    agendaId?: string;
+  }) => void;
+  generateMassTagihanSantri: (payload: {
+    kategori: KategoriTagihanSantri;
+    judulTagihan: string;
+    periode: string;
+    nominalTagihan: number;
+    jatuhTempo: string;
+    agendaId?: string;
+    onlyAktif?: boolean;
+  }) => number;
+  bayarTagihanSantri: (tagihanId: string, nominalBayar: number, metode: string, catatan?: string) => void;
+  deleteTagihanSantri: (tagihanId: string) => void;
   updatePayrollRow: (ustadzId: string, data: Partial<UstadzPayrollItem>) => void;
   togglePayrollStatus: (ustadzId: string) => void;
   syncPayrollAbsensi: () => void;
@@ -517,12 +619,15 @@ export interface AppState {
   updatePengurus: (id: string, data: Partial<PengurusStrukturItem>) => void;
   deletePengurus: (id: string) => void;
   addSarprasLahan: (data: Omit<LahanItem, 'id'>) => void;
+  updateSarprasLahan: (id: string, data: Partial<LahanItem>) => void;
   deleteSarprasLahan: (id: string) => void;
   addSarprasGedung: (data: Omit<GedungItem, 'id'>) => void;
+  updateSarprasGedung: (id: string, data: Partial<GedungItem>) => void;
   deleteSarprasGedung: (id: string) => void;
   addSarprasRuangan: (data: Omit<RuanganItem, 'id'>) => void;
   deleteSarprasRuangan: (id: string) => void;
   addSarprasPerlengkapan: (data: Omit<PerlengkapanItem, 'id'>) => void;
+  updateSarprasPerlengkapan: (id: string, data: Partial<PerlengkapanItem>) => void;
   deleteSarprasPerlengkapan: (id: string) => void;
 
   // Kema'hadiyahan (Bagan & Agenda)
@@ -533,6 +638,8 @@ export interface AppState {
   updateAgendaKegiatan: (id: string, data: Partial<AgendaKegiatanItem>) => void;
   deleteAgendaKegiatan: (id: string) => void;
   syncAgendaFromKalender: () => number;
+  addMunaqosyahRecord: (data: Omit<MunaqosyahRecord, 'id'>) => void;
+  deleteMunaqosyahRecord: (id: string) => void;
 
   // Settings
   updateNISConfig: (config: NISConfig) => void;
@@ -629,6 +736,8 @@ export const useAppStore = create<AppState>()(
       offlineQueueCount: 0,
       pengasuhTtdUrl: undefined,
       waliKelasTtdMap: {},
+      pengasuhTtdScale: 88,
+      waliKelasTtdScale: 88,
 
       nisConfig: {
         prefix: '24',
@@ -651,6 +760,7 @@ export const useAppStore = create<AppState>()(
       jadwalMaarifan: SEED_JADWAL_MAARIFAN,
       absensiGuruList: SEED_ABSENSI_GURU,
       izinBadalGuruList: SEED_IZIN_BADAL_GURU,
+      absensiShiftConfigs: SEED_ABSENSI_SHIFT_CONFIGS,
       activeGuruShiftMap: {},
       sdmNotifEnabled: true,
       pinPengesahanMap: {},
@@ -662,6 +772,50 @@ export const useAppStore = create<AppState>()(
 
       imtihanMaster: DEFAULT_IMTIHAN_MASTER,
       jagaPiketList: SEED_JAGA_PIKET,
+      munaqosyahRecords: SEED_MUNAQOSYAH_RECORDS,
+      sidangKenaikanRecords: {},
+      sidangKenaikanHistory: [
+        {
+          id: 'sh-seed-1',
+          waktu: '2026-11-18 14:30',
+          santriId: 's-003',
+          santriNama: 'MOH. FAHRI MAULANA',
+          santriNis: '24.1003',
+          kelas: '2 B PUTRA',
+          nilaiAkhir: 62.5,
+          kkm: 65,
+          keputusanSebelumnya: 'Belum Diputuskan',
+          keputusanBaru: 'Naik Bersyarat',
+          catatan: 'Wajib setoran hafalan nadhom Imrithi & memperbaiki kehadiran KBM.',
+          oleh: 'KH. Amin Maizun',
+          peranOleh: 'Pengasuh Pondok',
+        },
+        {
+          id: 'sh-seed-2',
+          waktu: '2026-11-18 14:45',
+          santriId: 's-001',
+          santriNama: 'MUHAMMAD ZIDNI ALBI FALAKHI',
+          santriNis: '24.1001',
+          kelas: '2 A PUTRA',
+          nilaiAkhir: 88.2,
+          kkm: 65,
+          keputusanSebelumnya: 'Belum Diputuskan',
+          keputusanBaru: 'Naik Kelas',
+          catatan: 'Memenuhi KKM & aktif muthalaah kitab kuning.',
+          oleh: 'Ust. Nidhomul Muna Lana',
+          peranOleh: 'Ketua Imtihan / Panitia',
+        },
+      ],
+      sidangJadwal: {
+        tanggalSidang: '',
+        waktuSidang: '19.30 WIB (Ba\'da Isya\')',
+        lokasiSidang: 'Aula Majlis Ndalem Kasepuhan',
+        pimpinanSidang: 'KH. Amin Maizun (Pengasuh)',
+        statusJadwal: 'Belum Dijadwalkan',
+        catatanUndangan: 'Pembahasan santri dengan nilai akhir di bawah KKM 65 untuk penentuan Naik atau Naik Bersyarat.',
+      },
+      sidangKkm: 65,
+      pendingImtihanSubTab: null,
 
       pengurusStruktur: SEED_PENGURUS_STRUKTUR,
       sarprasLahan: SEED_LAHAN,
@@ -670,6 +824,8 @@ export const useAppStore = create<AppState>()(
       sarprasPerlengkapan: SEED_PERLENGKAPAN,
 
       kasTransactions: SEED_KAS_TRANSACTIONS,
+      bendaharaSantriList: SEED_BENDAHARA_SANTRI,
+      tagihanSantriList: SEED_TAGIHAN_SANTRI,
       bisyarohHistory: SEED_BISYAROH_HISTORY,
       agendaKegiatan: SEED_AGENDA_KEGIATAN,
       landingConfig: DEFAULT_LANDING_CONFIG,
@@ -1065,6 +1221,16 @@ export const useAppStore = create<AppState>()(
         get().addAuditLog('Imtihan', 'Update TTD Wali Kelas', `Tanda tangan Wali Kelas ${kelas} ${url ? 'diperbarui' : 'dihapus'}.`);
       },
 
+      setPengasuhTtdScale: (scalePx) => {
+        const clamped = Math.max(52, Math.min(140, Math.round(scalePx)));
+        set({ pengasuhTtdScale: clamped });
+      },
+
+      setWaliKelasTtdScale: (scalePx) => {
+        const clamped = Math.max(52, Math.min(140, Math.round(scalePx)));
+        set({ waliKelasTtdScale: clamped });
+      },
+
       addUserAccount: (user) => {
         const newAccount: UserAccount = {
           id: `u-custom-${Date.now()}`,
@@ -1129,11 +1295,22 @@ export const useAppStore = create<AppState>()(
           suratList: [],
           pelanggaranList: [],
           kasTransactions: [],
+          bendaharaSantriList: [],
+          tagihanSantriList: [],
           bisyarohHistory: [],
           bukuTamu: [],
           titipanWali: [],
           kotakMasuk: [],
           jagaPiketList: [],
+          sidangKenaikanRecords: {},
+          sidangKenaikanHistory: [],
+          sidangJadwal: {
+            tanggalSidang: '',
+            waktuSidang: '19.30 WIB (Ba\'da Isya\')',
+            lokasiSidang: 'Aula Majlis Ndalem Kasepuhan',
+            pimpinanSidang: 'KH. Amin Maizun (Pengasuh)',
+            statusJadwal: 'Belum Dijadwalkan',
+          },
           auditLogs: [
             {
               id: `log-golive-${Date.now()}`,
@@ -1214,18 +1391,121 @@ export const useAppStore = create<AppState>()(
         get().addAuditLog('Sekretariat', 'Tambah Santri', `Menambahkan data santri ${data.nama} (${data.nis}).`);
       },
 
-      updateSantri: (id, data) => {
-        set((state) => ({
-          santriList: state.santriList.map((s) => (s.id === id ? { ...s, ...data } : s)),
+      bulkAddSantri: (items) => {
+        if (!items.length) return 0;
+        const stamp = Date.now();
+        const created: SantriRecord[] = items.map((item, idx) => ({
+          id: `s-imp-${stamp}-${idx}`,
+          ...item,
         }));
+        set((state) => ({
+          santriList: [...created, ...state.santriList],
+          nisCounter: state.nisCounter + created.length,
+        }));
+        get().addAuditLog(
+          'Sekretariat',
+          'Impor Massal Santri',
+          `Mengimpor ${created.length} data santri baru melalui format impor Putra/Putri.`
+        );
+        return created.length;
+      },
+
+      updateSantri: (id, data) => {
+        set((state) => {
+          const nextStatus = data.statusPondok;
+          const target = state.santriList.find((s) => s.id === id);
+          const alreadyInLedger = state.bendaharaSantriList.some(
+            (b) => b.refSantriId === id || (target && b.nis === target.nis)
+          );
+
+          let nextBendaharaList = state.bendaharaSantriList.map((b) =>
+            b.refSantriId === id || (target && b.nis === target.nis)
+              ? {
+                  ...b,
+                  refSantriId: id,
+                  nama: data.nama ?? b.nama,
+                  kelas: data.kelas ?? b.kelas,
+                  kamar: data.kamar ?? b.kamar,
+                  namaWali: data.namaWali ?? b.namaWali,
+                  hpWali: data.hpWali ?? b.hpWali,
+                  statusPondok: nextStatus ?? b.statusPondok,
+                }
+              : b
+          );
+
+          if (!alreadyInLedger && target && nextStatus && nextStatus !== 'Aktif') {
+            nextBendaharaList = [
+              {
+                id: `bs-${target.id}`,
+                refSantriId: target.id,
+                nis: target.nis,
+                nama: data.nama ?? target.nama,
+                gender: data.gender ?? target.gender,
+                kelas: data.kelas ?? target.kelas,
+                kamar: data.kamar ?? target.kamar,
+                namaWali: data.namaWali ?? target.namaWali,
+                hpWali: data.hpWali ?? target.hpWali,
+                statusPondok: nextStatus,
+                sumberData: 'Sekretaris',
+                terhapusDiSekretaris: false,
+                catatanKeuangan: `Tercatat otomatis di Bendahara saat status Sekretariat diubah ke ${nextStatus}.`,
+              },
+              ...nextBendaharaList,
+            ];
+          }
+
+          return {
+            santriList: state.santriList.map((s) => (s.id === id ? { ...s, ...data } : s)),
+            bendaharaSantriList: nextBendaharaList,
+          };
+        });
         get().addAuditLog('Sekretariat', 'Update Santri', `Memperbarui biodata EMIS santri ID ${id}.`);
       },
 
       deleteSantri: (id) => {
-        set((state) => ({
-          santriList: state.santriList.filter((s) => s.id !== id),
-        }));
-        get().addAuditLog('Sekretariat', 'Hapus Santri', `Menghapus data santri ID ${id}.`);
+        set((state) => {
+          const target = state.santriList.find((s) => s.id === id);
+          const hasLedger = state.bendaharaSantriList.some((b) => b.refSantriId === id);
+          const updatedBendaharaList = hasLedger
+            ? state.bendaharaSantriList.map((b) =>
+                b.refSantriId === id
+                  ? {
+                      ...b,
+                      statusPondok: 'Boyong / Keluar' as const,
+                      terhapusDiSekretaris: true,
+                      catatanKeuangan:
+                        b.catatanKeuangan ||
+                        'Dihapus/dicap keluar dari data Sekretaris — arsip tanggungan tetap dipertahankan di Bendahara.',
+                    }
+                  : b
+              )
+            : target
+            ? [
+                {
+                  id: `bs-${target.id}`,
+                  refSantriId: target.id,
+                  nis: target.nis,
+                  nama: target.nama,
+                  gender: target.gender,
+                  kelas: target.kelas,
+                  kamar: target.kamar,
+                  namaWali: target.namaWali,
+                  hpWali: target.hpWali,
+                  statusPondok: 'Boyong / Keluar' as const,
+                  sumberData: 'Sekretaris' as const,
+                  terhapusDiSekretaris: true,
+                  catatanKeuangan: 'Snapshot otomatis saat dihapus di Sekretaris agar riwayat keuangan tetap terjaga.',
+                },
+                ...state.bendaharaSantriList,
+              ]
+            : state.bendaharaSantriList;
+
+          return {
+            santriList: state.santriList.filter((s) => s.id !== id),
+            bendaharaSantriList: updatedBendaharaList,
+          };
+        });
+        get().addAuditLog('Sekretariat', 'Hapus Santri', `Menghapus data santri ID ${id} dari daftar aktif (arsip tanggungan Bendahara tetap aman).`);
       },
 
       // Ustadz CRUD
@@ -1637,18 +1917,23 @@ export const useAppStore = create<AppState>()(
         const waktuInput = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
         const checkInDisplay = `${pad(now.getHours())}.${pad(now.getMinutes())}`;
 
-        const shiftBounds: Record<ProgramAbsensiType, { start: string; end: string }> = {
-          'Madrasah Diniyah': { start: '18:00', end: '21:00' },
-          "Ngaji Al-Qur'an Pagi (Ba'da Subuh)": { start: '05:00', end: '06:30' },
-          'Ngaji Takhasus': { start: '16:00', end: '17:15' },
-        };
-        const bounds = shiftBounds[payload.program] || { start: '18:00', end: '21:00' };
-        const [sh, sm] = bounds.start.split(':').map(Number);
-        const startMins = sh * 60 + sm;
+        const configs = get().absensiShiftConfigs;
+        const matchedShift =
+          (payload.shiftId ? configs.find((c) => c.id === payload.shiftId) : undefined) ||
+          configs.find((c) => c.aktif && c.program === payload.program) ||
+          configs.find((c) => c.program === payload.program);
+
+        const startStr = matchedShift?.jamMulai || '18:00';
+        const endStr = matchedShift?.jamSelesai || '19:00';
+        const toleransi = matchedShift?.toleransiMenit ?? 10;
+        const sesiNama = matchedShift?.nama || payload.program;
+        const effectiveProgram = matchedShift?.program || payload.program;
+
+        const [sh, sm] = startStr.split(':').map(Number);
+        const startMins = (Number.isFinite(sh) ? sh : 18) * 60 + (Number.isFinite(sm) ? sm : 0);
         const nowMins = now.getHours() * 60 + now.getMinutes();
-        // Grace tolerance 10 menit
         const diff = nowMins - startMins;
-        const terlambatMenit = diff > 10 ? diff : 0;
+        const terlambatMenit = diff > toleransi ? diff : 0;
 
         const recordId = `ag-${Date.now()}`;
         const newRec: AbsensiGuruRecord = {
@@ -1658,7 +1943,9 @@ export const useAppStore = create<AppState>()(
           ustadzNama: payload.ustadzNama,
           kelas: payload.kelas,
           mapel: payload.mapel,
-          program: payload.program,
+          program: effectiveProgram,
+          sesiId: matchedShift?.id,
+          sesiNama,
           status: 'Hadir',
           waktuInput,
           statusKeterlambatan: terlambatMenit > 0 ? 'Terlambat' : 'Tepat Waktu',
@@ -1666,23 +1953,26 @@ export const useAppStore = create<AppState>()(
           fotoSelfieUrl: payload.fotoSelfieUrl,
           koordinat: payload.koordinat,
           akurasiGps: payload.akurasiGps,
-          lokasiLabel: payload.lokasiLabel,
+          lokasiLabel: matchedShift?.lokasi || payload.lokasiLabel,
           waktuTimestamp: `${now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} ${waktuInput} WIB`,
           wajahCocok: true,
           verifikasiAtasan: 'Terverifikasi',
+          sumberAbsen: 'GPS Mobile',
         };
 
         const session: ActiveGuruShiftSession = {
           ustadzId: payload.ustadzId,
           tanggal,
-          program: payload.program,
+          program: effectiveProgram,
+          shiftId: matchedShift?.id,
+          sesiNama,
           status: 'bertugas',
           checkInIso: now.toISOString(),
           checkInDisplay,
           activeRecordId: recordId,
           breakTotalMs: 0,
-          shiftStartTarget: bounds.start.replace(':', '.'),
-          shiftEndTarget: bounds.end.replace(':', '.'),
+          shiftStartTarget: startStr.replace(':', '.'),
+          shiftEndTarget: endStr.replace(':', '.'),
         };
 
         set((state) => ({
@@ -1692,7 +1982,7 @@ export const useAppStore = create<AppState>()(
             [payload.ustadzId]: session,
           },
         }));
-        get().addAuditLog('SDM & Absensi', 'Cek In Mobile GPS', `${payload.ustadzNama} Cek In (${payload.program}) pukul ${waktuInput} WIB.`);
+        get().addAuditLog('SDM & Absensi', 'Cek In Mobile GPS', `${payload.ustadzNama} Cek In (${sesiNama}) pukul ${waktuInput} WIB.`);
         return { recordId, checkInDisplay, terlambatMenit };
       },
 
@@ -1783,23 +2073,25 @@ export const useAppStore = create<AppState>()(
           waktuPengajuan,
           ...req,
         };
+        const sesiLabel = req.sesiNama || req.program;
+        const jamInfo = req.jamMulaiDiajukan && req.jamSelesaiDiajukan ? ` (${req.jamMulaiDiajukan}–${req.jamSelesaiDiajukan})` : '';
         set((state) => ({
           izinBadalGuruList: [newReq, ...state.izinBadalGuruList],
           kotakMasuk: [
             {
               id: `km-ib-${Date.now()}`,
-              judul: `Pengajuan ${req.jenis}: ${req.ustadzNama}`,
+              judul: `${req.jenis === 'Absen Pengajuan' ? 'Absen Pengajuan (Kendala)' : `Pengajuan ${req.jenis}`}: ${req.ustadzNama}`,
               modul: 'SDM & Absensi',
               pengirim: req.ustadzNama,
               waktu: 'Baru saja',
               status: 'Menunggu',
-              keterangan: `${req.program} tanggal ${req.tanggal}${req.guruBadalNama ? ` · Badal: ${req.guruBadalNama}` : ''}. ${req.alasan}`,
+              keterangan: `${sesiLabel}${jamInfo} tanggal ${req.tanggal}${req.kendalaKategori ? ` · Kendala: ${req.kendalaKategori}` : ''}${req.guruBadalNama ? ` · Badal: ${req.guruBadalNama}` : ''}. ${req.alasan}`,
               linkTab: 'sdm_absensi',
             },
             ...state.kotakMasuk,
           ],
         }));
-        get().addAuditLog('SDM & Absensi', `Ajukan ${req.jenis} Guru`, `${req.ustadzNama} mengajukan ${req.jenis} tanggal ${req.tanggal}.`);
+        get().addAuditLog('SDM & Absensi', `Ajukan ${req.jenis} Guru`, `${req.ustadzNama} mengajukan ${req.jenis} tanggal ${req.tanggal} (${sesiLabel}).`);
       },
 
       approveIzinBadalGuru: (id, status, reviewerName) => {
@@ -1811,30 +2103,85 @@ export const useAppStore = create<AppState>()(
           );
           let nextAbsensi = state.absensiGuruList;
           if (status === 'Disetujui') {
-            const mappedStatus: AbsensiGuruRecord['status'] =
-              target.jenis === 'Sakit' ? 'Sakit' : target.jenis === 'Badal' ? 'Badal' : 'Izin';
-            const exists = state.absensiGuruList.some(
-              (a) => a.ustadzId === target.ustadzId && a.tanggal === target.tanggal && a.program === target.program
-            );
-            if (!exists) {
-              nextAbsensi = [
-                {
-                  id: `ag-ib-${Date.now()}`,
-                  tanggal: target.tanggal,
-                  ustadzId: target.ustadzId,
-                  ustadzNama: target.ustadzNama,
-                  kelas: 'Terjadwal',
-                  mapel: target.program,
-                  program: target.program,
-                  status: mappedStatus,
-                  pengganti: target.guruBadalNama,
-                  waktuInput: 'Disetujui',
-                  lokasiLabel: `Persetujuan ${reviewerName}`,
-                  waktuTimestamp: `${target.tanggal} (Disetujui)`,
-                  verifikasiAtasan: 'Terverifikasi',
-                },
-                ...state.absensiGuruList,
-              ];
+            const generatedId = `ag-ib-${target.id}`;
+            const alreadyLinked = state.absensiGuruList.some((a) => a.id === generatedId);
+
+            if (target.jenis === 'Absen Pengajuan') {
+              if (!alreadyLinked) {
+                const jamMulai = target.jamMulaiDiajukan || '18:00';
+                const jamSelesai = target.jamSelesaiDiajukan || '19:00';
+                const [sh, sm] = jamMulai.split(':').map(Number);
+                const [eh, em] = jamSelesai.split(':').map(Number);
+                const totalMins = Math.max(0, (eh * 60 + em) - (sh * 60 + sm)) || 60;
+                const dH = String(Math.floor(totalMins / 60)).padStart(2, '0');
+                const dM = String(totalMins % 60).padStart(2, '0');
+                const durasiKerja = `${dH}:${dM}:00`;
+                const [kelasPart, mapelPart] = (target.kelasMapel || '').split('·').map((s) => s.trim());
+
+                nextAbsensi = [
+                  {
+                    id: generatedId,
+                    tanggal: target.tanggal,
+                    ustadzId: target.ustadzId,
+                    ustadzNama: target.ustadzNama,
+                    kelas: kelasPart || 'Kelas Diniyah',
+                    mapel: mapelPart || target.sesiNama || target.program,
+                    program: target.program,
+                    sesiId: target.sesiId,
+                    sesiNama: target.sesiNama || target.program,
+                    status: 'Hadir',
+                    waktuInput: jamMulai,
+                    waktuCekOut: jamSelesai,
+                    durasiKerja,
+                    statusKeterlambatan: 'Tepat Waktu',
+                    menitTerlambat: 0,
+                    fotoSelfieUrl: target.buktiFotoUrl,
+                    koordinat: '-6.9765, 109.6832',
+                    lokasiLabel: `Absen Pengajuan Disetujui (${reviewerName})`,
+                    waktuTimestamp: `${target.tanggal} ${jamMulai} WIB (Pengajuan)`,
+                    wajahCocok: true,
+                    verifikasiAtasan: 'Terverifikasi',
+                    sumberAbsen: 'Absen Pengajuan',
+                    catatanPengajuan: `${target.kendalaKategori ? `${target.kendalaKategori} — ` : ''}${target.alasan}`,
+                  },
+                  ...state.absensiGuruList,
+                ];
+              }
+            } else {
+              const mappedStatus: AbsensiGuruRecord['status'] =
+                target.jenis === 'Sakit' ? 'Sakit' : target.jenis === 'Badal' ? 'Badal' : 'Izin';
+              const exists =
+                alreadyLinked ||
+                state.absensiGuruList.some(
+                  (a) =>
+                    a.ustadzId === target.ustadzId &&
+                    a.tanggal === target.tanggal &&
+                    a.program === target.program &&
+                    (a.sesiId || '') === (target.sesiId || '')
+                );
+              if (!exists) {
+                nextAbsensi = [
+                  {
+                    id: generatedId,
+                    tanggal: target.tanggal,
+                    ustadzId: target.ustadzId,
+                    ustadzNama: target.ustadzNama,
+                    kelas: 'Terjadwal',
+                    mapel: target.sesiNama || target.program,
+                    program: target.program,
+                    sesiId: target.sesiId,
+                    sesiNama: target.sesiNama,
+                    status: mappedStatus,
+                    pengganti: target.guruBadalNama,
+                    waktuInput: 'Disetujui',
+                    lokasiLabel: `Persetujuan ${reviewerName}`,
+                    waktuTimestamp: `${target.tanggal} (Disetujui)`,
+                    verifikasiAtasan: 'Terverifikasi',
+                    sumberAbsen: 'Input Manual',
+                  },
+                  ...state.absensiGuruList,
+                ];
+              }
             }
           }
           return {
@@ -1861,6 +2208,37 @@ export const useAppStore = create<AppState>()(
           ),
         }));
         get().addAuditLog('SDM & Absensi', 'Verifikasi Massal Absensi', `${ids.length} log presensi asatidz ditandai ${status}.`);
+      },
+
+      addAbsensiShiftConfig: (cfg) => {
+        const newShift: AbsensiShiftConfig = { id: `shift-${Date.now()}`, ...cfg };
+        set((state) => ({
+          absensiShiftConfigs: [...state.absensiShiftConfigs, newShift].sort((a, b) =>
+            a.jamMulai.localeCompare(b.jamMulai)
+          ),
+        }));
+        get().addAuditLog('SDM & Absensi', 'Tambah Sesi Absen', `Sesi absen baru ditambahkan: ${cfg.nama} (${cfg.jamMulai}–${cfg.jamSelesai}).`);
+      },
+
+      updateAbsensiShiftConfig: (id, cfg) => {
+        set((state) => ({
+          absensiShiftConfigs: state.absensiShiftConfigs
+            .map((s) => (s.id === id ? { ...s, ...cfg } : s))
+            .sort((a, b) => a.jamMulai.localeCompare(b.jamMulai)),
+        }));
+        get().addAuditLog('SDM & Absensi', 'Ubah Sesi Absen', `Pengaturan sesi absen (${id}) diperbarui.`);
+      },
+
+      deleteAbsensiShiftConfig: (id) => {
+        set((state) => ({
+          absensiShiftConfigs: state.absensiShiftConfigs.filter((s) => s.id !== id),
+        }));
+        get().addAuditLog('SDM & Absensi', 'Hapus Sesi Absen', `Sesi absen (${id}) dihapus oleh Admin/Pimpinan.`);
+      },
+
+      resetAbsensiShiftConfigs: () => {
+        set({ absensiShiftConfigs: SEED_ABSENSI_SHIFT_CONFIGS });
+        get().addAuditLog('SDM & Absensi', 'Reset Sesi Absen', 'Jadwal sesi absen direset ke standar 1 jam per sesi Pondok.');
       },
 
       toggleSdmNotif: () => {
@@ -1972,13 +2350,273 @@ export const useAppStore = create<AppState>()(
       },
 
       addKasTransaction: (trx) => {
-        const newTrx: KasTransaction = { id: `kas-${Date.now()}`, ...trx };
+        const prefix = trx.tipe === 'Masuk' ? 'BKM' : 'BKK';
+        const autoNoSumber = trx.noSumber || `${prefix}-${2430 + get().kasTransactions.length}`;
+        const autoTipeSumber = trx.tipeSumber || (trx.tipe === 'Masuk' ? 'Penerimaan' : 'Pembayaran');
+        const newTrx: KasTransaction = {
+          id: `kas-${Date.now()}`,
+          noSumber: autoNoSumber,
+          tipeSumber: autoTipeSumber,
+          ...trx,
+        };
         set((state) => ({ kasTransactions: [newTrx, ...state.kasTransactions] }));
         get().addAuditLog('Bendahara', `Kas ${trx.tipe}`, `${trx.uraian} sebesar Rp ${trx.nominal.toLocaleString('id-ID')}.`);
       },
 
       deleteKasTransaction: (id) => {
         set((state) => ({ kasTransactions: state.kasTransactions.filter((k) => k.id !== id) }));
+      },
+
+      syncBendaharaSantriFromSekretaris: () => {
+        const state = get();
+        const existingByRef = new Map<string, BendaharaSantriProfile>();
+        const existingByNis = new Map<string, BendaharaSantriProfile>();
+        state.bendaharaSantriList.forEach((b) => {
+          if (b.refSantriId) existingByRef.set(b.refSantriId, b);
+          existingByNis.set(b.nis, b);
+        });
+
+        let added = 0;
+        let updated = 0;
+        const additions: BendaharaSantriProfile[] = [];
+        const patched = state.bendaharaSantriList.map((b) => ({ ...b }));
+
+        state.santriList.forEach((s) => {
+          const match = existingByRef.get(s.id) || existingByNis.get(s.nis);
+          if (!match) {
+            added += 1;
+            additions.push({
+              id: `bs-${s.id}`,
+              refSantriId: s.id,
+              nis: s.nis,
+              nama: s.nama,
+              gender: s.gender,
+              kelas: s.kelas,
+              kamar: s.kamar,
+              namaWali: s.namaWali,
+              hpWali: s.hpWali,
+              statusPondok: s.statusPondok || 'Aktif',
+              sumberData: 'Sekretaris',
+              terhapusDiSekretaris: false,
+            });
+          } else {
+            const idx = patched.findIndex((p) => p.id === match.id);
+            if (idx >= 0 && patched[idx].statusPondok === 'Aktif') {
+              patched[idx] = {
+                ...patched[idx],
+                refSantriId: s.id,
+                nama: s.nama,
+                kelas: s.kelas,
+                kamar: s.kamar,
+                namaWali: s.namaWali,
+                hpWali: s.hpWali,
+                terhapusDiSekretaris: false,
+              };
+              updated += 1;
+            }
+          }
+        });
+
+        const preservedBoyong = patched.filter((p) => p.statusPondok === 'Boyong / Keluar').length;
+        set({ bendaharaSantriList: [...additions, ...patched] });
+        get().addAuditLog(
+          'Bendahara',
+          'Sinkron Santri Sekretaris',
+          `Menarik ${added} santri baru & menyelaraskan ${updated} data aktif (${preservedBoyong} santri boyong tetap dipertahankan).`
+        );
+        return { added, updated, preservedBoyong };
+      },
+
+      addBendaharaSantriManual: (data) => {
+        const newId = `bs-man-${Date.now()}`;
+        const entry: BendaharaSantriProfile = {
+          ...data,
+          id: newId,
+          sumberData: 'Manual Bendahara',
+          terhapusDiSekretaris: false,
+        };
+        set((state) => ({
+          bendaharaSantriList: [entry, ...state.bendaharaSantriList],
+        }));
+        get().addAuditLog(
+          'Bendahara',
+          'Tambah Santri Mandiri',
+          `Menambahkan profil tagihan mandiri atas nama ${data.nama} (${data.statusPondok}).`
+        );
+        return newId;
+      },
+
+      updateBendaharaSantriStatus: (ledgerId, statusPondok, catatanKeuangan) => {
+        set((state) => ({
+          bendaharaSantriList: state.bendaharaSantriList.map((b) =>
+            b.id === ledgerId
+              ? {
+                  ...b,
+                  statusPondok,
+                  catatanKeuangan: catatanKeuangan ?? b.catatanKeuangan,
+                }
+              : b
+          ),
+        }));
+        get().addAuditLog(
+          'Bendahara',
+          'Status Santri Ledger',
+          `Mengubah status santri ID ${ledgerId} di Bendahara menjadi ${statusPondok}.`
+        );
+      },
+
+      addTagihanSantri: (data) => {
+        const newTagihan: TagihanSantriItem = {
+          id: `tag-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          ledgerId: data.ledgerId,
+          kategori: data.kategori,
+          judulTagihan: data.judulTagihan,
+          periode: data.periode,
+          agendaId: data.agendaId,
+          nominalTagihan: Math.max(0, data.nominalTagihan),
+          nominalTerbayar: 0,
+          status: 'Belum Lunas',
+          jatuhTempo: data.jatuhTempo,
+          riwayatBayar: [],
+        };
+        set((state) => ({
+          tagihanSantriList: [newTagihan, ...state.tagihanSantriList],
+        }));
+        get().addAuditLog(
+          'Bendahara',
+          'Tambah Tagihan Santri',
+          `Menerbitkan tagihan ${data.kategori} (${data.judulTagihan}) Rp ${data.nominalTagihan.toLocaleString('id-ID')}.`
+        );
+      },
+
+      generateMassTagihanSantri: ({
+        kategori,
+        judulTagihan,
+        periode,
+        nominalTagihan,
+        jatuhTempo,
+        agendaId,
+        onlyAktif = true,
+      }) => {
+        const state = get();
+        const targets = state.bendaharaSantriList.filter((b) =>
+          onlyAktif ? b.statusPondok === 'Aktif' : true
+        );
+        const existingSet = new Set(
+          state.tagihanSantriList.map(
+            (t) => `${t.ledgerId}::${t.kategori}::${t.judulTagihan.toLowerCase()}::${t.periode.toLowerCase()}`
+          )
+        );
+        const now = Date.now();
+        const created: TagihanSantriItem[] = [];
+        targets.forEach((b, idx) => {
+          const key = `${b.id}::${kategori}::${judulTagihan.toLowerCase()}::${periode.toLowerCase()}`;
+          if (existingSet.has(key)) return;
+          created.push({
+            id: `tag-mass-${now}-${idx}`,
+            ledgerId: b.id,
+            kategori,
+            judulTagihan,
+            periode,
+            agendaId,
+            nominalTagihan: Math.max(0, nominalTagihan),
+            nominalTerbayar: 0,
+            status: 'Belum Lunas',
+            jatuhTempo,
+            riwayatBayar: [],
+          });
+        });
+        if (created.length > 0) {
+          set((s) => ({ tagihanSantriList: [...created, ...s.tagihanSantriList] }));
+          get().addAuditLog(
+            'Bendahara',
+            'Generate Tagihan Massal',
+            `Menerbitkan ${created.length} tagihan ${kategori} "${judulTagihan}" (@ Rp ${nominalTagihan.toLocaleString('id-ID')}).`
+          );
+        }
+        return created.length;
+      },
+
+      bayarTagihanSantri: (tagihanId, nominalBayar, metode, catatan) => {
+        const state = get();
+        const tag = state.tagihanSantriList.find((t) => t.id === tagihanId);
+        if (!tag || nominalBayar <= 0) return;
+        const santri = state.bendaharaSantriList.find((b) => b.id === tag.ledgerId);
+        const today = new Date().toISOString().substring(0, 10);
+        const sisa = Math.max(0, tag.nominalTagihan - tag.nominalTerbayar);
+        const applied = Math.min(nominalBayar, sisa > 0 ? sisa : nominalBayar);
+        const nextTerbayar = tag.nominalTerbayar + applied;
+        const nextStatus: TagihanSantriItem['status'] =
+          nextTerbayar >= tag.nominalTagihan ? 'Lunas' : 'Cicilan';
+
+        const kodeAkun =
+          tag.kategori === 'Syahriyah Bulanan'
+            ? '4001.01'
+            : tag.kategori === 'Daftar Ulang'
+            ? '4001.02'
+            : tag.kategori === "Agenda Kema'hadiyahan"
+            ? '4001.04'
+            : '4001.09';
+        const namaAkun =
+          tag.kategori === 'Syahriyah Bulanan'
+            ? 'Pendapatan Syahriyah Bulanan'
+            : tag.kategori === 'Daftar Ulang'
+            ? 'Pendapatan Daftar Ulang'
+            : tag.kategori === "Agenda Kema'hadiyahan"
+            ? "Pendapatan Agenda Kema'hadiyahan"
+            : 'Pendapatan Lain-lain Pondok';
+
+        const kasEntry: KasTransaction = {
+          id: `kas-tag-${Date.now()}`,
+          tanggal: today,
+          tipe: 'Masuk',
+          kategori: tag.kategori === 'Syahriyah Bulanan' ? 'Syahriyah Santri' : tag.kategori,
+          uraian: `Pembayaran ${tag.judulTagihan} — ${santri?.nama || 'Santri'} (${metode})`,
+          nominal: applied,
+          penanggungJawab: state.currentUser.nama,
+          kodeAkun,
+          namaAkun,
+          noSumber: `BKM-${2450 + state.kasTransactions.length}`,
+          tipeSumber: 'Penerimaan',
+        };
+
+        set((s) => ({
+          tagihanSantriList: s.tagihanSantriList.map((t) =>
+            t.id === tagihanId
+              ? {
+                  ...t,
+                  nominalTerbayar: nextTerbayar,
+                  status: nextStatus,
+                  tanggalBayarTerakhir: today,
+                  metodeTerakhir: metode,
+                  riwayatBayar: [
+                    {
+                      id: `rb-${Date.now()}`,
+                      tanggal: today,
+                      nominal: applied,
+                      metode,
+                      petugas: s.currentUser.nama,
+                      catatan,
+                    },
+                    ...t.riwayatBayar,
+                  ],
+                }
+              : t
+          ),
+          kasTransactions: [kasEntry, ...s.kasTransactions],
+        }));
+
+        get().addAuditLog(
+          'Bendahara',
+          'Terima Pembayaran Santri',
+          `${santri?.nama || 'Santri'} membayar ${tag.judulTagihan} Rp ${applied.toLocaleString('id-ID')} (${nextStatus}).`
+        );
+      },
+
+      deleteTagihanSantri: (tagihanId) => {
+        set((state) => ({
+          tagihanSantriList: state.tagihanSantriList.filter((t) => t.id !== tagihanId),
+        }));
       },
 
       updatePayrollRow: (ustadzId, data) => {
@@ -2416,12 +3054,22 @@ export const useAppStore = create<AppState>()(
       addSarprasLahan: (data) => {
         set((state) => ({ sarprasLahan: [...state.sarprasLahan, { id: `lhn-${Date.now()}`, ...data }] }));
       },
+      updateSarprasLahan: (id, data) => {
+        set((state) => ({
+          sarprasLahan: state.sarprasLahan.map((l) => (l.id === id ? { ...l, ...data } : l)),
+        }));
+      },
       deleteSarprasLahan: (id) => {
         set((state) => ({ sarprasLahan: state.sarprasLahan.filter((l) => l.id !== id) }));
       },
 
       addSarprasGedung: (data) => {
         set((state) => ({ sarprasGedung: [...state.sarprasGedung, { id: `gdg-${Date.now()}`, ...data }] }));
+      },
+      updateSarprasGedung: (id, data) => {
+        set((state) => ({
+          sarprasGedung: state.sarprasGedung.map((g) => (g.id === id ? { ...g, ...data } : g)),
+        }));
       },
       deleteSarprasGedung: (id) => {
         set((state) => ({ sarprasGedung: state.sarprasGedung.filter((g) => g.id !== id) }));
@@ -2436,6 +3084,11 @@ export const useAppStore = create<AppState>()(
 
       addSarprasPerlengkapan: (data) => {
         set((state) => ({ sarprasPerlengkapan: [...state.sarprasPerlengkapan, { id: `prl-${Date.now()}`, ...data }] }));
+      },
+      updateSarprasPerlengkapan: (id, data) => {
+        set((state) => ({
+          sarprasPerlengkapan: state.sarprasPerlengkapan.map((p) => (p.id === id ? { ...p, ...data } : p)),
+        }));
       },
       deleteSarprasPerlengkapan: (id) => {
         set((state) => ({ sarprasPerlengkapan: state.sarprasPerlengkapan.filter((p) => p.id !== id) }));
@@ -2585,6 +3238,122 @@ export const useAppStore = create<AppState>()(
         set({ nisConfig: config });
         get().addAuditLog('Pengaturan', 'Update NIS', `Pengaturan format NIS diperbarui: prefix=${config.prefix}, nomorAwal=${config.nomorAwal}.`);
       },
+
+      addMunaqosyahRecord: (data) => {
+        const newRec: MunaqosyahRecord = { ...data, id: `mq-${Date.now()}` };
+        set((state) => ({
+          munaqosyahRecords: [newRec, ...state.munaqosyahRecords],
+        }));
+        get().addAuditLog(
+          'Munaqosyah 3D',
+          'Simpan Nilai Munaqosyah',
+          `Menyimpan hasil Munaqosyah ${data.tingkat} untuk ${data.santriNama} (Rata-rata: ${data.rataRata}, ${data.predikat}).`
+        );
+      },
+
+      deleteMunaqosyahRecord: (id) => {
+        set((state) => ({
+          munaqosyahRecords: state.munaqosyahRecords.filter((r) => r.id !== id),
+        }));
+      },
+
+      setPendingImtihanSubTab: (subTab) => {
+        set({ pendingImtihanSubTab: subTab });
+      },
+
+      setSidangKkm: (kkm) => {
+        const clamped = Math.min(100, Math.max(0, Number(kkm) || 65));
+        set({ sidangKkm: clamped });
+        get().addAuditLog('Imtihan', 'Update KKM Sidang', `Mengatur standar KKM Sidang Kenaikan Kelas menjadi ${clamped}.`);
+      },
+
+      updateSidangJadwal: (jadwal, belowKkmCount) => {
+        const state = get();
+        const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
+        const updated: SidangJadwalInfo = {
+          ...state.sidangJadwal,
+          ...jadwal,
+          diperbaruiOleh: state.currentUser.nama,
+          diperbaruiPada: nowStr,
+        };
+        const notifItem: KotakMasukItem = {
+          id: `km-sidang-${Date.now()}`,
+          modul: 'Sidang Kenaikan',
+          judul: `Jadwal Sidang Kenaikan (${belowKkmCount ?? 0} Santri < KKM ${state.sidangKkm})`,
+          pengirim: state.currentUser.nama,
+          waktu: updated.tanggalSidang ? `${updated.tanggalSidang} · ${updated.waktuSidang}` : 'Baru dijadwalkan',
+          status: 'Menunggu',
+          linkTab: 'imtihan',
+          keterangan: `Undangan kepada Manager Waktu, Admin, Ketua Panitia & Pengasuh di ${updated.lokasiSidang} untuk penentuan Naik / Naik Bersyarat.`,
+        };
+        set((s) => ({
+          sidangJadwal: updated,
+          kotakMasuk: [notifItem, ...s.kotakMasuk.filter((k) => !k.id.startsWith('km-sidang-'))],
+        }));
+        get().addAuditLog(
+          'Imtihan',
+          'Jadwal Sidang Kenaikan',
+          `Menjadwalkan Sidang Kenaikan pada ${updated.tanggalSidang || 'segera'} (${updated.waktuSidang}) di ${updated.lokasiSidang}.`
+        );
+      },
+
+      upsertSidangKenaikan: (rec, meta) => {
+        const state = get();
+        const prevRec = state.sidangKenaikanRecords[rec.santriId];
+        const santriObj = state.santriList.find((s) => s.id === rec.santriId);
+        const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
+        const rataImtihan = Number(((rec.rataCawu1 + rec.rataCawu2) / 2).toFixed(1));
+        const poinAbsensi = rec.sakitCount * 0 - rec.bolosCount * 3;
+        const computedAkhir =
+          meta?.nilaiAkhir ??
+          Math.max(
+            0,
+            Number(
+              (
+                (rataImtihan + rec.nilaiUbudiyah + rec.nilaiAmaliyah + rec.nilaiMqk) /
+                  4 +
+                poinAbsensi
+              ).toFixed(1)
+            )
+          );
+
+        const prevDecision = prevRec?.keputusan || 'Belum Diputuskan';
+        const historyEntry: SidangKenaikanHistoryEntry = {
+          id: `sh-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          waktu: nowStr,
+          santriId: rec.santriId,
+          santriNama: meta?.santriNama || santriObj?.nama || rec.santriId,
+          santriNis: meta?.santriNis || santriObj?.nis || '-',
+          kelas: meta?.kelas || santriObj?.kelas || '-',
+          nilaiAkhir: computedAkhir,
+          kkm: state.sidangKkm,
+          keputusanSebelumnya: prevDecision,
+          keputusanBaru: rec.keputusan,
+          catatan:
+            rec.catatanSidang ||
+            (prevDecision !== rec.keputusan
+              ? `Status diubah menjadi ${rec.keputusan}`
+              : `Pembaruan komponen nilai sidang (Skor: ${computedAkhir})`),
+          oleh: rec.diputuskanOleh || state.currentUser.nama,
+          peranOleh: state.currentUser.peranLabel || state.activeRole,
+        };
+
+        set((s) => ({
+          sidangKenaikanRecords: {
+            ...s.sidangKenaikanRecords,
+            [rec.santriId]: {
+              ...rec,
+              waktuUpdate: nowStr,
+            },
+          },
+          sidangKenaikanHistory: [historyEntry, ...s.sidangKenaikanHistory.slice(0, 199)],
+        }));
+        get().addAuditLog(
+          'Imtihan',
+          'Simpan Sidang Kenaikan',
+          `Memperbarui data/keputusan sidang kenaikan ${historyEntry.santriNama} (${rec.keputusan}, Skor ${computedAkhir}).`
+        );
+      },
     }),
     {
       name: 'erp-darussalam-storage-v3',
@@ -2630,6 +3399,9 @@ export const useAppStore = create<AppState>()(
           const existingAvailIds = new Set((persisted.guruAvailability || []).map((g) => g.ustadzId));
           const missingAvail = SEED_GURU_AVAILABILITY.filter((g) => !existingAvailIds.has(g.ustadzId));
           merged.guruAvailability = [...(persisted.guruAvailability || SEED_GURU_AVAILABILITY), ...missingAvail];
+        }
+        if (!Array.isArray(persisted.munaqosyahRecords) || persisted.munaqosyahRecords.length === 0) {
+          merged.munaqosyahRecords = SEED_MUNAQOSYAH_RECORDS;
         }
         merged.isDemoMode = false;
 
@@ -2689,6 +3461,56 @@ export const useAppStore = create<AppState>()(
           },
         };
 
+        // Backfill realisasi on persisted rabImtihan rows if missing
+        if (Array.isArray(merged.rabImtihan)) {
+          merged.rabImtihan = merged.rabImtihan.map((r) =>
+            r.realisasi === undefined
+              ? { ...r, realisasi: SEED_RAB_REALISASI_MAP[r.id] ?? 0 }
+              : r
+          );
+        }
+
+        // Backfill 1-hour configurable attendance shift sessions if missing
+        if (!Array.isArray(merged.absensiShiftConfigs) || merged.absensiShiftConfigs.length === 0) {
+          merged.absensiShiftConfigs = SEED_ABSENSI_SHIFT_CONFIGS;
+        }
+
+        // Backfill Bendahara independent ledger, Tagihan Santri & Sarpras asset valuations for existing localStorage
+        if (hasOperationalSantri) {
+          if (!Array.isArray(persisted.bendaharaSantriList) || persisted.bendaharaSantriList.length === 0) {
+            merged.bendaharaSantriList = SEED_BENDAHARA_SANTRI;
+          }
+          if (!Array.isArray(persisted.tagihanSantriList) || persisted.tagihanSantriList.length === 0) {
+            merged.tagihanSantriList = SEED_TAGIHAN_SANTRI;
+          }
+          if (!Array.isArray(persisted.kasTransactions) || persisted.kasTransactions.length < 6) {
+            merged.kasTransactions = SEED_KAS_TRANSACTIONS;
+          }
+        }
+        if (Array.isArray(merged.sarprasLahan)) {
+          const defLahanMap = new Map(SEED_LAHAN.map((l) => [l.id, l]));
+          merged.sarprasLahan = merged.sarprasLahan.map((l) => ({
+            ...l,
+            nilaiPerolehan: l.nilaiPerolehan ?? defLahanMap.get(l.id)?.nilaiPerolehan,
+          }));
+        }
+        if (Array.isArray(merged.sarprasGedung)) {
+          const defGdgMap = new Map(SEED_GEDUNG.map((g) => [g.id, g]));
+          merged.sarprasGedung = merged.sarprasGedung.map((g) => ({
+            ...g,
+            nilaiPerolehan: g.nilaiPerolehan ?? defGdgMap.get(g.id)?.nilaiPerolehan,
+            umurEkonomisTahun: g.umurEkonomisTahun ?? defGdgMap.get(g.id)?.umurEkonomisTahun,
+          }));
+        }
+        if (Array.isArray(merged.sarprasPerlengkapan)) {
+          const defPrlMap = new Map(SEED_PERLENGKAPAN.map((p) => [p.id, p]));
+          merged.sarprasPerlengkapan = merged.sarprasPerlengkapan.map((p) => ({
+            ...p,
+            hargaSatuan: p.hargaSatuan ?? defPrlMap.get(p.id)?.hargaSatuan,
+            tahunPerolehan: p.tahunPerolehan ?? defPrlMap.get(p.id)?.tahunPerolehan,
+          }));
+        }
+
         return merged;
       },
       partialize: (state) => ({
@@ -2697,6 +3519,8 @@ export const useAppStore = create<AppState>()(
         printOrientation: state.printOrientation,
         pengasuhTtdUrl: state.pengasuhTtdUrl,
         waliKelasTtdMap: state.waliKelasTtdMap,
+        pengasuhTtdScale: state.pengasuhTtdScale,
+        waliKelasTtdScale: state.waliKelasTtdScale,
         nisConfig: state.nisConfig,
         nisCounter: state.nisCounter,
         currentTahunAjaran: state.currentTahunAjaran,
@@ -2712,6 +3536,7 @@ export const useAppStore = create<AppState>()(
         jadwalMaarifan: state.jadwalMaarifan,
         absensiGuruList: state.absensiGuruList,
         izinBadalGuruList: state.izinBadalGuruList,
+        absensiShiftConfigs: state.absensiShiftConfigs,
         activeGuruShiftMap: state.activeGuruShiftMap,
         sdmNotifEnabled: state.sdmNotifEnabled,
         pinPengesahanMap: state.pinPengesahanMap,
@@ -2728,6 +3553,8 @@ export const useAppStore = create<AppState>()(
         sarprasRuangan: state.sarprasRuangan,
         sarprasPerlengkapan: state.sarprasPerlengkapan,
         kasTransactions: state.kasTransactions,
+        bendaharaSantriList: state.bendaharaSantriList,
+        tagihanSantriList: state.tagihanSantriList,
         bisyarohHistory: state.bisyarohHistory,
         agendaKegiatan: state.agendaKegiatan,
         jadwalKeamanan: state.jadwalKeamanan,
@@ -2745,6 +3572,11 @@ export const useAppStore = create<AppState>()(
         psbList: state.psbList,
         suratList: state.suratList,
         pelanggaranList: state.pelanggaranList,
+        munaqosyahRecords: state.munaqosyahRecords,
+        sidangKenaikanRecords: state.sidangKenaikanRecords,
+        sidangKenaikanHistory: state.sidangKenaikanHistory,
+        sidangJadwal: state.sidangJadwal,
+        sidangKkm: state.sidangKkm,
       }),
     }
   )

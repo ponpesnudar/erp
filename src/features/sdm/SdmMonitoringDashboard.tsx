@@ -18,7 +18,16 @@ import {
   Image as ImageIcon,
   CalendarDays,
   CalendarRange,
+  SlidersHorizontal,
+  Plus,
+  Trash2,
+  RotateCcw,
+  Edit3,
+  Eye,
+  Download,
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   ResponsiveContainer,
   BarChart,
@@ -33,9 +42,30 @@ import {
   formatNamaWithGelar,
   type ProgramAbsensiType,
   type AbsensiGuruRecord,
+  type AbsensiShiftConfig,
 } from '../../data/seed/pondokData.ts';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { triggerReliablePrint } from '../../lib/printHelper.ts';
+
+function calcShiftDurationLabel(jamMulai: string, jamSelesai: string): string {
+  const [sh, sm] = jamMulai.split(':').map(Number);
+  const [eh, em] = jamSelesai.split(':').map(Number);
+  if (!Number.isFinite(sh) || !Number.isFinite(eh)) return '1 Jam';
+  const totalMins = Math.max(0, eh * 60 + (em || 0) - (sh * 60 + (sm || 0)));
+  if (totalMins === 60) return '1 Jam (60 mnt)';
+  if (totalMins > 60 && totalMins % 60 === 0) return `${totalMins / 60} Jam (${totalMins} mnt)`;
+  if (totalMins > 60) return `${Math.floor(totalMins / 60)}j ${totalMins % 60}m`;
+  return `${totalMins} mnt`;
+}
+
+function addOneHourToTime(jamMulai: string): string {
+  const [sh, sm] = jamMulai.split(':').map(Number);
+  if (!Number.isFinite(sh)) return '19:00';
+  const total = Math.min(23 * 60 + 59, sh * 60 + (sm || 0) + 60);
+  const h = String(Math.floor(total / 60)).padStart(2, '0');
+  const m = String(total % 60).padStart(2, '0');
+  return `${h}:${m}`;
+}
 
 function addDaysIso(isoDate: string, delta: number): string {
   const [y, m, d] = isoDate.split('-').map(Number);
@@ -64,9 +94,14 @@ export const SdmMonitoringDashboard: React.FC = () => {
     ustadzPayroll,
     absensiGuruList,
     izinBadalGuruList,
+    absensiShiftConfigs,
     kalenderPendidikan,
     approveIzinBadalGuru,
     verifyAbsensiGuruRecord,
+    addAbsensiShiftConfig,
+    updateAbsensiShiftConfig,
+    deleteAbsensiShiftConfig,
+    resetAbsensiShiftConfigs,
     printOrientation,
   } = useAppStore();
 
@@ -82,7 +117,9 @@ export const SdmMonitoringDashboard: React.FC = () => {
     return latest || todayIso;
   }, [absensiGuruList, todayIso]);
 
-  const [managementMode, setManagementMode] = useState<'harian_foto' | 'rekap_mingguan' | 'rekap_bulanan'>('harian_foto');
+  const [managementMode, setManagementMode] = useState<
+    'harian_foto' | 'rekap_mingguan' | 'rekap_bulanan' | 'pengaturan_waktu'
+  >('harian_foto');
   const [tanggalFilter, setTanggalFilter] = useState<string>(defaultDate);
   const [weekStartIso, setWeekStartIso] = useState<string>(() => getMondayOfWeek(defaultDate));
   const [programFilter, setProgramFilter] = useState<'Semua' | ProgramAbsensiType>('Semua');
@@ -90,12 +127,72 @@ export const SdmMonitoringDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [rekapBulan, setRekapBulan] = useState<string>(() => defaultDate.substring(0, 7) || '2026-11');
   const [previewRecord, setPreviewRecord] = useState<AbsensiGuruRecord | null>(null);
+  const [buktiPreview, setBuktiPreview] = useState<{ url: string; title: string; meta: string } | null>(null);
+  const [approvalFilter, setApprovalFilter] = useState<'Semua' | 'Absen Pengajuan' | 'Izin / Badal'>('Semua');
+
+  // Admin Shift Config Editor States
+  const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
+  const [shiftNama, setShiftNama] = useState('');
+  const [shiftProgram, setShiftProgram] = useState<ProgramAbsensiType>('Madrasah Diniyah');
+  const [shiftJamMulai, setShiftJamMulai] = useState('18:00');
+  const [shiftJamSelesai, setShiftJamSelesai] = useState('19:00');
+  const [shiftToleransi, setShiftToleransi] = useState(10);
+  const [shiftLokasi, setShiftLokasi] = useState('Komplek MDS PP NU Darussalam');
+
   const [toast, setToast] = useState('');
   const sdmPrintRef = useRef<HTMLDivElement | null>(null);
 
   const notify = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3500);
+  };
+
+  const resetShiftForm = () => {
+    setEditingShiftId(null);
+    setShiftNama('');
+    setShiftProgram('Madrasah Diniyah');
+    setShiftJamMulai('18:00');
+    setShiftJamSelesai('19:00');
+    setShiftToleransi(10);
+    setShiftLokasi('Komplek MDS PP NU Darussalam');
+  };
+
+  const handleEditShift = (s: AbsensiShiftConfig) => {
+    setEditingShiftId(s.id);
+    setShiftNama(s.nama);
+    setShiftProgram(s.program);
+    setShiftJamMulai(s.jamMulai);
+    setShiftJamSelesai(s.jamSelesai);
+    setShiftToleransi(s.toleransiMenit);
+    setShiftLokasi(s.lokasi);
+  };
+
+  const handleSaveShiftForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shiftNama.trim()) return;
+    if (editingShiftId) {
+      updateAbsensiShiftConfig(editingShiftId, {
+        nama: shiftNama.trim(),
+        program: shiftProgram,
+        jamMulai: shiftJamMulai,
+        jamSelesai: shiftJamSelesai,
+        toleransiMenit: Math.max(0, Number(shiftToleransi) || 0),
+        lokasi: shiftLokasi.trim() || 'PP NU Darussalam Karangdadap',
+      });
+      notify(`Sesi "${shiftNama.trim()}" (${shiftJamMulai}–${shiftJamSelesai}) berhasil diperbarui.`);
+    } else {
+      addAbsensiShiftConfig({
+        nama: shiftNama.trim(),
+        program: shiftProgram,
+        jamMulai: shiftJamMulai,
+        jamSelesai: shiftJamSelesai,
+        toleransiMenit: Math.max(0, Number(shiftToleransi) || 0),
+        lokasi: shiftLokasi.trim() || 'PP NU Darussalam Karangdadap',
+        aktif: true,
+      });
+      notify(`Sesi baru "${shiftNama.trim()}" (${shiftJamMulai}–${shiftJamSelesai}) ditambahkan.`);
+    }
+    resetShiftForm();
   };
 
   const reviewerDisplayName = formatNamaWithGelar(currentUser.nama);
@@ -194,6 +291,11 @@ export const SdmMonitoringDashboard: React.FC = () => {
       const terlambat = weekRecs.filter((r) => r.status === 'Hadir' && r.statusKeterlambatan === 'Terlambat').length;
       const izinBadal = weekRecs.filter((r) => r.status !== 'Hadir').length;
       const pendingVerifyCount = weekRecs.filter((r) => r.verifikasiAtasan !== 'Terverifikasi').length;
+      const hariAktifMinggu = weekDays.filter((d) => !d.isFriday).length || 6;
+      const persentaseMingguan = Math.min(
+        100,
+        Math.round(((hadir + izinBadal) / Math.max(hariAktifMinggu, weekRecs.length, 1)) * 100)
+      );
 
       return {
         ustadz: u,
@@ -204,6 +306,7 @@ export const SdmMonitoringDashboard: React.FC = () => {
         terlambat,
         izinBadal,
         pendingVerifyCount,
+        persentaseMingguan,
       };
     });
   }, [filteredUstadz, absensiGuruList, weekDays, programFilter]);
@@ -221,6 +324,19 @@ export const SdmMonitoringDashboard: React.FC = () => {
   const pendingIzinList = useMemo(
     () => izinBadalGuruList.filter((i) => i.status === 'Menunggu'),
     [izinBadalGuruList]
+  );
+
+  const filteredApprovalList = useMemo(() => {
+    return izinBadalGuruList.filter((item) => {
+      if (approvalFilter === 'Absen Pengajuan') return item.jenis === 'Absen Pengajuan';
+      if (approvalFilter === 'Izin / Badal') return item.jenis !== 'Absen Pengajuan';
+      return true;
+    });
+  }, [izinBadalGuruList, approvalFilter]);
+
+  const activeShiftCount = useMemo(
+    () => absensiShiftConfigs.filter((s) => s.aktif).length,
+    [absensiShiftConfigs]
   );
 
   // Chart Data: Recap by Program across selected month
@@ -330,6 +446,210 @@ export const SdmMonitoringDashboard: React.FC = () => {
     notify(`${pending.length} log kehadiran (${label}) berhasil diverifikasi.`);
   };
 
+  const handleDownloadWeeklyPdf = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [330, 215] });
+    const endIso = weekDays[6]?.iso || weekStartIso;
+    const totalHadir = weeklyRecapRows.reduce((s, r) => s + r.hadir, 0);
+    const totalTerlambat = weeklyRecapRows.reduce((s, r) => s + r.terlambat, 0);
+    const totalIzin = weeklyRecapRows.reduce((s, r) => s + r.izinBadal, 0);
+    const avgPct =
+      weeklyRecapRows.length > 0
+        ? Math.round(
+            weeklyRecapRows.reduce((s, r) => s + r.persentaseMingguan, 0) / weeklyRecapRows.length
+          )
+        : 0;
+
+    // Header Kop Pondok
+    doc.setFillColor(7, 67, 42);
+    doc.rect(14, 10, 302, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PONDOK PESANTREN NU DARUSSALAM KARANGDADAP', 18, 17);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `Laporan Rekapitulasi Mingguan Absensi Dewan Asatidz · Periode ${weekStartIso} s.d. ${endIso}`,
+      18,
+      23.5
+    );
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Program: ${programFilter}`, 310, 17, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Rata-rata Kehadiran: ${avgPct}%`, 310, 23.5, { align: 'right' });
+
+    // Summary Strip
+    doc.setFillColor(236, 253, 245);
+    doc.setDrawColor(167, 243, 208);
+    doc.roundedRect(14, 31, 302, 12, 2, 2, 'FD');
+    doc.setTextColor(6, 78, 59);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(
+      `Ringkasan Mingguan:   Total Guru: ${weeklyRecapRows.length}   |   Log Hadir: ${totalHadir}   |   Terlambat: ${totalTerlambat}   |   Izin/Badal: ${totalIzin}   |   Persentase Kehadiran Mingguan: ${avgPct}%`,
+      18,
+      38.5
+    );
+
+    autoTable(doc, {
+      startY: 46,
+      head: [
+        [
+          'No',
+          'Nama Ustadz / Ustadzah',
+          'Jabatan',
+          ...weekDays.map((d) => `${d.dayShort}\n${d.dateShort}`),
+          'H',
+          'T',
+          'I/B',
+          '%',
+        ],
+      ],
+      body: weeklyRecapRows.map((row, idx) => [
+        String(idx + 1),
+        row.displayName,
+        row.ustadz.jabatanUtama,
+        ...row.dayCells.map(({ day, rec }) => {
+          if (rec) {
+            if (rec.status === 'Hadir') return rec.statusKeterlambatan === 'Terlambat' ? 'T' : 'H';
+            return rec.status.charAt(0);
+          }
+          return day.isFriday ? 'LM' : '-';
+        }),
+        String(row.hadir),
+        String(row.terlambat),
+        String(row.izinBadal),
+        `${row.persentaseMingguan}%`,
+      ]),
+      styles: { fontSize: 8, cellPadding: 2.2, halign: 'center' },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { halign: 'left', cellWidth: 58, fontStyle: 'bold' },
+        2: { halign: 'left', cellWidth: 48 },
+      },
+      headStyles: { fillColor: [7, 67, 42], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: 14, right: 14 },
+    });
+
+    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 160;
+    const sigY = Math.min(finalY + 12, 188);
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Mengetahui,', 36, sigY);
+    doc.text('Pengasuh / Kepala Majlis Ma\'arif', 36, sigY + 5);
+    doc.text(`Karangdadap, ${endIso}`, 250, sigY);
+    doc.text('Sekretariat & Monitoring SDM', 250, sigY + 5);
+    doc.setFont('helvetica', 'bold');
+    doc.text('__________________________', 36, sigY + 19);
+    doc.text(reviewerDisplayName, 250, sigY + 19);
+
+    doc.save(`Rekap-Absensi-Mingguan-${weekStartIso}.pdf`);
+    notify(`PDF Rekap Mingguan (${weekStartIso} s.d. ${endIso}) berhasil diunduh.`);
+  };
+
+  const handleDownloadMonthlyPdf = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [330, 215] });
+    const totalHadirLog = monthlyRecapRows.reduce((s, r) => s + r.hadirLog, 0);
+    const totalSelfie = monthlyRecapRows.reduce((s, r) => s + r.selfieCount, 0);
+    const totalTerlambat = monthlyRecapRows.reduce((s, r) => s + r.terlambat, 0);
+    const totalIzin = monthlyRecapRows.reduce((s, r) => s + r.izinBadal, 0);
+    const avgPct =
+      monthlyRecapRows.length > 0
+        ? Math.round(
+            monthlyRecapRows.reduce((s, r) => s + r.persentase, 0) / monthlyRecapRows.length
+          )
+        : 0;
+
+    // Header Kop Pondok
+    doc.setFillColor(7, 67, 42);
+    doc.rect(14, 10, 302, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PONDOK PESANTREN NU DARUSSALAM KARANGDADAP', 18, 17);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `Laporan Rekapitulasi Bulanan Disiplin & Beban JTM Dewan Asatidz · Periode ${rekapBulan}`,
+      18,
+      23.5
+    );
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Program: ${programFilter}`, 310, 17, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Persentase Kehadiran Bulanan: ${avgPct}%`, 310, 23.5, { align: 'right' });
+
+    // Summary KPI strip
+    doc.setFillColor(236, 253, 245);
+    doc.setDrawColor(167, 243, 208);
+    doc.roundedRect(14, 31, 302, 12, 2, 2, 'FD');
+    doc.setTextColor(6, 78, 59);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(
+      `Ringkasan Bulanan:   Asatidz: ${monthlyRecapRows.length}   |   Hadir Mobile: ${totalHadirLog} log   |   Bukti Swafoto: ${totalSelfie}   |   Terlambat: ${totalTerlambat}x   |   Izin/Badal: ${totalIzin}x   |   Rata-rata Kehadiran: ${avgPct}%`,
+      18,
+      38.5
+    );
+
+    autoTable(doc, {
+      startY: 46,
+      head: [
+        [
+          'No',
+          'Nama Ustadz / Ustadzah',
+          'Jabatan Utama',
+          'JTM/Mgg',
+          'Hadir Mobile',
+          'Bukti Swafoto',
+          'Hadir Bisyaroh',
+          'Terlambat',
+          'Izin/Badal',
+          'Kehadiran (%)',
+        ],
+      ],
+      body: monthlyRecapRows.map((row, idx) => [
+        String(idx + 1),
+        row.displayName,
+        row.ustadz.jabatanUtama,
+        `${row.jtm} JTM`,
+        `${row.hadirLog} log`,
+        `${row.selfieCount} foto`,
+        `${row.hadirPayroll} hari`,
+        `${row.terlambat}x`,
+        `${row.izinBadal}x`,
+        `${row.persentase}%`,
+      ]),
+      styles: { fontSize: 8.5, cellPadding: 2.4, halign: 'center' },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { halign: 'left', cellWidth: 64, fontStyle: 'bold' },
+        2: { halign: 'left', cellWidth: 54 },
+      },
+      headStyles: { fillColor: [7, 67, 42], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: 14, right: 14 },
+    });
+
+    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 160;
+    const sigY = Math.min(finalY + 12, 188);
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Mengetahui,', 36, sigY);
+    doc.text('Pengasuh / Kepala Majlis Ma\'arif', 36, sigY + 5);
+    doc.text(`Karangdadap, Periode ${rekapBulan}`, 250, sigY);
+    doc.text('Sekretariat & Monitoring SDM', 250, sigY + 5);
+    doc.setFont('helvetica', 'bold');
+    doc.text('__________________________', 36, sigY + 19);
+    doc.text(reviewerDisplayName, 250, sigY + 19);
+
+    doc.save(`Rekap-Absensi-Bulanan-${rekapBulan}.pdf`);
+    notify(`PDF Rekap Bulanan (${rekapBulan}) berhasil diunduh.`);
+  };
+
   return (
     <div className="space-y-6">
       {toast && (
@@ -354,6 +674,22 @@ export const SdmMonitoringDashboard: React.FC = () => {
             <PrintOrientationControl recommended="landscape" />
             <button
               type="button"
+              onClick={handleDownloadWeeklyPdf}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold shadow-2xs transition"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Unduh PDF Mingguan</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadMonthlyPdf}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold shadow-2xs transition"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Unduh PDF Bulanan</span>
+            </button>
+            <button
+              type="button"
               onClick={() =>
                 triggerReliablePrint({
                   title:
@@ -375,7 +711,7 @@ export const SdmMonitoringDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Mode Switcher: Harian & Foto | Rekap 1 Minggu | Rekap 1 Bulan */}
+        {/* Mode Switcher: Harian & Foto | Rekap 1 Minggu | Rekap 1 Bulan | Pengaturan Waktu Absen */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
           <button
             type="button"
@@ -412,6 +748,18 @@ export const SdmMonitoringDashboard: React.FC = () => {
           >
             <CalendarDays className="w-3.5 h-3.5" />
             <span>Manajemen Rekap 1 Bulan</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setManagementMode('pengaturan_waktu')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+              managementMode === 'pengaturan_waktu'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'bg-emerald-50 text-emerald-900 border border-emerald-200 hover:bg-emerald-100'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span>Pengaturan Waktu &amp; Sesi Absen ({activeShiftCount} Sesi)</span>
           </button>
         </div>
 
@@ -576,7 +924,7 @@ export const SdmMonitoringDashboard: React.FC = () => {
             <p className="text-2xl font-extrabold text-rose-600 mt-1 tabular-nums">
               {pendingIzinList.length}
             </p>
-            <p className="text-[11px] text-slate-500 mt-0.5">Pengajuan Izin &amp; Badal</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Absen Pengajuan, Izin &amp; Badal</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
             <FileWarning className="w-5 h-5" />
@@ -584,115 +932,408 @@ export const SdmMonitoringDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Middle Section: Recharts + Pending Izin/Badal Approvals */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
-        {/* Recharts BarChart */}
-        <div className="lg:col-span-7 rounded-3xl bg-white border border-slate-200 p-5 shadow-2xs space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-700" />
-                <span>Statistik Kehadiran Guru per Program Pondok</span>
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                Akumulasi presensi mobile &amp; manual bulan {rekapBulan}
-              </p>
+      {/* ADMIN PANEL: PENGATURAN WAKTU & SESI ABSEN GURU (DURASI 1 JAM / SESI) */}
+      {managementMode === 'pengaturan_waktu' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
+          {/* Form Tambah / Edit Sesi */}
+          <form
+            onSubmit={handleSaveShiftForm}
+            className="lg:col-span-4 rounded-3xl bg-white border border-slate-200 p-5 shadow-2xs space-y-3.5 text-xs self-start"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  {editingShiftId ? 'Edit Jadwal Sesi Absen' : 'Tambah Sesi / Jam Absen Baru'}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Sesuai jam mengajar pondok (standar 1 jam / 60 menit per sesi, bukan 8 jam).
+                </p>
+              </div>
+              {editingShiftId && (
+                <button
+                  type="button"
+                  onClick={resetShiftForm}
+                  className="text-[11px] font-bold text-slate-500 hover:text-slate-800 underline"
+                >
+                  Batal
+                </button>
+              )}
             </div>
-            <input
-              type="month"
-              value={rekapBulan}
-              onChange={(e) => setRekapBulan(e.target.value)}
-              className="rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-800"
-            />
-          </div>
 
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartProgramData}>
-                <XAxis dataKey="program" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                <Tooltip contentStyle={{ borderRadius: '12px', fontSize: '11px' }} />
-                <Legend wrapperStyle={{ fontSize: '11px' }} />
-                <Bar dataKey="Hadir" fill="#047857" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Terlambat" fill="#D97706" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Izin / Badal" fill="#0EA5E9" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Nama Sesi / Jam Pelajaran</label>
+              <input
+                type="text"
+                required
+                value={shiftNama}
+                onChange={(e) => setShiftNama(e.target.value)}
+                placeholder="Mis: Madrasah Diniyah — Jam Ke-4"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 font-semibold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Program Pondok</label>
+              <select
+                value={shiftProgram}
+                onChange={(e) => setShiftProgram(e.target.value as ProgramAbsensiType)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 font-semibold text-slate-800"
+              >
+                <option value="Madrasah Diniyah">Madrasah Diniyah</option>
+                <option value="Ngaji Al-Qur'an Pagi (Ba'da Subuh)">Ngaji Al-Qur&apos;an Pagi (Ba&apos;da Subuh)</option>
+                <option value="Ngaji Takhasus">Ngaji Takhasus</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Jam Mulai</label>
+                <input
+                  type="time"
+                  required
+                  value={shiftJamMulai}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setShiftJamMulai(v);
+                    if (!editingShiftId && v) {
+                      setShiftJamSelesai(addOneHourToTime(v));
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold tabular-nums"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700">Jam Selesai</label>
+                  <button
+                    type="button"
+                    onClick={() => setShiftJamSelesai(addOneHourToTime(shiftJamMulai))}
+                    className="text-[10px] font-bold text-emerald-700 hover:underline"
+                  >
+                    +1 Jam
+                  </button>
+                </div>
+                <input
+                  type="time"
+                  required
+                  value={shiftJamSelesai}
+                  onChange={(e) => setShiftJamSelesai(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold tabular-nums"
+                />
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between text-[11px] font-bold">
+              <span>Durasi Sesi Terhitung:</span>
+              <span className="tabular-nums">{calcShiftDurationLabel(shiftJamMulai, shiftJamSelesai)}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Toleransi Telat (Menit)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={shiftToleransi}
+                  onChange={(e) => setShiftToleransi(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold tabular-nums"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Lokasi Komplek</label>
+                <input
+                  type="text"
+                  value={shiftLokasi}
+                  onChange={(e) => setShiftLokasi(e.target.value)}
+                  placeholder="Komplek MDS..."
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold flex items-center justify-center gap-1.5 shadow-xs transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{editingShiftId ? 'Simpan Perubahan Sesi' : 'Tambah Sesi Absen'}</span>
+            </button>
+          </form>
+
+          {/* Daftar Sesi Absen Pondok */}
+          <div className="lg:col-span-8 rounded-3xl bg-white border border-slate-200 p-5 shadow-2xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  Daftar Jam &amp; Sesi Absen Mengajar Pondok ({absensiShiftConfigs.length} Sesi)
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Semua sesi di bawah langsung tampil di Aplikasi Absensi Mobile Ustadz/Ustadzah beserta batas keterlambatannya.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  resetAbsensiShiftConfigs();
+                  resetShiftForm();
+                  notify('Jadwal sesi absen direset ke standar 1 jam per sesi Pondok.');
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold inline-flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Standar (1 Jam/Sesi)</span>
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[11px] text-slate-500 uppercase bg-slate-50">
+                    <th className="py-2.5 px-3 font-bold">Jam Sesi</th>
+                    <th className="py-2.5 px-3 font-bold">Nama Sesi &amp; Program</th>
+                    <th className="py-2.5 px-3 font-bold">Durasi</th>
+                    <th className="py-2.5 px-3 font-bold">Toleransi</th>
+                    <th className="py-2.5 px-3 font-bold">Status</th>
+                    <th className="py-2.5 px-3 font-bold text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {absensiShiftConfigs.map((s) => (
+                    <tr key={s.id} className={`hover:bg-slate-50/70 ${!s.aktif ? 'opacity-60' : ''}`}>
+                      <td className="py-2.5 px-3 tabular-nums font-extrabold text-emerald-900 whitespace-nowrap">
+                        {s.jamMulai} – {s.jamSelesai}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <p className="font-bold text-slate-900">{s.nama}</p>
+                        <p className="text-[10px] text-slate-500">
+                          {s.program} · {s.lokasi}
+                        </p>
+                      </td>
+                      <td className="py-2.5 px-3 tabular-nums">
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-[10px]">
+                          {calcShiftDurationLabel(s.jamMulai, s.jamSelesai)}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 tabular-nums text-slate-700 font-semibold">
+                        {s.toleransiMenit} menit
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateAbsensiShiftConfig(s.id, { aktif: !s.aktif });
+                            notify(`Sesi "${s.nama}" ${!s.aktif ? 'diaktifkan' : 'dinonaktifkan'}.`);
+                          }}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition ${
+                            s.aktif
+                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {s.aktif ? 'Aktif' : 'Nonaktif'}
+                        </button>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleEditShift(s)}
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-900"
+                            title="Edit Sesi"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              deleteAbsensiShiftConfig(s.id);
+                              if (editingShiftId === s.id) resetShiftForm();
+                              notify(`Sesi "${s.nama}" dihapus.`);
+                            }}
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700"
+                            title="Hapus Sesi"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Pending Izin / Badal Approvals */}
-        <div className="lg:col-span-5 rounded-3xl bg-white border border-slate-200 p-5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-            <h3 className="text-sm font-extrabold text-slate-900">
-              Persetujuan Izin &amp; Badal Guru
-            </h3>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
-              {izinBadalGuruList.length} Total
-            </span>
+      {/* Middle Section: Recharts + Pending Absen Pengajuan / Izin / Badal Approvals */}
+      {managementMode !== 'pengaturan_waktu' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
+          {/* Recharts BarChart */}
+          <div className="lg:col-span-7 rounded-3xl bg-white border border-slate-200 p-5 shadow-2xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-700" />
+                  <span>Statistik Kehadiran Guru per Program Pondok</span>
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Akumulasi presensi mobile &amp; absen pengajuan bulan {rekapBulan}
+                </p>
+              </div>
+              <input
+                type="month"
+                value={rekapBulan}
+                onChange={(e) => setRekapBulan(e.target.value)}
+                className="rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-800"
+              />
+            </div>
+
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartProgramData}>
+                  <XAxis dataKey="program" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', fontSize: '11px' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Bar dataKey="Hadir" fill="#047857" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Terlambat" fill="#D97706" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Izin / Badal" fill="#0EA5E9" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-            {izinBadalGuruList.map((item) => (
-              <div
-                key={item.id}
-                className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2 text-xs"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-bold text-slate-900">
-                    {formatNamaWithGelar(item.ustadzNama)} · {item.jenis}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      item.status === 'Disetujui'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : item.status === 'Ditolak'
-                        ? 'bg-rose-100 text-rose-800'
-                        : 'bg-amber-100 text-amber-800'
+          {/* Pending Absen Pengajuan / Izin / Badal Approvals */}
+          <div className="lg:col-span-5 rounded-3xl bg-white border border-slate-200 p-5 shadow-2xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <h3 className="text-sm font-extrabold text-slate-900">
+                Persetujuan Absen Pengajuan &amp; Izin
+              </h3>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                {pendingIzinList.length} Menunggu
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 text-[11px]">
+              {(['Semua', 'Absen Pengajuan', 'Izin / Badal'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setApprovalFilter(tab)}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition ${
+                    approvalFilter === tab
+                      ? 'bg-emerald-800 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+              {filteredApprovalList.map((item) => {
+                const isPengajuanAbsen = item.jenis === 'Absen Pengajuan';
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-3 rounded-2xl border space-y-2 text-xs ${
+                      isPengajuanAbsen
+                        ? 'border-amber-200 bg-amber-50/50'
+                        : 'border-slate-200 bg-slate-50/70'
                     }`}
                   >
-                    {item.status}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-600 tabular-nums">
-                  Tanggal: <strong>{item.tanggal}</strong> · {item.program}
-                  {item.guruBadalNama ? ` · Badal: ${formatNamaWithGelar(item.guruBadalNama)}` : ''}
-                </p>
-                <p className="text-[11px] text-slate-700">{item.alasan}</p>
-                {item.status === 'Menunggu' && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        approveIzinBadalGuru(item.id, 'Disetujui', reviewerDisplayName);
-                        notify(`Pengajuan ${item.jenis} ${item.ustadzNama} disetujui.`);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] inline-flex items-center gap-1"
-                    >
-                      <Check className="w-3 h-3" />
-                      <span>Setujui</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        approveIzinBadalGuru(item.id, 'Ditolak', reviewerDisplayName);
-                        notify(`Pengajuan ${item.jenis} ${item.ustadzNama} ditolak.`);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-[11px] inline-flex items-center gap-1"
-                    >
-                      <X className="w-3 h-3" />
-                      <span>Tolak</span>
-                    </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-slate-900">
+                        {formatNamaWithGelar(item.ustadzNama)} ·{' '}
+                        <span className={isPengajuanAbsen ? 'text-amber-800' : 'text-emerald-800'}>
+                          {item.jenis}
+                        </span>
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                          item.status === 'Disetujui'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : item.status === 'Ditolak'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 tabular-nums">
+                      Tanggal: <strong>{item.tanggal}</strong> · {item.sesiNama || item.program}
+                      {item.jamMulaiDiajukan && item.jamSelesaiDiajukan
+                        ? ` (${item.jamMulaiDiajukan}–${item.jamSelesaiDiajukan})`
+                        : ''}
+                      {item.guruBadalNama ? ` · Badal: ${formatNamaWithGelar(item.guruBadalNama)}` : ''}
+                    </p>
+                    {item.kendalaKategori && (
+                      <p className="text-[11px] font-semibold text-amber-900">
+                        Kendala: {item.kendalaKategori}
+                        {item.kelasMapel ? ` · ${item.kelasMapel}` : ''}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-slate-700">{item.alasan}</p>
+                    {item.buktiFotoUrl && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setBuktiPreview({
+                            url: item.buktiFotoUrl!,
+                            title: `Bukti Absen Pengajuan · ${formatNamaWithGelar(item.ustadzNama)}`,
+                            meta: `${item.tanggal} · ${item.sesiNama || item.program}`,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 underline"
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>Lihat Foto Bukti Mengajar</span>
+                      </button>
+                    )}
+                    {item.status === 'Menunggu' && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            approveIzinBadalGuru(item.id, 'Disetujui', reviewerDisplayName);
+                            notify(
+                              isPengajuanAbsen
+                                ? `Absen Pengajuan ${item.ustadzNama} disetujui & dicatat Hadir.`
+                                : `Pengajuan ${item.jenis} ${item.ustadzNama} disetujui.`
+                            );
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] inline-flex items-center gap-1"
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>{isPengajuanAbsen ? 'Setujui & Catat Hadir' : 'Setujui'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            approveIzinBadalGuru(item.id, 'Ditolak', reviewerDisplayName);
+                            notify(`Pengajuan ${item.jenis} ${item.ustadzNama} ditolak.`);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-[11px] inline-flex items-center gap-1"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Tolak</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* PRINTABLE AREA */}
-      <div ref={sdmPrintRef} className="printable-area space-y-6">
+      <div ref={sdmPrintRef} className={`printable-area space-y-6 ${managementMode === 'pengaturan_waktu' ? 'hidden print:block' : ''}`}>
         {/* Print Kop Resmi Pondok (Hidden on Screen, Visible on Print) */}
         <div className="hidden print:flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-4">
           <div className="flex items-center gap-3">
@@ -784,13 +1425,17 @@ export const SdmMonitoringDashboard: React.FC = () => {
                           <td className="py-2.5 px-3">
                             <p className="font-semibold text-slate-800">{ustadz.jabatanUtama}</p>
                             <p className="text-[10px] text-slate-500">
-                              {record?.program || (ustadz.gender === 'P' ? 'Madrasah Diniyah Putri' : 'Madrasah Diniyah Putra')}
+                              {record?.sesiNama || record?.program || (ustadz.gender === 'P' ? 'Madrasah Diniyah Putri' : 'Madrasah Diniyah Putra')}
                             </p>
                           </td>
                           <td className="py-2.5 px-3">
                             {!record ? (
                               <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
                                 Belum Cek In
+                              </span>
+                            ) : record.status === 'Hadir' && record.sumberAbsen === 'Absen Pengajuan' ? (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                                Hadir (Pengajuan)
                               </span>
                             ) : record.status === 'Hadir' && record.statusKeterlambatan === 'Terlambat' ? (
                               <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
@@ -992,19 +1637,29 @@ export const SdmMonitoringDashboard: React.FC = () => {
                   Matriks 7 hari kehadiran Dewan Asatidz (H = Hadir, T = Terlambat, I/B = Izin/Badal, LM = Libur Mingguan Jum&apos;at).
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  handleBulkVerifyLogs(
-                    weeklyRecapRows.flatMap((r) => r.weekRecs),
-                    `Minggu ${weekStartIso}`
-                  )
-                }
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold flex items-center gap-1.5 no-print"
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Verifikasi Semua Log Minggu Ini</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2 no-print">
+                <button
+                  type="button"
+                  onClick={handleDownloadWeeklyPdf}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-bold flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Unduh PDF Mingguan</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleBulkVerifyLogs(
+                      weeklyRecapRows.flatMap((r) => r.weekRecs),
+                      `Minggu ${weekStartIso}`
+                    )
+                  }
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold flex items-center gap-1.5"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Verifikasi Semua Log Minggu Ini</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -1027,6 +1682,7 @@ export const SdmMonitoringDashboard: React.FC = () => {
                     <th className="py-2 px-2 border border-emerald-800 text-center">H</th>
                     <th className="py-2 px-2 border border-emerald-800 text-center">T</th>
                     <th className="py-2 px-2 border border-emerald-800 text-center">I/B</th>
+                    <th className="py-2 px-2 border border-emerald-800 text-center">%</th>
                     <th className="py-2 px-2 border border-emerald-800 text-center no-print">Status &amp; Aksi</th>
                   </tr>
                 </thead>
@@ -1082,6 +1738,9 @@ export const SdmMonitoringDashboard: React.FC = () => {
                       <td className="py-2 px-2 border border-slate-200 text-center font-bold text-sky-700">
                         {row.izinBadal}
                       </td>
+                      <td className="py-2 px-2 border border-slate-200 text-center font-extrabold text-emerald-800">
+                        {row.persentaseMingguan}%
+                      </td>
                       <td className="py-2 px-2 border border-slate-200 text-center no-print">
                         {row.weekRecs.length === 0 ? (
                           <span className="text-[10px] text-slate-400">Belum ada log</span>
@@ -1119,19 +1778,29 @@ export const SdmMonitoringDashboard: React.FC = () => {
                   Terintegrasi dengan data JTM mengajar Diniyah, bukti swafoto GPS, &amp; perhitungan kehadiran Bisyaroh
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  handleBulkVerifyLogs(
-                    monthlyRecapRows.flatMap((r) => r.recs),
-                    `Bulan ${rekapBulan}`
-                  )
-                }
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold flex items-center gap-1.5 no-print"
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Sahkan Semua Log Bulan Ini</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2 no-print">
+                <button
+                  type="button"
+                  onClick={handleDownloadMonthlyPdf}
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-bold flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Unduh PDF Bulanan</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleBulkVerifyLogs(
+                      monthlyRecapRows.flatMap((r) => r.recs),
+                      `Bulan ${rekapBulan}`
+                    )
+                  }
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold flex items-center gap-1.5"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Sahkan Semua Log Bulan Ini</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -1250,13 +1919,22 @@ export const SdmMonitoringDashboard: React.FC = () => {
             </div>
 
             <div className="text-xs space-y-1 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-              <p className="flex justify-between">
-                <span className="text-slate-500">Program:</span>
-                <strong>{previewRecord.program || 'Madrasah Diniyah'}</strong>
+              <p className="flex justify-between gap-3">
+                <span className="text-slate-500">Sesi &amp; Program:</span>
+                <strong className="text-right">{previewRecord.sesiNama || previewRecord.program || 'Madrasah Diniyah'}</strong>
               </p>
-              <p className="flex justify-between">
+              <p className="flex justify-between gap-3">
+                <span className="text-slate-500">Sumber Absensi:</span>
+                <strong>{previewRecord.sumberAbsen || 'GPS Mobile'}</strong>
+              </p>
+              {previewRecord.catatanPengajuan && (
+                <p className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-2 mt-1">
+                  <strong>Catatan Pengajuan:</strong> {previewRecord.catatanPengajuan}
+                </p>
+              )}
+              <p className="flex justify-between gap-3">
                 <span className="text-slate-500">Lokasi GPS:</span>
-                <strong>
+                <strong className="text-right">
                   {previewRecord.lokasiLabel || 'PP NU Darussalam'} ({previewRecord.koordinat || '-'})
                 </strong>
               </p>
@@ -1285,6 +1963,32 @@ export const SdmMonitoringDashboard: React.FC = () => {
                 </button>
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Foto Bukti Absen Pengajuan */}
+      {buktiPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 no-print">
+          <div className="w-full max-w-md rounded-3xl bg-white p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-xs text-slate-900">{buktiPreview.title}</h4>
+                <p className="text-[11px] text-slate-500">{buktiPreview.meta}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBuktiPreview(null)}
+                className="p-1.5 rounded-xl bg-slate-100 text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <img
+              src={buktiPreview.url}
+              alt={buktiPreview.title}
+              className="w-full rounded-2xl object-cover border border-slate-200 max-h-96"
+            />
           </div>
         </div>
       )}

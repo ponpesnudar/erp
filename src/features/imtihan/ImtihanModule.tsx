@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FileCheck,
   Printer,
@@ -38,6 +38,11 @@ import { ModuleWorkflowFlowchart, WorkflowNode } from '../../components/common/M
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 import { triggerReliablePrint } from '../../lib/printHelper.ts';
+import { useAuth } from '../../lib/auth.ts';
+import {
+  evaluateAllSidangKenaikan,
+  isSidangNotifyRole,
+} from '../../lib/sidangKenaikanHelper.ts';
 import { validateRoom } from '../../lib/rules.ts';
 import {
   TemplateBlankoImtihan,
@@ -50,6 +55,9 @@ import {
   DenahKampus2DSubTab,
   BlankoNilaiSubTab,
   KoreksianKitabSubTab,
+  ImtihanNeuralDashboard,
+  SidangKenaikanSubTab,
+  type ImtihanNeuralNode,
 } from './components/index.ts';
 import { DAFTAR_KELAS_DINIYAH, type JadwalMaarifanItem, type JagaPiketRecord } from '../../data/seed/pondokData.ts';
 
@@ -60,14 +68,42 @@ export const ImtihanModule: React.FC = () => {
     ruangUjianList,
     generateExamSeating,
     nilaiList,
+    absensiSessions,
     rabImtihan,
     imtihanMaster,
     jagaPiketList,
+    sidangKenaikanRecords,
+    sidangKkm,
+    sidangJadwal,
+    pendingImtihanSubTab,
+    setPendingImtihanSubTab,
   } = useAppStore();
 
+  const { effectiveRole } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<string>('dashboard');
+  const [dashboardViewMode, setDashboardViewMode] = useState<'neural' | 'flowchart'>('neural');
 
-  // Sub-tabs list (14 dedicated sub-tabs)
+  // Deep-link handoff from Header or Beranda notifications
+  useEffect(() => {
+    if (pendingImtihanSubTab) {
+      setActiveSubTab(pendingImtihanSubTab);
+      setPendingImtihanSubTab(null);
+    }
+  }, [pendingImtihanSubTab, setPendingImtihanSubTab]);
+
+  const sidangEval = useMemo(
+    () =>
+      evaluateAllSidangKenaikan({
+        santriList,
+        nilaiList,
+        absensiSessions,
+        sidangKenaikanRecords,
+        sidangKkm,
+      }),
+    [santriList, nilaiList, absensiSessions, sidangKenaikanRecords, sidangKkm]
+  );
+
+  // Sub-tabs list (16 dedicated sub-tabs)
   const subTabs = [
     { id: 'dashboard', label: 'Dashboard & Alur' },
     { id: 'koreksian_kitab', label: 'Koreksian Kitab' },
@@ -81,6 +117,7 @@ export const ImtihanModule: React.FC = () => {
     { id: 'input_nilai', label: 'Input Nilai' },
     { id: 'raport_santri', label: 'Raport Santri' },
     { id: 'peringkat_paralel', label: 'Peringkat & Juara' },
+    { id: 'sidang_kenaikan', label: 'Sidang Kenaikan Kelas' },
     { id: 'rab_imtihan', label: 'RAB Imtihan' },
     { id: 'jadwal_mapel', label: 'Jadwal Mapel' },
     { id: 'jaga_piket', label: 'Jadwal Jaga & Piket' },
@@ -177,12 +214,127 @@ export const ImtihanModule: React.FC = () => {
       status: 'selesai',
     },
     {
+      id: 'sidang_kenaikan',
+      title: 'Sidang Kenaikan',
+      keterangan:
+        sidangEval.pendingBelowKkmRows.length > 0
+          ? `${sidangEval.pendingBelowKkmRows.length} santri < KKM ${sidangKkm} menunggu jadwal & keputusan sidang`
+          : `Rata Cawu 1 & 2, absensi, KKM ${sidangKkm} & keputusan dewan`,
+      count:
+        sidangEval.pendingBelowKkmRows.length > 0
+          ? sidangEval.pendingBelowKkmRows.length
+          : sidangEval.belowKkmRows.length,
+      icon: UserCheck,
+      status: sidangEval.pendingBelowKkmRows.length > 0 ? 'menunggu' : 'aktif',
+    },
+    {
       id: 'rab_imtihan',
       title: 'RAB & Jadwal Jaga',
       keterangan: 'Anggaran & pengawas piket',
       count: rabImtihan.length + jagaPiketList.length,
       icon: DollarSign,
       status: 'selesai',
+    },
+  ];
+
+  const neuralNodes: ImtihanNeuralNode[] = [
+    {
+      id: 'koreksian_kitab',
+      code: 'KK',
+      title: 'Koreksian Kitab',
+      subtitle: 'Verifikasi kitab wajib pra-ujian',
+      countLabel: `${santriList.length - susulanCount} Siap`,
+      accentHex: '#34d399',
+      glowRgba: 'rgba(52, 211, 153, 0.24)',
+      statusText: `${susulanCount} Susulan`,
+    },
+    {
+      id: 'soal_guru',
+      code: 'NS',
+      title: 'Naskah Soal',
+      subtitle: 'Input soal Pegon & Arab berharokat',
+      countLabel: `${soalSubmissions.length} Naskah`,
+      accentHex: '#38bdf8',
+      glowRgba: 'rgba(56, 189, 248, 0.24)',
+      statusText: 'Penyusunan Aktif',
+    },
+    {
+      id: 'review_panitia',
+      code: 'RV',
+      title: 'Approval Panitia',
+      subtitle: 'Tinjau & pengesahan naskah',
+      countLabel: `${soalSubmissions.filter((s) => s.status === 'Diajukan').length} Menunggu`,
+      accentHex: '#fbbf24',
+      glowRgba: 'rgba(251, 191, 36, 0.24)',
+      statusText: 'Kurasi Naskah',
+    },
+    {
+      id: 'cetak_blanko',
+      code: 'BS',
+      title: 'Blanko Soal F4',
+      subtitle: 'Kop pesantren Arab & barcode ruang',
+      countLabel: `${soalSubmissions.filter((s) => s.status === 'Disetujui').length} Disetujui`,
+      accentHex: '#2dd4bf',
+      glowRgba: 'rgba(45, 212, 191, 0.24)',
+      statusText: 'Siap Cetak F4',
+    },
+    {
+      id: 'denah_kampus_2d',
+      code: 'DN',
+      title: 'Denah 2D & 3D',
+      subtitle: 'Peta gedung, lantai & kursi anti-contek',
+      countLabel: `${ruangUjianList.length} Ruang`,
+      accentHex: '#60a5fa',
+      glowRgba: 'rgba(96, 165, 250, 0.24)',
+      statusText: 'Tata Ruang Aktif',
+    },
+    {
+      id: 'kartu_imtihan',
+      code: 'KP',
+      title: 'Kartu Peserta',
+      subtitle: 'Batch F4 4 kartu + jadwal paraf',
+      countLabel: `${activePutra + activePutri} Kartu`,
+      accentHex: '#c084fc',
+      glowRgba: 'rgba(192, 132, 252, 0.24)',
+      statusText: 'Siap Distribusi',
+    },
+    {
+      id: 'input_nilai',
+      code: 'IN',
+      title: 'Input Nilai',
+      subtitle: 'Imtihan, harian, lisan & akhlaq',
+      countLabel: `${nilaiList.length} Entri`,
+      accentHex: '#f472b6',
+      glowRgba: 'rgba(244, 114, 182, 0.24)',
+      statusText: 'Penilaian Guru',
+    },
+    {
+      id: 'raport_santri',
+      code: 'RP',
+      title: 'Raport & Juara',
+      subtitle: 'Raport F4 RTL & Multi-TTD transparan',
+      countLabel: `${santriList.length} Santri`,
+      accentHex: '#fb923c',
+      glowRgba: 'rgba(251, 146, 60, 0.24)',
+      statusText: 'Rekap Prestasi',
+    },
+    {
+      id: 'sidang_kenaikan',
+      code: 'SK',
+      title: 'Sidang Kenaikan',
+      subtitle: `Rata Cawu 1-2, absensi & KKM ${sidangKkm}`,
+      countLabel:
+        sidangEval.pendingBelowKkmRows.length > 0
+          ? `${sidangEval.pendingBelowKkmRows.length} < KKM ${sidangKkm}`
+          : `${sidangEval.belowKkmRows.length} Di Bawah KKM`,
+      accentHex: '#f87171',
+      glowRgba: 'rgba(248, 113, 113, 0.24)',
+      statusText:
+        sidangEval.pendingBelowKkmRows.length > 0
+          ? 'Perlu Sidang Penentuan'
+          : sidangJadwal.statusJadwal === 'Dijadwalkan'
+          ? 'Sidang Terjadwal'
+          : 'Dewan Pengasuh',
     },
   ];
 
@@ -219,24 +371,71 @@ export const ImtihanModule: React.FC = () => {
 
       {/* Sub-Bab Tab Navigation */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none no-print">
-        {subTabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
-              activeSubTab === tab.id
-                ? 'bg-emerald-800 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {subTabs.map((tab) => {
+          const showSidangBadge =
+            tab.id === 'sidang_kenaikan' &&
+            isSidangNotifyRole(effectiveRole) &&
+            sidangEval.pendingBelowKkmRows.length > 0;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition inline-flex items-center gap-1.5 ${
+                activeSubTab === tab.id
+                  ? 'bg-emerald-800 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <span>{tab.label}</span>
+              {showSidangBadge && (
+                <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-rose-600 text-white tabular-nums">
+                  {sidangEval.pendingBelowKkmRows.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* TAB 1: DASHBOARD & ALUR */}
       {activeSubTab === 'dashboard' && (
         <div className="space-y-6">
+          {isSidangNotifyRole(effectiveRole) && sidangEval.pendingBelowKkmRows.length > 0 && (
+            <div className="rounded-2xl bg-rose-50/90 border border-rose-200 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-rose-600 text-white shrink-0 mt-0.5">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xs font-extrabold text-rose-950">
+                      Notifikasi Otomatis Sidang Kenaikan Kelas ·{' '}
+                      <span className="tabular-nums">
+                        {sidangEval.pendingBelowKkmRows.length} Santri Nilai &lt; KKM {sidangKkm}
+                      </span>
+                    </h3>
+                    <span className="text-[10.5px] font-bold text-rose-800 bg-white border border-rose-200 px-2 py-0.5 rounded-md">
+                      Status Jadwal: {sidangJadwal.statusJadwal}
+                    </span>
+                  </div>
+                  <p className="text-xs text-rose-900/90">
+                    Pemberitahuan otomatis untuk <strong>Manager Waktu, Admin, Ketua Panitia &amp; Pengasuh</strong>:
+                    terdapat santri dengan nilai rata-rata di bawah KKM {sidangKkm} (total{' '}
+                    <span className="tabular-nums font-bold">{sidangEval.belowKkmRows.length}</span> santri,{' '}
+                    <span className="tabular-nums font-bold">{sidangEval.pendingBelowKkmRows.length}</span> belum diputuskan)
+                    yang perlu dijadwalkan sidang penentuan Naik / Naik Bersyarat.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveSubTab('sidang_kenaikan')}
+                className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-extrabold whitespace-nowrap shrink-0 shadow-xs"
+              >
+                Buka &amp; Jadwalkan Sidang →
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="rounded-2xl bg-white p-4 border border-slate-200 shadow-2xs">
               <span className="text-xs font-semibold text-slate-500">Naskah Soal Diajukan</span>
@@ -279,27 +478,67 @@ export const ImtihanModule: React.FC = () => {
             </div>
           </div>
 
-          <ModuleWorkflowFlowchart
-            moduleName="Imtihan"
-            alurTitle="Pelaksanaan Imtihan Madrasah Diniyah"
-            nodes={alurNodes}
-            onSelectStage={(id) => setActiveSubTab(id)}
-            pendingApprovals={pendingApprovals}
-            ringkasanPanel={[
-              {
-                label: 'Tahun Ajaran / Cawu',
-                value: `${imtihanMaster.tahunAjaran} (Cawu ${imtihanMaster.cawu})`,
-                sub: imtihanMaster.tahunHijriyahArab,
-              },
-              {
-                label: 'Waktu Pelaksanaan',
-                value: imtihanMaster.tanggalPelaksanaan,
-                sub: imtihanMaster.waktuUjian,
-              },
-              { label: 'Ketua Imtihan', value: imtihanMaster.ketuaImtihanNama },
-              { label: 'Bendahara Imtihan', value: 'M. Abdul Fataah' },
-            ]}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-bold text-slate-600">
+              Tampilan Peta Alur &amp; Kendali Imtihan
+            </p>
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setDashboardViewMode('neural')}
+                className={`px-3 py-1 rounded-lg font-bold transition ${
+                  dashboardViewMode === 'neural'
+                    ? 'bg-emerald-800 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Dashboard Neural Hub
+              </button>
+              <button
+                type="button"
+                onClick={() => setDashboardViewMode('flowchart')}
+                className={`px-3 py-1 rounded-lg font-bold transition ${
+                  dashboardViewMode === 'flowchart'
+                    ? 'bg-emerald-800 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Diagram Alur Klasik
+              </button>
+            </div>
+          </div>
+
+          {dashboardViewMode === 'neural' ? (
+            <ImtihanNeuralDashboard
+              tahunAjaran={imtihanMaster.tahunAjaran}
+              cawu={imtihanMaster.cawu}
+              ketuaImtihan={imtihanMaster.ketuaImtihanNama}
+              nodes={neuralNodes}
+              onSelectStage={(id) => setActiveSubTab(id)}
+            />
+          ) : (
+            <ModuleWorkflowFlowchart
+              moduleName="Imtihan"
+              alurTitle="Pelaksanaan Imtihan Madrasah Diniyah"
+              nodes={alurNodes}
+              onSelectStage={(id) => setActiveSubTab(id)}
+              pendingApprovals={pendingApprovals}
+              ringkasanPanel={[
+                {
+                  label: 'Tahun Ajaran / Cawu',
+                  value: `${imtihanMaster.tahunAjaran} (Cawu ${imtihanMaster.cawu})`,
+                  sub: imtihanMaster.tahunHijriyahArab,
+                },
+                {
+                  label: 'Waktu Pelaksanaan',
+                  value: imtihanMaster.tanggalPelaksanaan,
+                  sub: imtihanMaster.waktuUjian,
+                },
+                { label: 'Ketua Imtihan', value: imtihanMaster.ketuaImtihanNama },
+                { label: 'Bendahara Imtihan', value: 'M. Abdul Fataah' },
+              ]}
+            />
+          )}
         </div>
       )}
 
@@ -335,6 +574,9 @@ export const ImtihanModule: React.FC = () => {
 
       {/* TAB 9: PERINGKAT & JUARA PARALEL */}
       {activeSubTab === 'peringkat_paralel' && <SubTabPeringkatParalel />}
+
+      {/* TAB 9B: SIDANG KENAIKAN KELAS */}
+      {activeSubTab === 'sidang_kenaikan' && <SidangKenaikanSubTab />}
 
       {/* TAB 10: RAB IMTIHAN */}
       {activeSubTab === 'rab_imtihan' && <RABImtihanEditor />}

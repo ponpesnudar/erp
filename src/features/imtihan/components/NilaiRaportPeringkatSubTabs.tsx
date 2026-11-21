@@ -11,6 +11,8 @@ import {
   PenTool,
   Eraser,
   BookOpen,
+  Wand2,
+  Maximize2,
 } from 'lucide-react';
 import { useAppStore } from '../../../lib/store.ts';
 import { useAuth } from '../../../lib/auth.ts';
@@ -1070,17 +1072,27 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
   );
 };
 
-function processSignatureToTransparentPng(srcDataUrl: string): Promise<string> {
+function processSignatureToTransparentPng(
+  srcDataUrl: string,
+  strength: 'normal' | 'strong' = 'strong'
+): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       try {
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
-        if (!w || !h) {
+        const rawW = img.naturalWidth || img.width;
+        const rawH = img.naturalHeight || img.height;
+        if (!rawW || !rawH) {
           resolve(srcDataUrl);
           return;
         }
+
+        // Normalize oversized smartphone camera images so processing stays sharp and fast
+        const maxDim = 1100;
+        const ratio = Math.min(1, maxDim / Math.max(rawW, rawH));
+        const w = Math.max(1, Math.round(rawW * ratio));
+        const h = Math.max(1, Math.round(rawH * ratio));
+
         const canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
@@ -1089,9 +1101,49 @@ function processSignatureToTransparentPng(srcDataUrl: string): Promise<string> {
           resolve(srcDataUrl);
           return;
         }
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, w, h);
         const imageData = ctx.getImageData(0, 0, w, h);
         const data = imageData.data;
+
+        // Sample outer perimeter & corners to estimate real paper/photo background tint
+        const cornerPatch = Math.max(4, Math.min(14, Math.floor(Math.min(w, h) * 0.08)));
+        let sumR = 0;
+        let sumG = 0;
+        let sumB = 0;
+        let sampleCount = 0;
+
+        for (let py = 0; py < h; py++) {
+          const inYEdge = py < cornerPatch || py >= h - cornerPatch;
+          for (let px = 0; px < w; px++) {
+            const inXEdge = px < cornerPatch || px >= w - cornerPatch;
+            if (!inYEdge && !inXEdge) continue;
+            // Focus mainly on 4 corner boxes + sparse border stride
+            const inCorner =
+              (px < cornerPatch || px >= w - cornerPatch) &&
+              (py < cornerPatch || py >= h - cornerPatch);
+            if (!inCorner && (px + py) % 5 !== 0) continue;
+
+            const idx = (py * w + px) * 4;
+            if (data[idx + 3] < 120) continue;
+            const lumSample = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+            if (lumSample > 105) {
+              sumR += data[idx];
+              sumG += data[idx + 1];
+              sumB += data[idx + 2];
+              sampleCount++;
+            }
+          }
+        }
+
+        const bgR = sampleCount > 0 ? sumR / sampleCount : 245;
+        const bgG = sampleCount > 0 ? sumG / sampleCount : 245;
+        const bgB = sampleCount > 0 ? sumB / sampleCount : 245;
+        const bgLum = 0.299 * bgR + 0.587 * bgG + 0.114 * bgB;
+
+        const maxPaperDist = strength === 'strong' ? 68 : 44;
+        const featherDist = strength === 'strong' ? 92 : 64;
+        const lumCut = Math.max(150, Math.min(220, bgLum - (strength === 'strong' ? 42 : 24)));
+        const neutralCut = strength === 'strong' ? 36 : 26;
 
         let minX = w;
         let minY = h;
@@ -1105,27 +1157,43 @@ function processSignatureToTransparentPng(srcDataUrl: string): Promise<string> {
           const a = data[i + 3];
           if (a < 15) continue;
 
-          // Luminance check + low saturation near-white/gray paper background removal
           const maxCh = Math.max(r, g, b);
           const minCh = Math.min(r, g, b);
+          const chroma = maxCh - minCh;
           const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-          const isNeutral = maxCh - minCh < 32;
+          const dr = r - bgR;
+          const dg = g - bgG;
+          const db = b - bgB;
+          const distFromPaper = Math.sqrt(dr * dr + dg * dg + db * db);
 
-          if (lum > 215 || (isNeutral && lum > 188)) {
+          const isPaperTint =
+            (distFromPaper < maxPaperDist && lum > bgLum - 70) ||
+            (chroma < neutralCut && lum > lumCut) ||
+            lum > 224;
+
+          if (isPaperTint) {
             data[i + 3] = 0;
           } else {
-            // Smooth alpha feather on light edges & boost ink crispness
-            if (isNeutral && lum > 155) {
-              const factor = Math.max(0, (188 - lum) / 33);
+            // Smooth alpha feathering near background boundary
+            if (distFromPaper < featherDist && chroma < neutralCut + 14 && lum > lumCut - 28) {
+              const tDist = (distFromPaper - maxPaperDist) / Math.max(1, featherDist - maxPaperDist);
+              const tLum = (lumCut - lum) / 34;
+              const factor = Math.max(0, Math.min(1, Math.max(tDist, tLum)));
               data[i + 3] = Math.round(a * factor);
             }
-            if (data[i + 3] > 20) {
-              // Slightly darken neutral grey ink strokes for sharper print output
-              if (isNeutral) {
-                data[i] = Math.max(0, Math.round(r * 0.55));
-                data[i + 1] = Math.max(0, Math.round(g * 0.55));
-                data[i + 2] = Math.max(0, Math.round(b * 0.55));
+
+            if (data[i + 3] > 24) {
+              // Crisp ink boost on F4 paper (preserves blue ink hue while deepening black/grey ink)
+              if (chroma < 32) {
+                data[i] = Math.max(0, Math.round(r * 0.45));
+                data[i + 1] = Math.max(0, Math.round(g * 0.45));
+                data[i + 2] = Math.max(0, Math.round(b * 0.45));
+              } else {
+                data[i] = Math.max(0, Math.round(r * 0.78));
+                data[i + 1] = Math.max(0, Math.round(g * 0.78));
+                data[i + 2] = Math.max(0, Math.round(b * 0.85));
               }
+
               const pIdx = i / 4;
               const px = pIdx % w;
               const py = Math.floor(pIdx / w);
@@ -1133,6 +1201,8 @@ function processSignatureToTransparentPng(srcDataUrl: string): Promise<string> {
               if (px > maxX) maxX = px;
               if (py < minY) minY = py;
               if (py > maxY) maxY = py;
+            } else {
+              data[i + 3] = 0;
             }
           }
         }
@@ -1140,7 +1210,7 @@ function processSignatureToTransparentPng(srcDataUrl: string): Promise<string> {
         ctx.putImageData(imageData, 0, 0);
 
         if (maxX > minX && maxY > minY) {
-          const pad = 8;
+          const pad = 4;
           const sx = Math.max(0, minX - pad);
           const sy = Math.max(0, minY - pad);
           const sw = Math.min(w - sx, maxX - minX + 1 + pad * 2);
@@ -1178,6 +1248,10 @@ export const SubTabRaportSantri: React.FC = () => {
     setPengasuhTtdUrl,
     waliKelasTtdMap,
     setWaliKelasTtd,
+    pengasuhTtdScale,
+    setPengasuhTtdScale,
+    waliKelasTtdScale,
+    setWaliKelasTtdScale,
     printOrientation,
   } = useAppStore();
 
@@ -1196,6 +1270,9 @@ export const SubTabRaportSantri: React.FC = () => {
   const [tanggalPenyerahan, setTanggalPenyerahan] = useState<string>('٢١ ديسمبر ٢٠٢٦ م');
   const [activePadTarget, setActivePadTarget] = useState<'pengasuh' | 'walikelas' | null>(null);
   const [autoTransparentBg, setAutoTransparentBg] = useState<boolean>(true);
+  const [bgRemovalStrength, setBgRemovalStrength] = useState<'normal' | 'strong'>('strong');
+  const [rawPengasuhUrl, setRawPengasuhUrl] = useState<string | null>(null);
+  const [rawWaliUrlMap, setRawWaliUrlMap] = useState<Record<string, string>>({});
   const [ttdToast, setTtdToast] = useState('');
 
   const padCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1240,40 +1317,54 @@ export const SubTabRaportSantri: React.FC = () => {
     const reader = new FileReader();
     reader.onload = async () => {
       if (typeof reader.result === 'string') {
+        const raw = reader.result;
+        if (target === 'pengasuh') {
+          setRawPengasuhUrl(raw);
+        } else {
+          setRawWaliUrlMap((m) => ({ ...m, [selectedKelas]: raw }));
+        }
         const finalUrl = autoTransparentBg
-          ? await processSignatureToTransparentPng(reader.result)
-          : reader.result;
+          ? await processSignatureToTransparentPng(raw, bgRemovalStrength)
+          : raw;
         if (target === 'pengasuh') {
           setPengasuhTtdUrl(finalUrl);
           setTtdToast(
             autoTransparentBg
-              ? 'TTD Pengasuh diproses transparan (tanpa background) & tersimpan untuk semua raport.'
+              ? 'Background foto TTD Pengasuh otomatis dihapus (PNG transparan) & diposisikan ke footer raport.'
               : 'TTD Pengasuh (Mudir Ma’had) tersimpan untuk semua raport.'
           );
         } else {
           setWaliKelasTtd(selectedKelas, finalUrl);
           setTtdToast(
             autoTransparentBg
-              ? `TTD Wali Kelas (${selectedKelas}) diproses transparan & tersimpan.`
+              ? `Background foto TTD Wali Kelas (${selectedKelas}) otomatis dihapus (PNG transparan) & diposisikan ke footer raport.`
               : `TTD Wali Kelas (${selectedKelas}) tersimpan.`
           );
         }
-        setTimeout(() => setTtdToast(''), 3500);
+        setTimeout(() => setTtdToast(''), 4000);
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
-  const handleCleanExistingSignature = async (target: 'pengasuh' | 'walikelas') => {
-    const src = target === 'pengasuh' ? pengasuhTtdUrl : waliKelasTtdMap[selectedKelas];
+  const handleCleanExistingSignature = async (
+    target: 'pengasuh' | 'walikelas',
+    overrideStrength?: 'normal' | 'strong'
+  ) => {
+    const str = overrideStrength || bgRemovalStrength;
+    const src =
+      target === 'pengasuh'
+        ? rawPengasuhUrl || pengasuhTtdUrl
+        : rawWaliUrlMap[selectedKelas] || waliKelasTtdMap[selectedKelas];
     if (!src) return;
-    const cleaned = await processSignatureToTransparentPng(src);
+    const cleaned = await processSignatureToTransparentPng(src, str);
     if (target === 'pengasuh') {
       setPengasuhTtdUrl(cleaned);
     } else {
       setWaliKelasTtd(selectedKelas, cleaned);
     }
-    setTtdToast('Background putih/abu pada tanda tangan berhasil dihapus menjadi PNG transparan.');
+    setTtdToast('Background kertas/foto pada tanda tangan berhasil dihapus menjadi PNG transparan.');
     setTimeout(() => setTtdToast(''), 3500);
   };
 
@@ -1463,129 +1554,274 @@ export const SubTabRaportSantri: React.FC = () => {
           </div>
         </div>
 
-        {/* Auto-Transparent Option Header */}
-        <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <label className="inline-flex items-center gap-2 font-bold text-emerald-900 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoTransparentBg}
-              onChange={(e) => setAutoTransparentBg(e.target.checked)}
-              className="rounded border-slate-300 text-emerald-700 focus:ring-0"
-            />
-            <span>Otomatis Hapus Background Putih/Kertas saat Unggah TTD (PNG Transparan)</span>
-          </label>
+        {/* Auto-Transparent & Background Removal Options Header */}
+        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-2 font-bold text-emerald-900 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoTransparentBg}
+                onChange={(e) => setAutoTransparentBg(e.target.checked)}
+                className="rounded border-slate-300 text-emerald-700 focus:ring-0"
+              />
+              <span>Otomatis Hapus Background Foto/Kertas Saat Unggah TTD (PNG Transparan)</span>
+            </label>
+
+            {autoTransparentBg && (
+              <div className="inline-flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setBgRemovalStrength('normal')}
+                  className={`px-2 py-0.5 rounded-md font-semibold transition ${
+                    bgRemovalStrength === 'normal'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600'
+                  }`}
+                >
+                  Scan Putih
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBgRemovalStrength('strong')}
+                  className={`px-2 py-0.5 rounded-md font-semibold transition ${
+                    bgRemovalStrength === 'strong'
+                      ? 'bg-white text-emerald-900 shadow-2xs'
+                      : 'text-slate-600'
+                  }`}
+                >
+                  Foto Kamera HP (Kuat)
+                </button>
+              </div>
+            )}
+          </div>
           <span className="text-[11px] text-slate-500">
-            Ukuran TTD otomatis diperbesar &amp; dipotong rapi agar tampak menyatu dengan kertas raport.
+            Atur slider ukuran proporsional agar TTD menyatu rapi di footer raport.
           </span>
         </div>
 
         {/* 2-Slot Digital Signature Config: Pengasuh + Wali Kelas */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           {/* Slot 1: TTD Pengasuh */}
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="font-bold text-slate-800">TTD Pengasuh (Mudir Ma&apos;had)</p>
-              <p className="text-[11px] text-slate-500">KH. Amin Maizun — Otomatis tampil di semua raport</p>
-              {pengasuhTtdUrl && (
-                <div className="mt-2 flex flex-wrap items-center gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 w-fit">
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="font-bold text-slate-800">TTD Pengasuh (Mudir Ma&apos;had)</p>
+                <p className="text-[11px] text-slate-500">KH. Amin Maizun — Otomatis tampil di semua raport</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-bold text-slate-700 cursor-pointer flex items-center gap-1">
+                  <Upload className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Unggah Foto TTD</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleUploadSignature('pengasuh', e)}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActivePadTarget(activePadTarget === 'pengasuh' ? null : 'pengasuh')
+                  }
+                  className="px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-bold flex items-center gap-1"
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  <span>Goreskan</span>
+                </button>
+              </div>
+            </div>
+
+            {pengasuhTtdUrl && (
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
+                <div
+                  className="px-3 py-1.5 rounded-lg border border-dashed border-slate-300 flex items-center justify-center"
+                  style={{
+                    backgroundImage:
+                      'linear-gradient(45deg, #f1f5f9 25%, transparent 25%), linear-gradient(-45deg, #f1f5f9 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f1f5f9 75%), linear-gradient(-45deg, transparent 75%, #f1f5f9 75%)',
+                    backgroundSize: '12px 12px',
+                    backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0px',
+                  }}
+                >
                   <img
                     src={pengasuhTtdUrl}
-                    alt="TTD Pengasuh"
-                    className="h-12 w-auto max-w-[140px] object-contain mix-blend-multiply"
+                    alt="TTD Pengasuh Transparan"
+                    className="h-14 w-auto max-w-[160px] object-contain"
                   />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleCleanExistingSignature('pengasuh')}
-                    className="text-emerald-700 text-[11px] font-bold hover:underline"
-                    title="Proses ulang menjadi PNG transparan tanpa background"
+                    onClick={() => handleCleanExistingSignature('pengasuh', 'strong')}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold flex items-center gap-1"
+                    title="Proses ulang penghapusan background menjadi PNG transparan"
                   >
-                    Transparankan
+                    <Wand2 className="w-3 h-3" />
+                    <span>Hapus BG Ulang</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setPengasuhTtdUrl(undefined)}
-                    className="text-rose-600 text-[11px] font-bold hover:underline"
+                    className="px-2 py-1 rounded-lg text-rose-600 hover:bg-rose-50 text-[11px] font-bold"
                   >
                     Hapus
                   </button>
                 </div>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <label className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-bold text-slate-700 cursor-pointer flex items-center gap-1">
-                <Upload className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Unggah</span>
+              </div>
+            )}
+
+            {/* Slider Ukuran Proporsional TTD Pengasuh */}
+            <div className="pt-2 border-t border-slate-200 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-bold text-slate-700 flex items-center gap-1">
+                  <Maximize2 className="w-3 h-3 text-emerald-700" />
+                  <span>Ukuran Proporsional di Footer Raport</span>
+                </span>
+                <span className="font-black text-emerald-900 tabular-nums">{pengasuhTtdScale}px</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleUploadSignature('pengasuh', e)}
-                  className="hidden"
+                  type="range"
+                  min={56}
+                  max={136}
+                  step={2}
+                  value={pengasuhTtdScale}
+                  onChange={(e) => setPengasuhTtdScale(parseInt(e.target.value) || 88)}
+                  className="flex-1 accent-emerald-700 cursor-pointer"
                 />
-              </label>
-              <button
-                type="button"
-                onClick={() =>
-                  setActivePadTarget(activePadTarget === 'pengasuh' ? null : 'pengasuh')
-                }
-                className="px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-bold flex items-center gap-1"
-              >
-                <PenTool className="w-3.5 h-3.5" />
-                <span>Tanda Tangan</span>
-              </button>
+                <div className="flex items-center gap-1 text-[10px]">
+                  {[
+                    { label: 'Sedang', val: 78 },
+                    { label: 'Besar', val: 96 },
+                    { label: 'Ekstra', val: 118 },
+                  ].map((p) => (
+                    <button
+                      key={p.val}
+                      type="button"
+                      onClick={() => setPengasuhTtdScale(p.val)}
+                      className={`px-1.5 py-0.5 rounded border font-bold ${
+                        Math.abs(pengasuhTtdScale - p.val) <= 3
+                          ? 'bg-emerald-800 text-white border-emerald-800'
+                          : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Slot 2: TTD Wali Kelas */}
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="font-bold text-slate-800">TTD Wali Kelas ({selectedKelas})</p>
-              <p className="text-[11px] text-slate-500">{waliKelas} — Berlaku untuk raport kelas {selectedKelas}</p>
-              {currentWaliTtd && (
-                <div className="mt-2 flex flex-wrap items-center gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 w-fit">
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="font-bold text-slate-800">TTD Wali Kelas ({selectedKelas})</p>
+                <p className="text-[11px] text-slate-500">{waliKelas} — Berlaku untuk raport kelas {selectedKelas}</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-bold text-slate-700 cursor-pointer flex items-center gap-1">
+                  <Upload className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Unggah Foto TTD</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleUploadSignature('walikelas', e)}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActivePadTarget(activePadTarget === 'walikelas' ? null : 'walikelas')
+                  }
+                  className="px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-bold flex items-center gap-1"
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  <span>Goreskan</span>
+                </button>
+              </div>
+            </div>
+
+            {currentWaliTtd && (
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
+                <div
+                  className="px-3 py-1.5 rounded-lg border border-dashed border-slate-300 flex items-center justify-center"
+                  style={{
+                    backgroundImage:
+                      'linear-gradient(45deg, #f1f5f9 25%, transparent 25%), linear-gradient(-45deg, #f1f5f9 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f1f5f9 75%), linear-gradient(-45deg, transparent 75%, #f1f5f9 75%)',
+                    backgroundSize: '12px 12px',
+                    backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0px',
+                  }}
+                >
                   <img
                     src={currentWaliTtd}
-                    alt="TTD Wali Kelas"
-                    className="h-12 w-auto max-w-[140px] object-contain mix-blend-multiply"
+                    alt="TTD Wali Kelas Transparan"
+                    className="h-14 w-auto max-w-[160px] object-contain"
                   />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleCleanExistingSignature('walikelas')}
-                    className="text-emerald-700 text-[11px] font-bold hover:underline"
-                    title="Proses ulang menjadi PNG transparan tanpa background"
+                    onClick={() => handleCleanExistingSignature('walikelas', 'strong')}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold flex items-center gap-1"
+                    title="Proses ulang penghapusan background menjadi PNG transparan"
                   >
-                    Transparankan
+                    <Wand2 className="w-3 h-3" />
+                    <span>Hapus BG Ulang</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setWaliKelasTtd(selectedKelas, undefined)}
-                    className="text-rose-600 text-[11px] font-bold hover:underline"
+                    className="px-2 py-1 rounded-lg text-rose-600 hover:bg-rose-50 text-[11px] font-bold"
                   >
                     Hapus
                   </button>
                 </div>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <label className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-bold text-slate-700 cursor-pointer flex items-center gap-1">
-                <Upload className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Unggah</span>
+              </div>
+            )}
+
+            {/* Slider Ukuran Proporsional TTD Wali Kelas */}
+            <div className="pt-2 border-t border-slate-200 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-bold text-slate-700 flex items-center gap-1">
+                  <Maximize2 className="w-3 h-3 text-emerald-700" />
+                  <span>Ukuran Proporsional di Footer Raport</span>
+                </span>
+                <span className="font-black text-emerald-900 tabular-nums">{waliKelasTtdScale}px</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleUploadSignature('walikelas', e)}
-                  className="hidden"
+                  type="range"
+                  min={56}
+                  max={136}
+                  step={2}
+                  value={waliKelasTtdScale}
+                  onChange={(e) => setWaliKelasTtdScale(parseInt(e.target.value) || 88)}
+                  className="flex-1 accent-emerald-700 cursor-pointer"
                 />
-              </label>
-              <button
-                type="button"
-                onClick={() =>
-                  setActivePadTarget(activePadTarget === 'walikelas' ? null : 'walikelas')
-                }
-                className="px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-bold flex items-center gap-1"
-              >
-                <PenTool className="w-3.5 h-3.5" />
-                <span>Tanda Tangan</span>
-              </button>
+                <div className="flex items-center gap-1 text-[10px]">
+                  {[
+                    { label: 'Sedang', val: 78 },
+                    { label: 'Besar', val: 96 },
+                    { label: 'Ekstra', val: 118 },
+                  ].map((p) => (
+                    <button
+                      key={p.val}
+                      type="button"
+                      onClick={() => setWaliKelasTtdScale(p.val)}
+                      className={`px-1.5 py-0.5 rounded border font-bold ${
+                        Math.abs(waliKelasTtdScale - p.val) <= 3
+                          ? 'bg-emerald-800 text-white border-emerald-800'
+                          : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1652,6 +1888,8 @@ export const SubTabRaportSantri: React.FC = () => {
             peringkatKelas={idx + 1}
             pengasuhTtdUrl={pengasuhTtdUrl}
             waliKelasTtdUrl={currentWaliTtd}
+            pengasuhTtdScale={pengasuhTtdScale}
+            waliKelasTtdScale={waliKelasTtdScale}
             isLast={idx === targetSantri.length - 1}
           />
         ))}

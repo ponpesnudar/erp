@@ -12,7 +12,6 @@ import {
   History,
   FilePlus2,
   CheckSquare,
-  Megaphone,
   Building2,
   Camera,
   X,
@@ -26,6 +25,8 @@ import {
   CheckCircle2,
   Eye,
   Smartphone,
+  FileCheck2,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -41,6 +42,7 @@ import {
   formatNamaWithGelar,
   type ProgramAbsensiType,
   type IzinBadalGuruRequest,
+  type AbsensiShiftConfig,
 } from '../../data/seed/pondokData.ts';
 
 type MobileTab = 'beranda' | 'absensi' | 'kalender' | 'kotak_masuk' | 'profil';
@@ -54,6 +56,7 @@ type OverlayFlow =
       koordinat: string;
       akurasi: number;
       durasiKerja?: string;
+      sesiNama?: string;
     };
 
 const BULAN_NAMES_ID = [
@@ -73,46 +76,44 @@ const BULAN_NAMES_ID = [
 
 const SHORT_BULAN_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
-const SHIFT_PRESETS: Record<
-  ProgramAbsensiType,
-  { start: string; end: string; label: string; lokasi: string }
-> = {
-  'Madrasah Diniyah': {
-    start: '18.00',
-    end: '21.00',
-    label: 'Madrasah Diniyah (Ba\'da Maghrib)',
-    lokasi: 'Komplek MDS PP NU Darussalam',
-  },
-  "Ngaji Al-Qur'an Pagi (Ba'da Subuh)": {
-    start: '05.00',
-    end: '06.30',
-    label: "Ngaji Al-Qur'an Pagi (Ba'da Subuh)",
-    lokasi: 'Masjid Utama PP NU Darussalam',
-  },
-  'Ngaji Takhasus': {
-    start: '16.00',
-    end: '17.15',
-    label: 'Ngaji Takhasus Kitab Kuning',
-    lokasi: 'Serambi Dalem & Aula Pondok',
-  },
-};
+function calcShiftDurationLabel(jamMulai: string, jamSelesai: string): string {
+  const [sh, sm] = jamMulai.split(':').map(Number);
+  const [eh, em] = jamSelesai.split(':').map(Number);
+  if (!Number.isFinite(sh) || !Number.isFinite(eh)) return '1 Jam';
+  const totalMins = Math.max(0, eh * 60 + (em || 0) - (sh * 60 + (sm || 0)));
+  if (totalMins === 60) return '1 Jam (60 mnt)';
+  if (totalMins > 60 && totalMins % 60 === 0) return `${totalMins / 60} Jam`;
+  if (totalMins > 60) return `${Math.floor(totalMins / 60)}j ${totalMins % 60}m`;
+  return `${totalMins} mnt`;
+}
+
+const KENDALA_ABSEN_OPTIONS = [
+  'Sinyal GPS Lemah / Tidak Terbaca',
+  'Kamera HP Bermasalah / Error',
+  'HP Lowbat / Tertinggal',
+  'Lupa Menekan Cek In Saat Jam Mengajar',
+  'Tugas Mendadak dari Pengasuh / Majlis Ma\'arif',
+];
 
 interface AbsensiMobileAppViewProps {
   onNavigateErp?: (tab: string) => void;
   onLogout?: () => void;
   canApproveIzin?: boolean;
+  openPengajuanSignal?: number;
 }
 
 export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
   onNavigateErp,
   onLogout,
   canApproveIzin = false,
+  openPengajuanSignal = 0,
 }) => {
   const {
     currentUser,
     ustadzList,
     absensiGuruList,
     izinBadalGuruList,
+    absensiShiftConfigs,
     activeGuruShiftMap,
     kalenderPendidikan,
     kotakMasuk,
@@ -201,11 +202,41 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
     month: 'long',
   });
 
+  // Dynamic Attendance Sessions configured by Admin (~1 hour each)
+  const availableShifts: AbsensiShiftConfig[] = useMemo(() => {
+    const active = absensiShiftConfigs.filter((s) => s.aktif);
+    return active.length > 0 ? active : absensiShiftConfigs;
+  }, [absensiShiftConfigs]);
+
   // UI Navigation & Overlays
   const [activeTab, setActiveTab] = useState<MobileTab>('beranda');
-  const [selectedProgram, setSelectedProgram] = useState<ProgramAbsensiType>('Madrasah Diniyah');
+  const [selectedShiftId, setSelectedShiftId] = useState<string>(() => {
+    const h = new Date().getHours();
+    if (h < 10) return 'shift-subuh';
+    if (h >= 15 && h < 18) return 'shift-takhasus-sore';
+    if (h === 19) return 'shift-mds-2';
+    if (h === 20) return 'shift-mds-3';
+    if (h >= 21) return 'shift-sorogan-malam';
+    return 'shift-mds-1';
+  });
   const [overlayFlow, setOverlayFlow] = useState<OverlayFlow>(null);
   const [compactPhoneFrame, setCompactPhoneFrame] = useState(false);
+
+  const activeSelectedShift = useMemo(() => {
+    return (
+      availableShifts.find((s) => s.id === selectedShiftId) ||
+      availableShifts[0] || {
+        id: 'shift-mds-1',
+        nama: 'Madrasah Diniyah — Jam Ke-1',
+        program: 'Madrasah Diniyah' as ProgramAbsensiType,
+        jamMulai: '18:00',
+        jamSelesai: '19:00',
+        toleransiMenit: 10,
+        lokasi: 'Komplek MDS PP NU Darussalam',
+        aktif: true,
+      }
+    );
+  }, [availableShifts, selectedShiftId]);
 
   // Camera & GPS States
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -217,13 +248,43 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
   const [gpsAccuracy, setGpsAccuracy] = useState(24);
   const [gpsStatus, setGpsStatus] = useState<'reading' | 'ready'>('reading');
 
-  // Izin / Badal Modal
+  // Izin / Badal / Absen Pengajuan Modal
   const [showIzinModal, setShowIzinModal] = useState(false);
   const [izinTanggal, setIzinTanggal] = useState(todayIso);
-  const [izinJenis, setIzinJenis] = useState<IzinBadalGuruRequest['jenis']>('Izin');
+  const [izinJenis, setIzinJenis] = useState<IzinBadalGuruRequest['jenis']>('Absen Pengajuan');
+  const [izinSesiId, setIzinSesiId] = useState<string>('');
   const [izinProgram, setIzinProgram] = useState<ProgramAbsensiType>('Madrasah Diniyah');
+  const [izinJamMulai, setIzinJamMulai] = useState('18:00');
+  const [izinJamSelesai, setIzinJamSelesai] = useState('19:00');
+  const [izinKelasMapel, setIzinKelasMapel] = useState('');
+  const [izinKendalaKategori, setIzinKendalaKategori] = useState(KENDALA_ABSEN_OPTIONS[0]);
+  const [izinBuktiFotoUrl, setIzinBuktiFotoUrl] = useState('');
   const [izinBadalNama, setIzinBadalNama] = useState('');
   const [izinAlasan, setIzinAlasan] = useState('');
+
+  const openRequestModal = (jenisPreset: IzinBadalGuruRequest['jenis']) => {
+    setIzinJenis(jenisPreset);
+    setIzinTanggal(todayIso);
+    setIzinSesiId(activeSelectedShift.id);
+    setIzinProgram(activeSelectedShift.program);
+    setIzinJamMulai(activeSelectedShift.jamMulai);
+    setIzinJamSelesai(activeSelectedShift.jamSelesai);
+    setIzinKelasMapel(
+      `${matchedUstadz?.tugasTambahanSatminkal || 'Kelas Diniyah'} · ${matchedUstadz?.fanIlmu?.[0] || activeSelectedShift.program}`
+    );
+    setIzinKendalaKategori(KENDALA_ABSEN_OPTIONS[0]);
+    setIzinBuktiFotoUrl('');
+    setIzinAlasan('');
+    setIzinBadalNama('');
+    setShowIzinModal(true);
+  };
+
+  useEffect(() => {
+    if (openPengajuanSignal > 0) {
+      openRequestModal('Absen Pengajuan');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPengajuanSignal]);
 
   // PIN Pengesahan Modal
   const [showPinModal, setShowPinModal] = useState(false);
@@ -246,7 +307,35 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
   // Active shift session for today
   const rawShift = activeGuruShiftMap[activeUstadzId];
   const todayShift = rawShift && rawShift.tanggal === todayIso ? rawShift : undefined;
-  const activeShiftPreset = SHIFT_PRESETS[todayShift?.program || selectedProgram];
+  const activeShiftInProgress = todayShift && todayShift.status !== 'selesai';
+
+  const displayShiftMeta = useMemo(() => {
+    if (activeShiftInProgress && todayShift) {
+      const cfg = availableShifts.find((s) => s.id === todayShift.shiftId);
+      const jamMulai = todayShift.shiftStartTarget.replace('.', ':');
+      const jamSelesai = todayShift.shiftEndTarget.replace('.', ':');
+      return {
+        nama: todayShift.sesiNama || cfg?.nama || todayShift.program,
+        program: todayShift.program,
+        jamMulai,
+        jamSelesai,
+        startDot: todayShift.shiftStartTarget,
+        endDot: todayShift.shiftEndTarget,
+        toleransi: cfg?.toleransiMenit ?? 10,
+        lokasi: cfg?.lokasi || 'Komplek PP NU Darussalam',
+      };
+    }
+    return {
+      nama: activeSelectedShift.nama,
+      program: activeSelectedShift.program,
+      jamMulai: activeSelectedShift.jamMulai,
+      jamSelesai: activeSelectedShift.jamSelesai,
+      startDot: activeSelectedShift.jamMulai.replace(':', '.'),
+      endDot: activeSelectedShift.jamSelesai.replace(':', '.'),
+      toleransi: activeSelectedShift.toleransiMenit,
+      lokasi: activeSelectedShift.lokasi,
+    };
+  }, [activeShiftInProgress, todayShift, availableShifts, activeSelectedShift]);
 
   // Elapsed work timer
   const elapsedDisplay = useMemo(() => {
@@ -271,15 +360,15 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
   const timelinePercent = useMemo(() => {
     if (!todayShift) return 4;
     if (todayShift.status === 'selesai') return 100;
-    const [sh, sm] = activeShiftPreset.start.split('.').map(Number);
-    const [eh, em] = activeShiftPreset.end.split('.').map(Number);
+    const [sh, sm] = displayShiftMeta.startDot.split('.').map(Number);
+    const [eh, em] = displayShiftMeta.endDot.split('.').map(Number);
     const startMin = sh * 60 + sm;
     const endMin = eh * 60 + em;
     const nowMin = now.getHours() * 60 + now.getMinutes();
     if (endMin <= startMin) return 35;
     const pct = ((nowMin - startMin) / (endMin - startMin)) * 100;
     return Math.min(96, Math.max(12, Math.round(pct)));
-  }, [todayShift, activeShiftPreset, now]);
+  }, [todayShift, displayShiftMeta, now]);
 
   // Manage camera stream when camera overlay opens
   const stopCamera = () => {
@@ -405,13 +494,13 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
       ctx.fillText('Verifikasi Swafoto & GPS Pondok', 320, 332);
     }
 
-    // Bottom Google-Timestamp & GPS Watermark
+    // Bottom Timestamp & GPS Watermark
     ctx.fillStyle = 'rgba(6, 78, 59, 0.88)';
     ctx.fillRect(0, 388, 640, 92);
     ctx.textAlign = 'left';
     ctx.fillStyle = '#fcd34d';
     ctx.font = 'bold 16px sans-serif';
-    ctx.fillText(`${displayName} · ${selectedProgram}`, 20, 414);
+    ctx.fillText(`${displayName} · ${activeSelectedShift.nama}`, 20, 414);
     ctx.fillStyle = '#ffffff';
     ctx.font = '14px monospace';
     const stampStr = `${todayIso} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(
@@ -436,13 +525,14 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
       const res = checkInGuruMobile({
         ustadzId: activeUstadzId,
         ustadzNama: displayName,
-        program: selectedProgram,
+        program: activeSelectedShift.program,
+        shiftId: activeSelectedShift.id,
         kelas: matchedUstadz?.tugasTambahanSatminkal || 'Kelas Diniyah',
-        mapel: matchedUstadz?.fanIlmu?.[0] || selectedProgram,
+        mapel: matchedUstadz?.fanIlmu?.[0] || activeSelectedShift.nama,
         fotoSelfieUrl: selfieDataUrl,
         koordinat: gpsCoords,
         akurasiGps: gpsAccuracy,
-        lokasiLabel: SHIFT_PRESETS[selectedProgram].lokasi,
+        lokasiLabel: activeSelectedShift.lokasi,
       });
       setOverlayFlow({
         type: 'confirmed',
@@ -450,6 +540,7 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
         waktuWib: `${res.checkInDisplay} WIB`,
         koordinat: gpsCoords,
         akurasi: gpsAccuracy,
+        sesiNama: activeSelectedShift.nama,
       });
     } else {
       const res = checkOutGuruMobile({
@@ -463,6 +554,7 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
         koordinat: gpsCoords,
         akurasi: gpsAccuracy,
         durasiKerja: res?.durasiKerja,
+        sesiNama: displayShiftMeta.nama,
       });
     }
   };
@@ -661,23 +753,52 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
     return list;
   }, [calYear, calMonth, activeKalenderRow, legendMap, LIBUR_CODES, myIzinDatesInCalMonth, calFilter]);
 
+  const handleUploadBuktiPengajuan = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setIzinBuktiFotoUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmitIzinModal = (e: React.FormEvent) => {
     e.preventDefault();
     if (!izinAlasan.trim()) return;
+    const chosenShift = availableShifts.find((s) => s.id === izinSesiId);
     submitIzinBadalGuru({
       ustadzId: activeUstadzId,
       ustadzNama: displayName,
       tanggal: izinTanggal,
       jenis: izinJenis,
-      program: izinProgram,
-      guruBadalNama: izinBadalNama.trim() || undefined,
+      program: chosenShift?.program || izinProgram,
+      sesiId: chosenShift?.id,
+      sesiNama: chosenShift?.nama || izinProgram,
+      jamMulaiDiajukan: izinJenis === 'Absen Pengajuan' ? izinJamMulai : undefined,
+      jamSelesaiDiajukan: izinJenis === 'Absen Pengajuan' ? izinJamSelesai : undefined,
+      kelasMapel: izinJenis === 'Absen Pengajuan' ? izinKelasMapel.trim() || undefined : undefined,
+      kendalaKategori: izinJenis === 'Absen Pengajuan' ? izinKendalaKategori : undefined,
+      buktiFotoUrl: izinJenis === 'Absen Pengajuan' && izinBuktiFotoUrl ? izinBuktiFotoUrl : undefined,
+      guruBadalNama: izinJenis === 'Absen Pengajuan' ? undefined : izinBadalNama.trim() || undefined,
       alasan: izinAlasan.trim(),
     });
     setShowIzinModal(false);
     setIzinAlasan('');
     setIzinBadalNama('');
-    notify(`Pengajuan ${izinJenis} berhasil dikirim untuk persetujuan.`);
+    setIzinBuktiFotoUrl('');
+    notify(
+      izinJenis === 'Absen Pengajuan'
+        ? 'Absen Pengajuan (kendala) berhasil dikirim ke Admin / Pengasuh untuk disetujui.'
+        : `Pengajuan ${izinJenis} berhasil dikirim untuk persetujuan.`
+    );
   };
+
+  const mySubmittedRequests = useMemo(() => {
+    return izinBadalGuruList.filter((i) => i.ustadzId === activeUstadzId);
+  }, [izinBadalGuruList, activeUstadzId]);
 
   // Pending approvals relevant to Kotak Masuk
   const pendingIzinList = useMemo(
@@ -785,17 +906,20 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
             </div>
             <div className="min-w-0 flex-1">
               <label className="text-xs font-bold text-slate-900 block">
-                Program Tugas Pondok
+                Sesi / Jam Mengajar Pondok ({calcShiftDurationLabel(activeSelectedShift.jamMulai, activeSelectedShift.jamSelesai)})
               </label>
               <select
-                value={selectedProgram}
-                onChange={(e) => setSelectedProgram(e.target.value as ProgramAbsensiType)}
+                value={activeSelectedShift.id}
+                onChange={(e) => setSelectedShiftId(e.target.value)}
                 disabled={isOut}
                 className="mt-0.5 w-full bg-transparent text-xs font-semibold text-emerald-800 focus:outline-hidden"
               >
-                <option value="Madrasah Diniyah">Madrasah Diniyah (18.00 - 21.00)</option>
-                <option value="Ngaji Al-Qur'an Pagi (Ba'da Subuh)">Ngaji Al-Qur'an Pagi (05.00 - 06.30)</option>
-                <option value="Ngaji Takhasus">Ngaji Takhasus (16.00 - 17.15)</option>
+                {availableShifts.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nama} ({s.jamMulai.replace(':', '.')} - {s.jamSelesai.replace(':', '.')} ·{' '}
+                    {calcShiftDurationLabel(s.jamMulai, s.jamSelesai)})
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -848,6 +972,12 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
           </div>
 
           <div className="w-full space-y-2.5 pt-2 text-xs">
+            {overlayFlow.sesiNama && (
+              <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl border border-slate-200 bg-white">
+                <span className="text-slate-500">Sesi mengajar</span>
+                <strong className="text-emerald-800">{overlayFlow.sesiNama}</strong>
+              </div>
+            )}
             <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl border border-slate-200 bg-white">
               <span className="text-slate-500">Jam (waktu server)</span>
               <strong className="text-slate-900 tabular-nums">{overlayFlow.waktuWib}</strong>
@@ -1005,6 +1135,14 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
 
                   {/* Shift Progress Timeline Bar */}
                   <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="font-bold text-emerald-800 truncate">
+                        {displayShiftMeta.nama}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold tabular-nums shrink-0">
+                        Durasi {calcShiftDurationLabel(displayShiftMeta.jamMulai, displayShiftMeta.jamSelesai)}
+                      </span>
+                    </div>
                     <div className="relative h-2 rounded-full bg-slate-100">
                       <div
                         className="h-full rounded-full bg-emerald-600 transition-all duration-500"
@@ -1017,7 +1155,7 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                     </div>
                     <div className="flex items-center justify-between text-xs text-slate-500 tabular-nums">
                       <span>
-                        Masuk <strong className="text-slate-900">{activeShiftPreset.start}</strong>
+                        Masuk <strong className="text-slate-900">{displayShiftMeta.startDot}</strong>
                       </span>
                       {todayShift && (
                         <span className="font-bold text-emerald-800">
@@ -1025,49 +1163,62 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                         </span>
                       )}
                       <span>
-                        Pulang <strong className="text-slate-900">{activeShiftPreset.end}</strong>
+                        Pulang <strong className="text-slate-900">{displayShiftMeta.endDot}</strong>
                       </span>
                     </div>
                   </div>
 
-                  {/* Primary Action CTA Button */}
-                  {!todayShift || todayShift.status === 'selesai' ? (
-                    <button
-                      type="button"
-                      onClick={() => setOverlayFlow({ type: 'camera', action: 'checkin' })}
-                      className="w-full min-h-[50px] rounded-2xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition"
-                    >
-                      <LogIn className="w-4 h-4" />
-                      <span>{todayShift?.status === 'selesai' ? 'Cek In Sesi Berikutnya' : 'Cek In'}</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setOverlayFlow({ type: 'camera', action: 'checkout' })}
-                      className="w-full min-h-[50px] rounded-2xl bg-emerald-950 hover:bg-emerald-900 active:scale-[0.99] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Cek Out Pulang</span>
-                    </button>
-                  )}
+                  {/* Primary Action CTA Buttons */}
+                  <div className="space-y-2.5">
+                    {!todayShift || todayShift.status === 'selesai' ? (
+                      <button
+                        type="button"
+                        onClick={() => setOverlayFlow({ type: 'camera', action: 'checkin' })}
+                        className="w-full min-h-[50px] rounded-2xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        <span>{todayShift?.status === 'selesai' ? 'Cek In Sesi Berikutnya' : 'Cek In'}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setOverlayFlow({ type: 'camera', action: 'checkout' })}
+                        className="w-full min-h-[50px] rounded-2xl bg-emerald-950 hover:bg-emerald-900 active:scale-[0.99] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Cek Out Pulang</span>
+                      </button>
+                    )}
 
-                  {/* Footer Meta Line: Shift Info + Break Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => openRequestModal('Absen Pengajuan')}
+                      className="w-full min-h-[42px] rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-bold text-xs flex items-center justify-center gap-2 transition"
+                    >
+                      <FileCheck2 className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span>Ada Kendala GPS / Kamera? Ajukan Absen Pengajuan</span>
+                    </button>
+                  </div>
+
+                  {/* Footer Meta Line: Shift Selector + Break Toggle */}
                   <div className="flex items-center justify-between gap-2 pt-1 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-600 min-w-0">
+                    <div className="flex items-center gap-1.5 text-slate-600 min-w-0 flex-1">
                       <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      {todayShift && todayShift.status !== 'selesai' ? (
+                      {activeShiftInProgress && todayShift ? (
                         <span className="tabular-nums truncate">
-                          Cek in {todayShift.checkInDisplay} · {todayShift.program}
+                          Cek in {todayShift.checkInDisplay} · {displayShiftMeta.nama}
                         </span>
                       ) : (
                         <select
-                          value={selectedProgram}
-                          onChange={(e) => setSelectedProgram(e.target.value as ProgramAbsensiType)}
-                          className="bg-transparent font-medium text-slate-700 focus:outline-hidden truncate"
+                          value={activeSelectedShift.id}
+                          onChange={(e) => setSelectedShiftId(e.target.value)}
+                          className="bg-transparent font-medium text-slate-700 focus:outline-hidden truncate w-full"
                         >
-                          <option value="Madrasah Diniyah">Pola Madrasah Diniyah</option>
-                          <option value="Ngaji Al-Qur'an Pagi (Ba'da Subuh)">Pola Ngaji Al-Qur'an Pagi</option>
-                          <option value="Ngaji Takhasus">Pola Ngaji Takhasus</option>
+                          {availableShifts.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.nama} ({s.jamMulai.replace(':', '.')}–{s.jamSelesai.replace(':', '.')})
+                            </option>
+                          ))}
                         </select>
                       )}
                     </div>
@@ -1109,21 +1260,21 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                         onClick: () => setActiveTab('absensi'),
                       },
                       {
+                        label: 'Absen Pengajuan',
+                        icon: FileCheck2,
+                        tone: 'bg-amber-50 text-amber-700',
+                        onClick: () => openRequestModal('Absen Pengajuan'),
+                      },
+                      {
                         label: 'Izin / Badal',
                         icon: FilePlus2,
                         tone: 'bg-teal-50 text-teal-700',
-                        onClick: () => setShowIzinModal(true),
+                        onClick: () => openRequestModal('Izin'),
                       },
                       {
                         label: 'Persetujuan',
                         icon: CheckSquare,
                         tone: 'bg-lime-50 text-lime-700',
-                        onClick: () => setActiveTab('kotak_masuk'),
-                      },
-                      {
-                        label: 'Pengumuman',
-                        icon: Megaphone,
-                        tone: 'bg-amber-50 text-amber-700',
                         onClick: () => setActiveTab('kotak_masuk'),
                       },
                       {
@@ -1390,14 +1541,24 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                 </div>
               </div>
 
-              {/* Right Column: Riwayat Bulan Ini */}
+              {/* Right Column: Riwayat Bulan Ini & Status Absen Pengajuan */}
               <div className={compactPhoneFrame ? 'space-y-4' : 'lg:col-span-6 space-y-5'}>
                 <div className="rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-extrabold text-slate-900">Riwayat bulan ini</h3>
-                    <span className="text-xs text-slate-500 tabular-nums">
-                      {myMonthlyRecords.length} catatan
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-900">Riwayat bulan ini</h3>
+                      <span className="text-xs text-slate-500 tabular-nums">
+                        {myMonthlyRecords.length} catatan sesi mengajar
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openRequestModal('Absen Pengajuan')}
+                      className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-[11px] font-bold inline-flex items-center gap-1.5"
+                    >
+                      <FileCheck2 className="w-3.5 h-3.5 text-amber-700" />
+                      <span>Ajukan Absen Kendala</span>
+                    </button>
                   </div>
 
                   {myMonthlyRecords.length === 0 ? (
@@ -1405,13 +1566,22 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                       <p className="text-xs text-slate-500">
                         Belum ada catatan absensi pada bulan {BULAN_NAMES_ID[rekapanBulan]}.
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => setOverlayFlow({ type: 'camera', action: 'checkin' })}
-                        className="px-4 py-2 rounded-xl bg-emerald-700 text-white text-xs font-bold"
-                      >
-                        Cek In Sekarang
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setOverlayFlow({ type: 'camera', action: 'checkin' })}
+                          className="px-4 py-2 rounded-xl bg-emerald-700 text-white text-xs font-bold"
+                        >
+                          Cek In Sekarang
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openRequestModal('Absen Pengajuan')}
+                          className="px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold"
+                        >
+                          Absen Pengajuan
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100">
@@ -1423,11 +1593,12 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                             </div>
                             <div className="min-w-0">
                               <p className="text-xs font-bold text-slate-900 truncate">
-                                {rec.tanggal === todayIso ? 'Hari ini' : rec.tanggal} · {rec.program || 'Madrasah Diniyah'}
+                                {rec.tanggal === todayIso ? 'Hari ini' : rec.tanggal} · {rec.sesiNama || rec.program || 'Madrasah Diniyah'}
                               </p>
                               <p className="text-[11px] text-slate-500 tabular-nums mt-0.5">
                                 {rec.waktuInput}–{rec.waktuCekOut || 'Aktif'}{' '}
                                 {rec.durasiKerja ? `(${rec.durasiKerja})` : ''}
+                                {rec.sumberAbsen === 'Absen Pengajuan' ? ' · Via Absen Pengajuan' : ''}
                               </p>
                             </div>
                           </div>
@@ -1444,7 +1615,7 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                                   })
                                 }
                                 className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800"
-                                title="Lihat Foto Selfie GPS"
+                                title="Lihat Foto Bukti"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
@@ -1453,6 +1624,8 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                               className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
                                 rec.status !== 'Hadir'
                                   ? 'bg-teal-50 text-teal-800'
+                                  : rec.sumberAbsen === 'Absen Pengajuan'
+                                  ? 'bg-emerald-100 text-emerald-900'
                                   : rec.statusKeterlambatan === 'Terlambat'
                                   ? 'bg-amber-50 text-amber-800'
                                   : 'bg-emerald-50 text-emerald-800'
@@ -1460,11 +1633,68 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                             >
                               {rec.status !== 'Hadir'
                                 ? rec.status
+                                : rec.sumberAbsen === 'Absen Pengajuan'
+                                ? 'Pengajuan Sah'
                                 : rec.statusKeterlambatan === 'Terlambat'
                                 ? `Terlambat ${rec.menitTerlambat || 0} mnt`
                                 : 'Tepat Waktu'}
                             </span>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Status Absen Pengajuan & Izin Saya */}
+                <div className="rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-extrabold text-slate-900">
+                      Riwayat Absen Pengajuan &amp; Izin Saya
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => openRequestModal('Absen Pengajuan')}
+                      className="text-xs font-bold text-emerald-700 hover:underline"
+                    >
+                      + Pengajuan Baru
+                    </button>
+                  </div>
+                  {mySubmittedRequests.length === 0 ? (
+                    <p className="text-xs text-slate-500 py-3">
+                      Belum ada riwayat absen pengajuan atau izin/badal.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {mySubmittedRequests.slice(0, 6).map((req) => (
+                        <div
+                          key={req.id}
+                          className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-1 text-xs"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-slate-900">
+                              {req.jenis} · {req.sesiNama || req.program}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                req.status === 'Disetujui'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : req.status === 'Ditolak'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}
+                            >
+                              {req.status}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 tabular-nums">
+                            {req.tanggal}
+                            {req.jamMulaiDiajukan && req.jamSelesaiDiajukan
+                              ? ` · Pukul ${req.jamMulaiDiajukan}–${req.jamSelesaiDiajukan}`
+                              : ''}
+                            {req.kendalaKategori ? ` · ${req.kendalaKategori}` : ''}
+                          </p>
+                          <p className="text-[11px] text-slate-700">{req.alasan}</p>
                         </div>
                       ))}
                     </div>
@@ -1703,11 +1933,31 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                                 {item.status}
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-600">
-                              {item.tanggal} · {item.program}
+                            <p className="text-[11px] text-slate-600 tabular-nums">
+                              {item.tanggal} · {item.sesiNama || item.program}
+                              {item.jamMulaiDiajukan && item.jamSelesaiDiajukan
+                                ? ` (${item.jamMulaiDiajukan}–${item.jamSelesaiDiajukan})`
+                                : ''}
+                              {item.kendalaKategori ? ` · Kendala: ${item.kendalaKategori}` : ''}
                               {item.guruBadalNama ? ` · Badal: ${item.guruBadalNama}` : ''}
                             </p>
                             <p className="text-xs text-slate-700">{item.alasan}</p>
+                            {item.buktiFotoUrl && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPreviewSelfie({
+                                    url: item.buktiFotoUrl,
+                                    title: `Bukti Absen Pengajuan · ${item.ustadzNama}`,
+                                    meta: `${item.tanggal} · ${item.sesiNama || item.program}`,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 underline"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Lihat Foto Bukti Mengajar</span>
+                              </button>
+                            )}
                             {canApproveIzin && item.status === 'Menunggu' && (
                               <div className="flex gap-2 pt-1">
                                 <button
@@ -1812,9 +2062,11 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                     </strong>
                   </div>
                   <div className="py-3.5 flex items-center justify-between gap-4">
-                    <span className="text-slate-500">Pola jam tugas pondok</span>
-                    <strong className="text-slate-900 text-right">
-                      {selectedProgram} · {activeShiftPreset.start}–{activeShiftPreset.end}
+                    <span className="text-slate-500">Sesi tugas aktif</span>
+                    <strong className="text-slate-900 text-right tabular-nums">
+                      {activeSelectedShift.nama} ({activeSelectedShift.jamMulai.replace(':', '.')}–
+                      {activeSelectedShift.jamSelesai.replace(':', '.')} ·{' '}
+                      {calcShiftDurationLabel(activeSelectedShift.jamMulai, activeSelectedShift.jamSelesai)})
                     </strong>
                   </div>
                   <div className="py-3.5 flex items-center justify-between gap-4">
@@ -1949,22 +2201,34 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
         </div>
       </div>
 
-      {/* Modal Ajukan Izin / Badal */}
+      {/* Modal Ajukan Absen Kendala / Izin / Badal */}
       {showIzinModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
           <form
             onSubmit={handleSubmitIzinModal}
-            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-3 text-xs"
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-3 text-xs max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <h3 className="font-bold text-sm text-slate-900">Ajukan Izin / Sakit / Badal Mengajar</h3>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900">
+                  {izinJenis === 'Absen Pengajuan'
+                    ? 'Form Absen Pengajuan (Kendala / Susulan)'
+                    : 'Ajukan Izin / Sakit / Badal Mengajar'}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {izinJenis === 'Absen Pengajuan'
+                    ? 'Gunakan saat mengalami kendala GPS, kamera, sinyal, atau lupa Cek In saat mengajar.'
+                    : 'Pengajuan diteruskan ke Kepala Majlis Ma\'arif, Sekretaris, & Pengasuh.'}
+                </p>
+              </div>
               <button type="button" onClick={() => setShowIzinModal(false)} className="text-slate-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block font-bold mb-1">Tanggal</label>
+                <label className="block font-bold mb-1">Tanggal Mengajar</label>
                 <input
                   type="date"
                   required
@@ -1978,8 +2242,9 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                 <select
                   value={izinJenis}
                   onChange={(e) => setIzinJenis(e.target.value as IzinBadalGuruRequest['jenis'])}
-                  className="w-full rounded-xl border border-slate-300 p-2 font-bold"
+                  className="w-full rounded-xl border border-slate-300 p-2 font-bold text-emerald-900"
                 >
+                  <option value="Absen Pengajuan">Absen Pengajuan (Kendala)</option>
                   <option value="Izin">Izin Pribadi</option>
                   <option value="Badal">Pengajuan Badal Guru</option>
                   <option value="Sakit">Sakit</option>
@@ -1987,39 +2252,147 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                 </select>
               </div>
             </div>
+
             <div>
-              <label className="block font-bold mb-1">Program Mengajar</label>
+              <label className="block font-bold mb-1">Pilih Sesi / Jam Mengajar</label>
               <select
-                value={izinProgram}
-                onChange={(e) => setIzinProgram(e.target.value as ProgramAbsensiType)}
-                className="w-full rounded-xl border border-slate-300 p-2"
+                value={izinSesiId || activeSelectedShift.id}
+                onChange={(e) => {
+                  const found = availableShifts.find((s) => s.id === e.target.value);
+                  setIzinSesiId(e.target.value);
+                  if (found) {
+                    setIzinProgram(found.program);
+                    setIzinJamMulai(found.jamMulai);
+                    setIzinJamSelesai(found.jamSelesai);
+                  }
+                }}
+                className="w-full rounded-xl border border-slate-300 p-2 font-semibold"
               >
-                <option value="Madrasah Diniyah">Madrasah Diniyah</option>
-                <option value="Ngaji Al-Qur'an Pagi (Ba'da Subuh)">Ngaji Al-Qur'an Pagi (Ba'da Subuh)</option>
-                <option value="Ngaji Takhasus">Ngaji Takhasus</option>
+                {availableShifts.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nama} ({s.jamMulai}–{s.jamSelesai} · {calcShiftDurationLabel(s.jamMulai, s.jamSelesai)})
+                  </option>
+                ))}
               </select>
             </div>
+
+            {izinJenis === 'Absen Pengajuan' ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-bold mb-1">Jam Masuk Aktual</label>
+                    <input
+                      type="time"
+                      required
+                      value={izinJamMulai}
+                      onChange={(e) => setIzinJamMulai(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 p-2 tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold mb-1">Jam Selesai Aktual</label>
+                    <input
+                      type="time"
+                      required
+                      value={izinJamSelesai}
+                      onChange={(e) => setIzinJamSelesai(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 p-2 tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-1">Kelas &amp; Mapel Diajar</label>
+                  <input
+                    type="text"
+                    value={izinKelasMapel}
+                    onChange={(e) => setIzinKelasMapel(e.target.value)}
+                    placeholder="Mis: 2 A PUTRA · Fiqih"
+                    className="w-full rounded-xl border border-slate-300 p-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Kendala yang Dialami</span>
+                  </label>
+                  <select
+                    value={izinKendalaKategori}
+                    onChange={(e) => setIzinKendalaKategori(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 p-2"
+                  >
+                    {KENDALA_ABSEN_OPTIONS.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-1">Foto Bukti Mengajar / Kelas (Opsional)</label>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer px-3 py-2 rounded-xl border border-dashed border-emerald-400 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold inline-flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{izinBuktiFotoUrl ? 'Ganti Foto Bukti' : 'Unggah Foto Bukti'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadBuktiPengajuan}
+                        className="hidden"
+                      />
+                    </label>
+                    {izinBuktiFotoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setIzinBuktiFotoUrl('')}
+                        className="text-rose-600 font-bold underline"
+                      >
+                        Hapus
+                      </button>
+                    )}
+                  </div>
+                  {izinBuktiFotoUrl && (
+                    <img
+                      src={izinBuktiFotoUrl}
+                      alt="Bukti Pengajuan"
+                      className="mt-2 h-24 rounded-xl object-cover border border-slate-200"
+                    />
+                  )}
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="block font-bold mb-1">Guru Badal / Pengganti (Opsional)</label>
+                <input
+                  type="text"
+                  value={izinBadalNama}
+                  onChange={(e) => setIzinBadalNama(e.target.value)}
+                  placeholder="Mis: Ustadz Abdur Rahman"
+                  className="w-full rounded-xl border border-slate-300 p-2"
+                />
+              </div>
+            )}
+
             <div>
-              <label className="block font-bold mb-1">Guru Badal / Pengganti (Opsional)</label>
-              <input
-                type="text"
-                value={izinBadalNama}
-                onChange={(e) => setIzinBadalNama(e.target.value)}
-                placeholder="Mis: Ustadz Abdur Rahman"
-                className="w-full rounded-xl border border-slate-300 p-2"
-              />
-            </div>
-            <div>
-              <label className="block font-bold mb-1">Keterangan / Alasan</label>
+              <label className="block font-bold mb-1">
+                {izinJenis === 'Absen Pengajuan' ? 'Kronologi / Keterangan Kendala' : 'Keterangan / Alasan'}
+              </label>
               <textarea
                 rows={3}
                 required
                 value={izinAlasan}
                 onChange={(e) => setIzinAlasan(e.target.value)}
-                placeholder="Tulis alasan izin/badal..."
+                placeholder={
+                  izinJenis === 'Absen Pengajuan'
+                    ? 'Jelaskan kendala absen (mis: HP tidak membaca GPS di dalam kelas lantai bawah, mengajar tetap berjalan sesuai jadwal)...'
+                    : 'Tulis alasan izin/badal...'
+                }
                 className="w-full rounded-xl border border-slate-300 p-2"
               />
             </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -2030,9 +2403,9 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-emerald-700 text-white font-bold"
+                className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
               >
-                Kirim Pengajuan
+                {izinJenis === 'Absen Pengajuan' ? 'Kirim Absen Pengajuan' : 'Kirim Pengajuan'}
               </button>
             </div>
           </form>

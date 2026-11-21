@@ -25,6 +25,7 @@ import {
 import { useAppStore } from '../../lib/store.ts';
 import { AIAssistantModal } from '../../components/common/AIAssistantModal.tsx';
 import { PWAInstallButton } from '../../components/pwa/PWAInstallButton.tsx';
+import { BahtsulMasail3DSection } from './BahtsulMasail3DSection.tsx';
 
 interface LandingPageProps {
   onGoToLogin: () => void;
@@ -76,6 +77,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
             </a>
             <a href="#alur" className="px-2.5 py-1.5 rounded-lg hover:text-emerald-900 hover:bg-emerald-50/80 transition whitespace-nowrap">
               Alur Daftar
+            </a>
+            <a href="#bahtsul-masail" className="px-2.5 py-1.5 rounded-lg text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition whitespace-nowrap">
+              Bahtsul Masail &amp; Munaqosyah 3D
             </a>
             <a href="#faq" className="px-2.5 py-1.5 rounded-lg hover:text-emerald-900 hover:bg-emerald-50/80 transition whitespace-nowrap">
               Tanya Jawab
@@ -152,6 +156,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
                 Alur Pendaftaran
               </a>
               <a
+                href="#bahtsul-masail"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2.5 rounded-xl bg-amber-50 text-amber-900 font-bold border border-amber-200 transition"
+              >
+                Bahtsul Masail &amp; Munaqosyah 3D
+              </a>
+              <a
                 href="#faq"
                 onClick={() => setMobileMenuOpen(false)}
                 className="p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:text-emerald-900 transition"
@@ -206,6 +217,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
                   <GraduationCap className="w-4 h-4" />
                   <span>Daftar Santri Baru (PSB Online)</span>
                 </button>
+                <a
+                  href="#bahtsul-masail"
+                  className="px-5 py-3 rounded-xl bg-amber-50 text-amber-950 border border-amber-300 text-xs sm:text-sm font-bold shadow-xs hover:bg-amber-100 transition flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <span>Bahtsul Masail &amp; Munaqosyah 3D</span>
+                </a>
                 <a
                   href="#biaya"
                   className="px-5 py-3 rounded-xl bg-white text-emerald-900 border border-emerald-300 text-xs sm:text-sm font-bold shadow-xs hover:bg-emerald-50 transition flex items-center gap-2"
@@ -327,6 +345,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
           </div>
         </div>
       </section>
+
+      {/* Forum Bahtsul Masail AI 3D Section */}
+      <BahtsulMasail3DSection />
 
       {/* Section 3 & 4: Visi Misi & Sejarah & Pengasuh */}
       <section className="py-16">

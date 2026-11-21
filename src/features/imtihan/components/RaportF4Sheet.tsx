@@ -22,6 +22,8 @@ export interface RaportF4SheetProps {
   peringkatKelas: number;
   pengasuhTtdUrl?: string;
   waliKelasTtdUrl?: string;
+  pengasuhTtdScale?: number;
+  waliKelasTtdScale?: number;
   isLast?: boolean;
 }
 
@@ -100,6 +102,8 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
   peringkatKelas,
   pengasuhTtdUrl,
   waliKelasTtdUrl,
+  pengasuhTtdScale = 88,
+  waliKelasTtdScale = 88,
   isLast = false,
 }) => {
   const santriGrades = nilaiList.filter((n) => n.santriId === santri.id);
@@ -417,50 +421,65 @@ export const RaportF4Sheet: React.FC<RaportF4SheetProps> = ({
       </div>
 
       {/* TANDA TANGAN 3 PIHAK RTL — LANGSUNG DI BAWAH TANGGAL PENYERAHAN */}
-      <div className="pt-1 print:pt-0.5 grid grid-cols-3 text-center text-xs font-arabic items-end">
-        <div>
-          <p className="font-bold">والي المريد</p>
-          <div className="h-20 print:h-[76px]" />
-          <p className="font-sans font-bold text-[11px]" dir="ltr">
-            ( {santri.namaWali} )
-          </p>
-        </div>
+      {(() => {
+        const pHeight = Math.max(52, Math.min(140, pengasuhTtdScale));
+        const wHeight = Math.max(52, Math.min(140, waliKelasTtdScale));
+        const slotHeight = Math.max(76, pHeight, wHeight);
+        return (
+          <div className="pt-1 print:pt-0.5 grid grid-cols-3 text-center text-xs font-arabic items-end">
+            <div>
+              <p className="font-bold">والي المريد</p>
+              <div style={{ height: `${slotHeight}px` }} />
+              <p className="font-sans font-bold text-[11px]" dir="ltr">
+                ( {santri.namaWali} )
+              </p>
+            </div>
 
-        <div>
-          <p className="text-[11px] leading-tight">يعرف</p>
-          <p className="font-bold">مدير المعهد</p>
-          <div className="h-20 print:h-[76px] flex items-center justify-center overflow-visible">
-            {pengasuhTtdUrl ? (
-              <img
-                src={pengasuhTtdUrl}
-                alt="TTD Pengasuh"
-                className="h-20 print:h-[74px] max-w-[220px] mx-auto object-contain mix-blend-multiply select-none"
-              />
-            ) : (
-              <div className="h-16" />
-            )}
-          </div>
-          <p className="font-bold underline text-sm">كياهي أمين مأزون الحاج</p>
-        </div>
+            <div>
+              <p className="text-[11px] leading-tight">يعرف</p>
+              <p className="font-bold">مدير المعهد</p>
+              <div
+                style={{ minHeight: `${slotHeight}px` }}
+                className="flex items-center justify-center overflow-visible"
+              >
+                {pengasuhTtdUrl ? (
+                  <img
+                    src={pengasuhTtdUrl}
+                    alt="TTD Pengasuh"
+                    style={{ height: `${pHeight}px`, width: 'auto', maxWidth: '250px' }}
+                    className="mx-auto object-contain mix-blend-multiply select-none pointer-events-none"
+                  />
+                ) : (
+                  <div style={{ height: `${Math.min(72, slotHeight)}px` }} />
+                )}
+              </div>
+              <p className="font-bold underline text-sm">كياهي أمين مأزون الحاج</p>
+            </div>
 
-        <div>
-          <p className="font-bold">والي الفصل</p>
-          <div className="h-20 print:h-[76px] flex items-center justify-center overflow-visible">
-            {waliKelasTtdUrl ? (
-              <img
-                src={waliKelasTtdUrl}
-                alt="TTD Wali Kelas"
-                className="h-20 print:h-[74px] max-w-[220px] mx-auto object-contain mix-blend-multiply select-none"
-              />
-            ) : (
-              <div className="h-16" />
-            )}
+            <div>
+              <p className="font-bold">والي الفصل</p>
+              <div
+                style={{ minHeight: `${slotHeight}px` }}
+                className="flex items-center justify-center overflow-visible"
+              >
+                {waliKelasTtdUrl ? (
+                  <img
+                    src={waliKelasTtdUrl}
+                    alt="TTD Wali Kelas"
+                    style={{ height: `${wHeight}px`, width: 'auto', maxWidth: '250px' }}
+                    className="mx-auto object-contain mix-blend-multiply select-none pointer-events-none"
+                  />
+                ) : (
+                  <div style={{ height: `${Math.min(72, slotHeight)}px` }} />
+                )}
+              </div>
+              <p className="font-sans font-bold text-[11px]" dir="ltr">
+                {waliKelas}
+              </p>
+            </div>
           </div>
-          <p className="font-sans font-bold text-[11px]" dir="ltr">
-            {waliKelas}
-          </p>
-        </div>
-      </div>
+        );
+      })()}
     </div>
   );
 };
