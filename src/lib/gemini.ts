@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { PONDOK_CONFIG } from '../data/seed/pondokData.ts';
 
 // Client-side / proxy-safe Gemini caller with structured grounding
@@ -49,6 +48,7 @@ Bantu pengguna memahami cara menggunakan fitur modul tersebut, alur kerja, tips 
   }
 
   try {
+    const { GoogleGenAI } = await import('@google/genai');
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',

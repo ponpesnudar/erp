@@ -50,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const allNavItems: NavItem[] = [
     { id: 'beranda', label: 'Beranda Portal', icon: Home },
     { id: 'imtihan', label: 'Imtihan & Nilai', icon: FileCheck, fiturId: 'imtihan_soal' },
-    { id: 'munaqosyah', label: 'Munaqosyah 3D', icon: School, badge: '3D' },
+    { id: 'munaqosyah', label: 'Majlis Ilmiah & Munaqosyah', icon: School, badge: '3D' },
     { id: 'maarifan', label: "Ma'arifan Diniyah", icon: BookOpen, fiturId: 'maarifan_absensi' },
     { id: 'sdm_absensi', label: 'SDM & Absensi Guru', icon: UserCheck },
     { id: 'sekretaris', label: 'Sekretariat', icon: Mail, fiturId: 'sekretaris_persuratan' },

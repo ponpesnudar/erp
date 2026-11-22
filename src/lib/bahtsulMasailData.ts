@@ -1,5 +1,4 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// jspdf & jspdf-autotable di-load dinamis saat ekspor PDF agar tidak membebani bundle awal & server runtime
 
 export interface MadzhabUlamaQuote {
   namaUlama: string;
@@ -1034,7 +1033,11 @@ export function resolveLocalBahtsulMasail(asilahRaw: string): BahtsulMasailResul
   };
 }
 
-export function downloadBahtsulMasailPdf(result: BahtsulMasailResult) {
+export async function downloadBahtsulMasailPdf(result: BahtsulMasailResult) {
+  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   doc.setFillColor(7, 67, 42);

@@ -19,6 +19,8 @@ import { DetailSantriForm } from '../../components/common/DetailSantriForm.tsx';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
 import { LandingEditorTab } from './LandingEditorTab.tsx';
+import { KhazanahCmsTab } from './KhazanahCmsTab.tsx';
+import { ManajemenTutorialTab } from './ManajemenTutorialTab.tsx';
 import { ImportSantriModal } from './ImportSantriModal.tsx';
 import type { SantriRecord } from '../../data/seed/pondokData.ts';
 
@@ -53,7 +55,14 @@ export const SekretarisModule: React.FC = () => {
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<
-    'santri' | 'surat' | 'pengurus' | 'sarpras' | 'pengaturan_nis' | 'landing_cms'
+    | 'santri'
+    | 'surat'
+    | 'pengurus'
+    | 'sarpras'
+    | 'pengaturan_nis'
+    | 'landing_cms'
+    | 'khazanah_cms'
+    | 'manajemen_tutorial'
   >('santri');
   const [searchSantri, setSearchSantri] = useState<string>('');
   const [filterGender, setFilterGender] = useState<string>('Semua');
@@ -246,6 +255,8 @@ export const SekretarisModule: React.FC = () => {
             { id: 'sarpras', label: 'Sarana & Prasarana' },
             { id: 'pengaturan_nis', label: 'Pengaturan NIS' },
             { id: 'landing_cms', label: 'Info Landing Page' },
+            { id: 'khazanah_cms', label: 'Khazanah & Ibadah (Landing)' },
+            { id: 'manajemen_tutorial', label: 'Manajemen Tutorial' },
           ].map((tb) => (
             <button
               key={tb.id}
@@ -1141,6 +1152,12 @@ export const SekretarisModule: React.FC = () => {
 
       {/* TAB 6: KELOLA INFORMASI LANDING PAGE */}
       {activeTab === 'landing_cms' && <LandingEditorTab onNotify={notify} />}
+
+      {/* TAB 7: KELOLA KHAZANAH, IBADAH & INFOGRAFIK LANDING PAGE */}
+      {activeTab === 'khazanah_cms' && <KhazanahCmsTab onNotify={notify} />}
+
+      {/* TAB 8: MANAJEMEN TUTORIAL (LINK VIDEO & TEMPLATE PPTX PER MODUL) */}
+      {activeTab === 'manajemen_tutorial' && <ManajemenTutorialTab onNotify={notify} />}
 
       {/* Modal EMIS DetailSantriForm */}
       {santriFormMode && (

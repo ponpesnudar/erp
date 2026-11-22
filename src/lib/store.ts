@@ -76,6 +76,14 @@ import {
   SEED_BISYAROH_HISTORY,
   LandingPageConfig,
   DEFAULT_LANDING_CONFIG,
+  SatpamProfile,
+  SatpamShiftConfig,
+  SatpamAbsensiRecord,
+  SatpamPengajuanRequest,
+  SEED_SATPAM_LIST,
+  SEED_SATPAM_SHIFTS,
+  SEED_SATPAM_ABSENSI,
+  SEED_SATPAM_PENGAJUAN,
 } from '../data/seed/pondokData.ts';
 import {
   MunaqosyahRecord,
@@ -89,6 +97,32 @@ import {
   NISConfig,
   nomorUjian,
 } from './rules.ts';
+
+import {
+  KhazanahItem,
+  SEED_KHAZANAH_ITEMS,
+} from '../data/seed/khazanahData.ts';
+
+export interface TutorialVideoLink {
+  slideId: string;
+  url: string;
+  judul?: string;
+  thumbnailUrl?: string;
+  sumberType: 'AI Video Link' | 'YouTube' | 'MP4' | 'Google Drive';
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface TutorialPptTemplateMeta {
+  slideId: string;
+  modulNama: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  catatan?: string;
+  uploadedBy: string;
+  uploadedAt: string;
+}
 
 export interface AuditLog {
   id: string;
@@ -301,6 +335,23 @@ export interface ActiveGuruShiftSession {
   shiftEndTarget: string;
 }
 
+export interface ActiveSatpamShiftSession {
+  satpamId: string;
+  tanggal: string;
+  shiftId?: string;
+  shiftNama: string;
+  posJaga: string;
+  status: 'bertugas' | 'istirahat' | 'selesai';
+  checkInIso: string;
+  checkInDisplay: string;
+  checkOutDisplay?: string;
+  activeRecordId: string;
+  breakTotalMs: number;
+  breakStartedIso?: string;
+  shiftStartTarget: string;
+  shiftEndTarget: string;
+}
+
 export interface SidangKenaikanRecord {
   santriId: string;
   rataCawu1: number;
@@ -378,6 +429,11 @@ export interface AppState {
   izinBadalGuruList: IzinBadalGuruRequest[];
   absensiShiftConfigs: AbsensiShiftConfig[];
   activeGuruShiftMap: Record<string, ActiveGuruShiftSession>;
+  satpamList: SatpamProfile[];
+  satpamShiftConfigs: SatpamShiftConfig[];
+  satpamAbsensiList: SatpamAbsensiRecord[];
+  satpamPengajuanList: SatpamPengajuanRequest[];
+  activeSatpamShiftMap: Record<string, ActiveSatpamShiftSession>;
   sdmNotifEnabled: boolean;
   pinPengesahanMap: Record<string, string>;
   baganOrganisasi: JabatanOrganisasi[];
@@ -422,6 +478,9 @@ export interface AppState {
   suratList: SuratItem[];
   pelanggaranList: PelanggaranRecord[];
   munaqosyahRecords: MunaqosyahRecord[];
+  tutorialVideoLinks: Record<string, TutorialVideoLink>;
+  tutorialPptTemplates: Record<string, TutorialPptTemplateMeta>;
+  khazanahItems: KhazanahItem[];
 
   // Actions
   loginAs: (userId: string) => void;
@@ -609,6 +668,28 @@ export interface AppState {
   addBukuTamu: (data: Omit<BukuTamuRecord, 'id'>) => void;
   addTitipanWali: (data: Omit<TitipanWaliRecord, 'id'>) => void;
   updateStatusTitipanWali: (id: string, status: TitipanWaliRecord['status']) => void;
+  checkInSatpamMobile: (payload: {
+    satpamId: string;
+    satpamNama: string;
+    shiftId?: string;
+    posJaga?: string;
+    fotoSelfieUrl?: string;
+    koordinat: string;
+    akurasiGps: number;
+    lokasiLabel: string;
+  }) => { recordId: string; checkInDisplay: string; terlambatMenit: number };
+  toggleIstirahatSatpam: (satpamId: string) => void;
+  checkOutSatpamMobile: (payload: {
+    satpamId: string;
+    fotoCekOutUrl?: string;
+  }) => { checkOutDisplay: string; durasiKerja: string } | null;
+  submitSatpamPengajuan: (req: Omit<SatpamPengajuanRequest, 'id' | 'status' | 'waktuPengajuan'>) => void;
+  approveSatpamPengajuan: (id: string, status: 'Disetujui' | 'Ditolak', reviewerName: string) => void;
+  verifySatpamAbsensiRecord: (id: string, status: 'Terverifikasi' | 'Menunggu') => void;
+  addSatpamShiftConfig: (cfg: Omit<SatpamShiftConfig, 'id'>) => void;
+  updateSatpamShiftConfig: (id: string, cfg: Partial<SatpamShiftConfig>) => void;
+  deleteSatpamShiftConfig: (id: string) => void;
+  resetSatpamShiftConfigs: () => void;
 
   // Sekretaris, Pengurus & Sarpras
   updateLandingConfig: (data: Partial<LandingPageConfig>) => void;
@@ -641,8 +722,16 @@ export interface AppState {
   addMunaqosyahRecord: (data: Omit<MunaqosyahRecord, 'id'>) => void;
   deleteMunaqosyahRecord: (id: string) => void;
 
-  // Settings
+  // Settings & Pusat Tutorial / Khazanah CMS
   updateNISConfig: (config: NISConfig) => void;
+  setTutorialVideoLink: (slideId: string, payload: Omit<TutorialVideoLink, 'slideId' | 'updatedAt'>) => void;
+  deleteTutorialVideoLink: (slideId: string) => void;
+  setTutorialPptTemplate: (slideId: string, payload: Omit<TutorialPptTemplateMeta, 'slideId' | 'uploadedAt'>) => void;
+  deleteTutorialPptTemplate: (slideId: string) => void;
+  addKhazanahItem: (data: Omit<KhazanahItem, 'id' | 'tanggalUpdate'>) => string;
+  updateKhazanahItem: (id: string, data: Partial<KhazanahItem>) => void;
+  deleteKhazanahItem: (id: string) => void;
+  resetKhazanahItems: () => void;
 }
 
 const DEFAULT_USERS = SEED_USERS;
@@ -762,6 +851,11 @@ export const useAppStore = create<AppState>()(
       izinBadalGuruList: SEED_IZIN_BADAL_GURU,
       absensiShiftConfigs: SEED_ABSENSI_SHIFT_CONFIGS,
       activeGuruShiftMap: {},
+      satpamList: SEED_SATPAM_LIST,
+      satpamShiftConfigs: SEED_SATPAM_SHIFTS,
+      satpamAbsensiList: SEED_SATPAM_ABSENSI,
+      satpamPengajuanList: SEED_SATPAM_PENGAJUAN,
+      activeSatpamShiftMap: {},
       sdmNotifEnabled: true,
       pinPengesahanMap: {},
       baganOrganisasi: SEED_BAGAN_ORGANISASI,
@@ -773,6 +867,9 @@ export const useAppStore = create<AppState>()(
       imtihanMaster: DEFAULT_IMTIHAN_MASTER,
       jagaPiketList: SEED_JAGA_PIKET,
       munaqosyahRecords: SEED_MUNAQOSYAH_RECORDS,
+      tutorialVideoLinks: {},
+      tutorialPptTemplates: {},
+      khazanahItems: SEED_KHAZANAH_ITEMS,
       sidangKenaikanRecords: {},
       sidangKenaikanHistory: [
         {
@@ -3015,6 +3112,306 @@ export const useAppStore = create<AppState>()(
         get().addAuditLog('BK', 'Serah Terima Titipan', `Status titipan ${id} diperbarui: ${status}.`);
       },
 
+      checkInSatpamMobile: (payload) => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const tanggal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        const waktuInput = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        const checkInDisplay = `${pad(now.getHours())}.${pad(now.getMinutes())}`;
+
+        const configs = get().satpamShiftConfigs;
+        const matchedShift =
+          (payload.shiftId ? configs.find((c) => c.id === payload.shiftId) : undefined) ||
+          configs.find((c) => c.aktif) ||
+          configs[0];
+
+        const startStr = matchedShift?.jamMulai || '07:00';
+        const endStr = matchedShift?.jamSelesai || '15:00';
+        const toleransi = matchedShift?.toleransiMenit ?? 10;
+        const shiftNama = matchedShift?.nama || 'Shift Jaga Keamanan';
+        const posJaga = payload.posJaga || matchedShift?.pos || 'Pos Gerbang Utama PP NU Darussalam';
+
+        const [sh, sm] = startStr.split(':').map(Number);
+        const startMins = (Number.isFinite(sh) ? sh : 7) * 60 + (Number.isFinite(sm) ? sm : 0);
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const diff = nowMins - startMins;
+        const terlambatMenit = diff > toleransi && diff < 360 ? diff : 0;
+
+        const recordId = `sa-${Date.now()}`;
+        const newRec: SatpamAbsensiRecord = {
+          id: recordId,
+          tanggal,
+          satpamId: payload.satpamId,
+          satpamNama: payload.satpamNama,
+          shiftId: matchedShift?.id,
+          shiftNama,
+          posJaga,
+          status: 'Hadir',
+          waktuInput,
+          statusKeterlambatan: terlambatMenit > 0 ? 'Terlambat' : 'Tepat Waktu',
+          menitTerlambat: terlambatMenit,
+          fotoSelfieUrl: payload.fotoSelfieUrl,
+          koordinat: payload.koordinat,
+          akurasiGps: payload.akurasiGps,
+          lokasiLabel: payload.lokasiLabel || posJaga,
+          waktuTimestamp: `${now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} ${waktuInput} WIB`,
+          wajahCocok: true,
+          verifikasiAtasan: 'Terverifikasi',
+          sumberAbsen: 'GPS Mobile',
+        };
+
+        const session: ActiveSatpamShiftSession = {
+          satpamId: payload.satpamId,
+          tanggal,
+          shiftId: matchedShift?.id,
+          shiftNama,
+          posJaga,
+          status: 'bertugas',
+          checkInIso: now.toISOString(),
+          checkInDisplay,
+          activeRecordId: recordId,
+          breakTotalMs: 0,
+          shiftStartTarget: startStr.replace(':', '.'),
+          shiftEndTarget: endStr.replace(':', '.'),
+        };
+
+        set((state) => ({
+          satpamAbsensiList: [newRec, ...state.satpamAbsensiList],
+          activeSatpamShiftMap: {
+            ...state.activeSatpamShiftMap,
+            [payload.satpamId]: session,
+          },
+        }));
+        get().addAuditLog('BK & Keamanan', 'Cek In Satpam GPS', `${payload.satpamNama} Cek In (${shiftNama}) pukul ${waktuInput} WIB.`);
+        return { recordId, checkInDisplay, terlambatMenit };
+      },
+
+      toggleIstirahatSatpam: (satpamId) => {
+        set((state) => {
+          const cur = state.activeSatpamShiftMap[satpamId];
+          if (!cur || cur.status === 'selesai') return state;
+          const nowIso = new Date().toISOString();
+          if (cur.status === 'bertugas') {
+            return {
+              activeSatpamShiftMap: {
+                ...state.activeSatpamShiftMap,
+                [satpamId]: { ...cur, status: 'istirahat', breakStartedIso: nowIso },
+              },
+            };
+          } else {
+            const addedBreak = cur.breakStartedIso
+              ? Math.max(0, Date.now() - new Date(cur.breakStartedIso).getTime())
+              : 0;
+            return {
+              activeSatpamShiftMap: {
+                ...state.activeSatpamShiftMap,
+                [satpamId]: {
+                  ...cur,
+                  status: 'bertugas',
+                  breakTotalMs: cur.breakTotalMs + addedBreak,
+                  breakStartedIso: undefined,
+                },
+              },
+            };
+          }
+        });
+      },
+
+      checkOutSatpamMobile: (payload) => {
+        const cur = get().activeSatpamShiftMap[payload.satpamId];
+        if (!cur) return null;
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const waktuCekOut = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        const checkOutDisplay = `${pad(now.getHours())}.${pad(now.getMinutes())}`;
+        const extraBreak =
+          cur.status === 'istirahat' && cur.breakStartedIso
+            ? Math.max(0, now.getTime() - new Date(cur.breakStartedIso).getTime())
+            : 0;
+        const netMs = Math.max(
+          0,
+          now.getTime() - new Date(cur.checkInIso).getTime() - cur.breakTotalMs - extraBreak
+        );
+        const totalSecs = Math.floor(netMs / 1000);
+        const hrs = Math.floor(totalSecs / 3600);
+        const mins = Math.floor((totalSecs % 3600) / 60);
+        const secs = totalSecs % 60;
+        const durasiKerja = `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+
+        set((state) => ({
+          satpamAbsensiList: state.satpamAbsensiList.map((r) =>
+            r.id === cur.activeRecordId
+              ? {
+                  ...r,
+                  waktuCekOut,
+                  durasiKerja,
+                  fotoCekOutUrl: payload.fotoCekOutUrl || r.fotoCekOutUrl,
+                }
+              : r
+          ),
+          activeSatpamShiftMap: {
+            ...state.activeSatpamShiftMap,
+            [payload.satpamId]: {
+              ...cur,
+              status: 'selesai',
+              checkOutDisplay,
+              breakStartedIso: undefined,
+            },
+          },
+        }));
+        get().addAuditLog('BK & Keamanan', 'Cek Out Satpam', `Cek Out Satpam pukul ${waktuCekOut} WIB (Durasi ${durasiKerja}).`);
+        return { checkOutDisplay, durasiKerja };
+      },
+
+      submitSatpamPengajuan: (req) => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const waktuPengajuan = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        const newReq: SatpamPengajuanRequest = {
+          id: `sp-${Date.now()}`,
+          status: 'Menunggu',
+          waktuPengajuan,
+          ...req,
+        };
+        const jamInfo = req.jamMulaiDiajukan && req.jamSelesaiDiajukan ? ` (${req.jamMulaiDiajukan}–${req.jamSelesaiDiajukan})` : '';
+        set((state) => ({
+          satpamPengajuanList: [newReq, ...state.satpamPengajuanList],
+          kotakMasuk: [
+            {
+              id: `km-sp-${Date.now()}`,
+              judul: `${req.jenis === 'Absen Pengajuan' ? 'Absen Pengajuan Satpam' : `Pengajuan ${req.jenis} Satpam`}: ${req.satpamNama}`,
+              modul: 'BK & Keamanan',
+              pengirim: req.satpamNama,
+              waktu: 'Baru saja',
+              status: 'Menunggu',
+              keterangan: `${req.shiftNama}${jamInfo} tanggal ${req.tanggal}${req.kendalaKategori ? ` · Kendala: ${req.kendalaKategori}` : ''}${req.penggantiNama ? ` · Pengganti: ${req.penggantiNama}` : ''}. ${req.alasan}`,
+              linkTab: 'bk',
+            },
+            ...state.kotakMasuk,
+          ],
+        }));
+        get().addAuditLog('BK & Keamanan', `Ajukan ${req.jenis} Satpam`, `${req.satpamNama} mengajukan ${req.jenis} tanggal ${req.tanggal} (${req.shiftNama}).`);
+      },
+
+      approveSatpamPengajuan: (id, status, reviewerName) => {
+        const target = get().satpamPengajuanList.find((x) => x.id === id);
+        if (!target) return;
+        set((state) => {
+          const updatedRequests = state.satpamPengajuanList.map((item) =>
+            item.id === id ? { ...item, status, disetujuiOleh: reviewerName } : item
+          );
+          let nextAbsensi = state.satpamAbsensiList;
+          if (status === 'Disetujui') {
+            const generatedId = `sa-sp-${target.id}`;
+            const alreadyLinked = state.satpamAbsensiList.some((a) => a.id === generatedId);
+            if (!alreadyLinked) {
+              if (target.jenis === 'Absen Pengajuan') {
+                const jamMulai = target.jamMulaiDiajukan || '07:00';
+                const jamSelesai = target.jamSelesaiDiajukan || '15:00';
+                const [sh, sm] = jamMulai.split(':').map(Number);
+                const [eh, em] = jamSelesai.split(':').map(Number);
+                let totalMins = (eh * 60 + em) - (sh * 60 + sm);
+                if (totalMins <= 0) totalMins += 24 * 60;
+                const dH = String(Math.floor(totalMins / 60)).padStart(2, '0');
+                const dM = String(totalMins % 60).padStart(2, '0');
+                nextAbsensi = [
+                  {
+                    id: generatedId,
+                    tanggal: target.tanggal,
+                    satpamId: target.satpamId,
+                    satpamNama: target.satpamNama,
+                    shiftId: target.shiftId,
+                    shiftNama: target.shiftNama,
+                    posJaga: target.posJaga,
+                    status: 'Hadir',
+                    waktuInput: jamMulai,
+                    waktuCekOut: jamSelesai,
+                    durasiKerja: `${dH}:${dM}:00`,
+                    statusKeterlambatan: 'Tepat Waktu',
+                    menitTerlambat: 0,
+                    fotoSelfieUrl: target.buktiFotoUrl,
+                    koordinat: '-6.9765, 109.6832',
+                    lokasiLabel: `Absen Pengajuan Disetujui (${reviewerName})`,
+                    waktuTimestamp: `${target.tanggal} ${jamMulai} WIB (Pengajuan)`,
+                    wajahCocok: true,
+                    verifikasiAtasan: 'Terverifikasi',
+                    sumberAbsen: 'Absen Pengajuan',
+                    catatanPengajuan: `${target.kendalaKategori ? `${target.kendalaKategori} — ` : ''}${target.alasan}`,
+                  },
+                  ...state.satpamAbsensiList,
+                ];
+              } else {
+                const mappedStatus: SatpamAbsensiRecord['status'] =
+                  target.jenis === 'Sakit' ? 'Sakit' : target.jenis === 'Tukar Shift' ? 'Tukar Shift' : 'Izin';
+                nextAbsensi = [
+                  {
+                    id: generatedId,
+                    tanggal: target.tanggal,
+                    satpamId: target.satpamId,
+                    satpamNama: target.satpamNama,
+                    shiftId: target.shiftId,
+                    shiftNama: target.shiftNama,
+                    posJaga: target.posJaga,
+                    status: mappedStatus,
+                    pengganti: target.penggantiNama,
+                    waktuInput: 'Disetujui',
+                    lokasiLabel: `Persetujuan ${reviewerName}`,
+                    waktuTimestamp: `${target.tanggal} (Disetujui)`,
+                    verifikasiAtasan: 'Terverifikasi',
+                    sumberAbsen: 'Input Manual',
+                  },
+                  ...state.satpamAbsensiList,
+                ];
+              }
+            }
+          }
+          return {
+            satpamPengajuanList: updatedRequests,
+            satpamAbsensiList: nextAbsensi,
+          };
+        });
+        get().addAuditLog('BK & Keamanan', `Keputusan ${target.jenis} Satpam`, `Pengajuan ${target.satpamNama} (${target.tanggal}) ${status} oleh ${reviewerName}.`);
+      },
+
+      verifySatpamAbsensiRecord: (id, status) => {
+        set((state) => ({
+          satpamAbsensiList: state.satpamAbsensiList.map((r) =>
+            r.id === id ? { ...r, verifikasiAtasan: status } : r
+          ),
+        }));
+      },
+
+      addSatpamShiftConfig: (cfg) => {
+        const newShift: SatpamShiftConfig = { id: `satpam-shift-${Date.now()}`, ...cfg };
+        set((state) => ({
+          satpamShiftConfigs: [...state.satpamShiftConfigs, newShift].sort((a, b) =>
+            a.jamMulai.localeCompare(b.jamMulai)
+          ),
+        }));
+        get().addAuditLog('BK & Keamanan', 'Tambah Shift Satpam', `Shift baru ditambahkan: ${cfg.nama} (${cfg.jamMulai}–${cfg.jamSelesai}).`);
+      },
+
+      updateSatpamShiftConfig: (id, cfg) => {
+        set((state) => ({
+          satpamShiftConfigs: state.satpamShiftConfigs
+            .map((s) => (s.id === id ? { ...s, ...cfg } : s))
+            .sort((a, b) => a.jamMulai.localeCompare(b.jamMulai)),
+        }));
+        get().addAuditLog('BK & Keamanan', 'Ubah Shift Satpam', `Pengaturan shift Satpam (${id}) diperbarui.`);
+      },
+
+      deleteSatpamShiftConfig: (id) => {
+        set((state) => ({
+          satpamShiftConfigs: state.satpamShiftConfigs.filter((s) => s.id !== id),
+        }));
+        get().addAuditLog('BK & Keamanan', 'Hapus Shift Satpam', `Shift Satpam (${id}) dihapus.`);
+      },
+
+      resetSatpamShiftConfigs: () => {
+        set({ satpamShiftConfigs: SEED_SATPAM_SHIFTS });
+        get().addAuditLog('BK & Keamanan', 'Reset Shift Satpam', 'Shift Satpam dikembalikan ke standar 3 shift + kontrol ronda.');
+      },
+
       addSurat: (surat) => {
         const state = get();
         const nomor = `0${state.suratList.length + 43}/PND/SEKR/XI/2026`;
@@ -3354,6 +3751,125 @@ export const useAppStore = create<AppState>()(
           `Memperbarui data/keputusan sidang kenaikan ${historyEntry.santriNama} (${rec.keputusan}, Skor ${computedAkhir}).`
         );
       },
+
+      setTutorialVideoLink: (slideId, payload) => {
+        const nowStr = new Date().toISOString().split('T')[0];
+        set((state) => {
+          const prev = state.tutorialVideoLinks[slideId];
+          const resolvedThumb =
+            payload.thumbnailUrl !== undefined
+              ? payload.thumbnailUrl.trim() || undefined
+              : prev?.thumbnailUrl;
+          return {
+            tutorialVideoLinks: {
+              ...state.tutorialVideoLinks,
+              [slideId]: {
+                slideId,
+                url: (payload.url || '').trim(),
+                judul: payload.judul?.trim(),
+                thumbnailUrl: resolvedThumb,
+                sumberType: payload.sumberType,
+                updatedBy: payload.updatedBy || state.currentUser.nama,
+                updatedAt: nowStr,
+              },
+            },
+          };
+        });
+        get().addAuditLog(
+          'Panduan',
+          'Sematkan Link Video AI',
+          `Menyematkan tautan video & thumbnail tutorial untuk materi ${slideId} (${payload.sumberType}).`
+        );
+      },
+
+      deleteTutorialVideoLink: (slideId) => {
+        set((state) => {
+          const next = { ...state.tutorialVideoLinks };
+          delete next[slideId];
+          return { tutorialVideoLinks: next };
+        });
+        get().addAuditLog('Panduan', 'Hapus Link Video AI', `Menghapus tautan video tutorial ${slideId}.`);
+      },
+
+      setTutorialPptTemplate: (slideId, payload) => {
+        const nowStr = new Date().toISOString().split('T')[0];
+        set((state) => ({
+          tutorialPptTemplates: {
+            ...state.tutorialPptTemplates,
+            [slideId]: {
+              slideId,
+              modulNama: payload.modulNama,
+              fileName: payload.fileName,
+              fileSize: payload.fileSize,
+              mimeType: payload.mimeType,
+              catatan: payload.catatan?.trim(),
+              uploadedBy: payload.uploadedBy || state.currentUser.nama,
+              uploadedAt: nowStr,
+            },
+          },
+        }));
+        get().addAuditLog(
+          'Sekretaris',
+          'Unggah Template PPTX',
+          `Mengunggah template presentasi "${payload.fileName}" untuk materi ${slideId}.`
+        );
+      },
+
+      deleteTutorialPptTemplate: (slideId) => {
+        set((state) => {
+          const next = { ...state.tutorialPptTemplates };
+          delete next[slideId];
+          return { tutorialPptTemplates: next };
+        });
+        get().addAuditLog('Sekretaris', 'Hapus Template PPTX', `Menghapus template PPTX materi ${slideId}.`);
+      },
+
+      addKhazanahItem: (data) => {
+        const id = `khz-${Date.now()}`;
+        const today = new Date().toISOString().split('T')[0];
+        const newItem: KhazanahItem = {
+          ...data,
+          id,
+          ditambahkanOleh: data.ditambahkanOleh || get().currentUser.nama,
+          tanggalUpdate: today,
+        };
+        set((state) => ({
+          khazanahItems: [newItem, ...state.khazanahItems],
+        }));
+        get().addAuditLog(
+          'Sekretaris',
+          'Tambah Khazanah Landing Page',
+          `Menambahkan materi "${data.judul}" (${data.kategori}) ke Khazanah & Ibadah Landing Page.`
+        );
+        return id;
+      },
+
+      updateKhazanahItem: (id, data) => {
+        const today = new Date().toISOString().split('T')[0];
+        set((state) => ({
+          khazanahItems: state.khazanahItems.map((it) =>
+            it.id === id ? { ...it, ...data, tanggalUpdate: today } : it
+          ),
+        }));
+        get().addAuditLog('Sekretaris', 'Edit Khazanah Landing Page', `Memperbarui materi Khazanah (${id}).`);
+      },
+
+      deleteKhazanahItem: (id) => {
+        const existing = get().khazanahItems.find((k) => k.id === id);
+        set((state) => ({
+          khazanahItems: state.khazanahItems.filter((it) => it.id !== id),
+        }));
+        get().addAuditLog(
+          'Sekretaris',
+          'Hapus Khazanah Landing Page',
+          `Menghapus materi "${existing?.judul || id}" dari Khazanah Landing Page.`
+        );
+      },
+
+      resetKhazanahItems: () => {
+        set({ khazanahItems: SEED_KHAZANAH_ITEMS });
+        get().addAuditLog('Sekretaris', 'Reset Khazanah Default', 'Mengembalikan katalog Khazanah Landing Page ke standar bawaan.');
+      },
     }),
     {
       name: 'erp-darussalam-storage-v3',
@@ -3511,6 +4027,32 @@ export const useAppStore = create<AppState>()(
           }));
         }
 
+        // Backfill Satpam Riyadi, Suwarno, Sopoyono attendance data
+        if (!Array.isArray(persisted.satpamList) || persisted.satpamList.length === 0) {
+          merged.satpamList = SEED_SATPAM_LIST;
+        }
+        if (!Array.isArray(persisted.satpamShiftConfigs) || persisted.satpamShiftConfigs.length === 0) {
+          merged.satpamShiftConfigs = SEED_SATPAM_SHIFTS;
+        }
+        if (!Array.isArray(persisted.satpamAbsensiList) || persisted.satpamAbsensiList.length === 0) {
+          merged.satpamAbsensiList = SEED_SATPAM_ABSENSI;
+        }
+        if (!Array.isArray(persisted.satpamPengajuanList)) {
+          merged.satpamPengajuanList = SEED_SATPAM_PENGAJUAN;
+        }
+        if (!persisted.activeSatpamShiftMap) {
+          merged.activeSatpamShiftMap = {};
+        }
+        if (!persisted.tutorialVideoLinks) {
+          merged.tutorialVideoLinks = {};
+        }
+        if (!persisted.tutorialPptTemplates) {
+          merged.tutorialPptTemplates = {};
+        }
+        if (!Array.isArray(persisted.khazanahItems) || persisted.khazanahItems.length === 0) {
+          merged.khazanahItems = SEED_KHAZANAH_ITEMS;
+        }
+
         return merged;
       },
       partialize: (state) => ({
@@ -3538,6 +4080,11 @@ export const useAppStore = create<AppState>()(
         izinBadalGuruList: state.izinBadalGuruList,
         absensiShiftConfigs: state.absensiShiftConfigs,
         activeGuruShiftMap: state.activeGuruShiftMap,
+        satpamList: state.satpamList,
+        satpamShiftConfigs: state.satpamShiftConfigs,
+        satpamAbsensiList: state.satpamAbsensiList,
+        satpamPengajuanList: state.satpamPengajuanList,
+        activeSatpamShiftMap: state.activeSatpamShiftMap,
         sdmNotifEnabled: state.sdmNotifEnabled,
         pinPengesahanMap: state.pinPengesahanMap,
         baganOrganisasi: state.baganOrganisasi,
@@ -3573,6 +4120,9 @@ export const useAppStore = create<AppState>()(
         suratList: state.suratList,
         pelanggaranList: state.pelanggaranList,
         munaqosyahRecords: state.munaqosyahRecords,
+        tutorialVideoLinks: state.tutorialVideoLinks,
+        tutorialPptTemplates: state.tutorialPptTemplates,
+        khazanahItems: state.khazanahItems,
         sidangKenaikanRecords: state.sidangKenaikanRecords,
         sidangKenaikanHistory: state.sidangKenaikanHistory,
         sidangJadwal: state.sidangJadwal,

@@ -7,6 +7,7 @@ export const PWAInstallButton: React.FC<{ variant?: 'header' | 'button' | 'badge
 }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [showDesktopGuide, setShowDesktopGuide] = useState(false);
 
   if (isInstalled) {
     return (
@@ -38,9 +39,7 @@ export const PWAInstallButton: React.FC<{ variant?: 'header' | 'button' | 'badge
         </button>
       ) : (
         <button
-          onClick={() => {
-            alert("Untuk memasang di desktop / Chrome:\n1. Klik ikon install di bilah alamat browser (kanan atas)\n2. Atau buka Menu (titik tiga) > 'Install ERP Darussalam'.");
-          }}
+          onClick={() => setShowDesktopGuide(true)}
           className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 transition whitespace-nowrap shrink-0"
         >
           <Download className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
@@ -48,37 +47,60 @@ export const PWAInstallButton: React.FC<{ variant?: 'header' | 'button' | 'badge
         </button>
       )}
 
-      {showIOSGuide && (
+      {(showIOSGuide || showDesktopGuide) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Smartphone className="w-5 h-5 text-emerald-700" />
-                Pasang di iPhone / iPad
+                {showIOSGuide ? 'Pasang di iPhone / iPad' : 'Pasang Aplikasi ERP & Absensi HP'}
               </h3>
               <button
-                onClick={() => setShowIOSGuide(false)}
+                onClick={() => {
+                  setShowIOSGuide(false);
+                  setShowDesktopGuide(false);
+                }}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="mt-4 space-y-3 text-xs text-slate-600">
-              <p className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">1</span>
-                <span>Buka website ini melalui browser <strong>Safari</strong> di iPhone/iPad Anda.</span>
-              </p>
-              <p className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">2</span>
-                <span>Tekan tombol <strong>Bagikan (Share)</strong> di bilah bawah Safari (ikon kotak dengan panah ke atas).</span>
-              </p>
-              <p className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">3</span>
-                <span>Gulir ke bawah lalu pilih menu <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong>.</span>
-              </p>
-            </div>
+            {showIOSGuide ? (
+              <div className="mt-4 space-y-3 text-xs text-slate-600">
+                <p className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">1</span>
+                  <span>Buka website ini melalui browser <strong>Safari</strong> di iPhone/iPad Anda.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">2</span>
+                  <span>Tekan tombol <strong>Bagikan (Share)</strong> di bilah bawah Safari (ikon kotak dengan panah ke atas).</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">3</span>
+                  <span>Gulir ke bawah lalu pilih menu <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong>.</span>
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3 text-xs text-slate-600">
+                <p className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">1</span>
+                  <span><strong>Di HP Android (Chrome):</strong> Ketuk menu titik tiga (⋮) di pojok kanan atas lalu pilih <strong>"Install Aplikasi" / "Tambahkan ke Layar Utama"</strong>.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">2</span>
+                  <span><strong>Di Laptop (Chrome / Edge):</strong> Klik ikon layar/install di ujung kanan bilah alamat URL browser.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">3</span>
+                  <span>Setelah terpasang, ikon <strong>ERP Darussalam</strong> (termasuk shortcut Absensi Guru &amp; Satpam) tampil langsung di layar HP.</span>
+                </p>
+              </div>
+            )}
             <button
-              onClick={() => setShowIOSGuide(false)}
+              onClick={() => {
+                setShowIOSGuide(false);
+                setShowDesktopGuide(false);
+              }}
               className="mt-6 w-full rounded-xl bg-emerald-800 py-2.5 text-xs font-semibold text-white hover:bg-emerald-900 transition"
             >
               Mengerti, Tutup Panduan

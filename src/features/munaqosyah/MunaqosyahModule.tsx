@@ -22,9 +22,9 @@ import {
   Trash2,
   UserCheck,
   Users,
+  ScrollText,
+  Sparkles,
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import {
   MajlisHall3D,
   type MajlisBenchStation,
@@ -32,6 +32,8 @@ import {
   type MajlisCalloutData,
   type MajlisCameraTarget,
 } from '../../components/common/MajlisHall3D.tsx';
+import { RuangHadis3D } from '../../components/common/RuangHadis3D.tsx';
+import { BahtsulMasailSubTab } from './BahtsulMasailSubTab.tsx';
 import {
   MUNAQOSYAH_BENCHES,
   MUNAQOSYAH_MAKRO_ENVELOPES,
@@ -92,7 +94,7 @@ export const MunaqosyahModule: React.FC = () => {
   const { santriList, ustadzList, currentTahunAjaran, munaqosyahRecords, addMunaqosyahRecord, deleteMunaqosyahRecord } =
     useAppStore();
 
-  const [activeSubTab, setActiveSubTab] = useState<'ruang_3d' | 'monitor_realtime' | 'rekap_nilai'>('ruang_3d');
+  const [activeSubTab, setActiveSubTab] = useState<'ruang_3d' | 'bahtsul_masail' | 'ruang_hadis' | 'monitor_realtime' | 'rekap_nilai'>('ruang_3d');
   const [tingkat, setTingkat] = useState<MunaqosyahTingkat>('Kelas 3');
   const [cameraView, setCameraView] = useState<CameraViewKey>('overview');
   const [selectedBench, setSelectedBench] = useState<MunaqosyahBenchId>('moderator');
@@ -522,7 +524,9 @@ export const MunaqosyahModule: React.FC = () => {
       )
     : null;
 
-  const handleDownloadPdfRecord = (record: Omit<MunaqosyahRecord, 'id'> & { id?: string }) => {
+  const handleDownloadPdfRecord = async (record: Omit<MunaqosyahRecord, 'id'> & { id?: string }) => {
+    const { jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const isKelas3 = record.tingkat === 'Kelas 3';
 
@@ -622,7 +626,9 @@ export const MunaqosyahModule: React.FC = () => {
     return munaqosyahRecords.filter((r) => rekapFilter === 'Semua' || r.tingkat === rekapFilter);
   }, [munaqosyahRecords, rekapFilter]);
 
-  const handleDownloadFinalReportPdf = () => {
+  const handleDownloadFinalReportPdf = async () => {
+    const { jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const rows = filteredRecords;
     const avgScore =
@@ -767,10 +773,10 @@ export const MunaqosyahModule: React.FC = () => {
             <span>Sistem Estafet 4 Bangku · Undian Amplop Makro&apos; Tanpa Bawa Kitab</span>
           </div>
           <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">
-            Modul Munaqosyah Kitab Kuning &amp; Al-Qur&apos;an 3D
+            Modul Majlis Ilmiah, Perumusan Hadits &amp; Munaqosyah 3D
           </h2>
           <p className="text-xs text-slate-500">
-            Kelas 3 (Imrithi &amp; Fathul Qorib) &amp; Kelas 6 (Alfiyah Ibnu Malik &amp; Fathul Mu&apos;in) dengan estafet paralel 4 Bangku untuk memangkas waktu ujian.
+            Munaqosyah Estafet 4 Bangku Kelas 3 &amp; 6, Forum Bahtsul Masail AI 3D (4 Madzhab), dan Halaqah Perumusan Hadits 51 Kitab Mu&apos;tabarah.
           </p>
         </div>
 
@@ -785,7 +791,31 @@ export const MunaqosyahModule: React.FC = () => {
             }`}
           >
             <Camera className="w-3.5 h-3.5" />
-            <span>Ruang Sidang 3D ({occupiedBenchesCount}/4)</span>
+            <span>Sidang Munaqosyah 3D ({occupiedBenchesCount}/4)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('bahtsul_masail')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+              activeSubTab === 'bahtsul_masail'
+                ? 'bg-[#D9822B] text-white shadow-xs'
+                : 'bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Bahtsul Masail 3D (4 Madzhab)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('ruang_hadis')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+              activeSubTab === 'ruang_hadis'
+                ? 'bg-red-900 text-amber-200 shadow-xs'
+                : 'bg-amber-50 text-amber-950 border border-amber-200 hover:bg-amber-100'
+            }`}
+          >
+            <ScrollText className="w-3.5 h-3.5" />
+            <span>Perumusan Hadits 3D (51 Kitab)</span>
           </button>
           <button
             type="button"
@@ -813,6 +843,10 @@ export const MunaqosyahModule: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {activeSubTab === 'bahtsul_masail' && <BahtsulMasailSubTab />}
+
+      {activeSubTab === 'ruang_hadis' && <RuangHadis3D />}
 
       {activeSubTab === 'ruang_3d' && (
         <div className="space-y-6">

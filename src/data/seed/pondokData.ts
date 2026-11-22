@@ -451,6 +451,45 @@ export const CORE_SEED_USERS: UserAccount[] = [
     rolesAvailable: ["admin_sistem", "pengasuh", "ketua_imtihan", "bendahara", "sekretaris"],
     keterangan: "Akses super-admin: manajemen peran, konfigurasi database, jejak audit, backup, simulasi peran",
   },
+  {
+    id: "u-satpam-riyadi",
+    username: "riyadi",
+    nama: "Pak Riyadi",
+    email: "riyadi.satpam@darussalam.id",
+    noWa: "085711220001",
+    password: "darussalam2026",
+    peran: "bk_keamanan",
+    peranLabel: "Komandan Regu Satpam",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+    rolesAvailable: ["bk_keamanan"],
+    keterangan: "Petugas Satpam PP NU Darussalam — Absensi Mobile HP, Buku Tamu, Titipan Wali & Patroli Komplek",
+  },
+  {
+    id: "u-satpam-suwarno",
+    username: "suwarno",
+    nama: "Pak Suwarno",
+    email: "suwarno.satpam@darussalam.id",
+    noWa: "085711220002",
+    password: "darussalam2026",
+    peran: "bk_keamanan",
+    peranLabel: "Petugas Satpam Keamanan",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+    rolesAvailable: ["bk_keamanan"],
+    keterangan: "Petugas Satpam PP NU Darussalam — Absensi Mobile HP, Gerbang Utama & Patroli Putra",
+  },
+  {
+    id: "u-satpam-sopoyono",
+    username: "sopoyono",
+    nama: "Pak Sopoyono",
+    email: "sopoyono.satpam@darussalam.id",
+    noWa: "085711220003",
+    password: "darussalam2026",
+    peran: "bk_keamanan",
+    peranLabel: "Petugas Satpam Keamanan",
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
+    rolesAvailable: ["bk_keamanan"],
+    keterangan: "Petugas Satpam PP NU Darussalam — Absensi Mobile HP, Pos Penjengukan & Komplek Putri",
+  },
 ];
 
 // SEED_USERS will be populated right after SEED_USTADZ_LIST below to include every individual guru account
@@ -2996,9 +3035,11 @@ export interface TitipanWaliRecord {
 }
 
 export const SEED_JADWAL_KEAMANAN: JadwalKeamananItem[] = [
-  { id: 'jk-1', hari: 'Senin - Selasa', shift: 'Malam (22.00 - 04.00)', pos: 'Pos Gerbang Utama & Patroli Putra', petugas: 'Pak Slamet & M. Rizqi', koordinator: 'Ust. Bahrul Ulum' },
-  { id: 'jk-2', hari: 'Rabu - Kamis', shift: 'Malam (22.00 - 04.00)', pos: 'Pos Gerbang Utama & Patroli Putra', petugas: 'Ahmad Fauzi & M. Hasan', koordinator: 'Ust. Bahrul Ulum' },
-  { id: 'jk-3', hari: 'Jum\'at - Ahad', shift: 'Sore (14.00 - 21.00)', pos: 'Pos Penjengukan Wali Santri', petugas: 'Tim Keamanan Komplek & Mbak Zuhrotun', koordinator: 'Ust. Khoirul Umam' },
+  { id: 'jk-1', hari: 'Senin - Selasa', shift: 'Pagi (07.00 - 14.00)', pos: 'Pos Gerbang Utama & Buku Tamu', petugas: 'Pak Riyadi', koordinator: 'Ust. Bahrul Ulum' },
+  { id: 'jk-2', hari: 'Senin - Selasa', shift: 'Sore (14.00 - 21.00)', pos: 'Pos Penjengukan Wali & Komplek Putri', petugas: 'Pak Suwarno', koordinator: 'Ust. Bahrul Ulum' },
+  { id: 'jk-3', hari: 'Senin - Selasa', shift: 'Malam (22.00 - 04.00)', pos: 'Patroli Asrama Putra & Gerbang Utama', petugas: 'Pak Sopoyono', koordinator: 'Ust. Bahrul Ulum' },
+  { id: 'jk-4', hari: 'Rabu - Kamis', shift: 'Pagi (07.00 - 14.00)', pos: 'Pos Gerbang Utama & Buku Tamu', petugas: 'Pak Suwarno', koordinator: 'Ust. Bahrul Ulum' },
+  { id: 'jk-5', hari: 'Jum\'at - Ahad', shift: 'Sore (14.00 - 21.00)', pos: 'Pos Penjengukan Wali Santri', petugas: 'Pak Riyadi & Pak Sopoyono', koordinator: 'Ust. Khoirul Umam' },
 ];
 
 export const SEED_BUKU_TAMU: BukuTamuRecord[] = [
@@ -3253,5 +3294,299 @@ export const SEED_TAGIHAN_SANTRI: TagihanSantriItem[] = (() => {
 
   return items;
 })();
+
+/**
+ * Modul Absensi Mobile & Monitoring Satpam (Riyadi, Suwarno, Sopoyono)
+ */
+export interface SatpamProfile {
+  id: string;
+  userId: string;
+  nama: string;
+  jabatan: string;
+  posUtama: string;
+  noWa: string;
+  shiftDefaultId: string;
+}
+
+export interface SatpamShiftConfig {
+  id: string;
+  nama: string;
+  pos: string;
+  jamMulai: string;
+  jamSelesai: string;
+  toleransiMenit: number;
+  aktif: boolean;
+}
+
+export interface SatpamAbsensiRecord {
+  id: string;
+  tanggal: string;
+  satpamId: string;
+  satpamNama: string;
+  shiftId?: string;
+  shiftNama: string;
+  posJaga: string;
+  status: 'Hadir' | 'Izin' | 'Sakit' | 'Tukar Shift';
+  pengganti?: string;
+  waktuInput: string;
+  waktuCekOut?: string;
+  durasiKerja?: string;
+  statusKeterlambatan?: 'Tepat Waktu' | 'Terlambat';
+  menitTerlambat?: number;
+  fotoSelfieUrl?: string;
+  fotoCekOutUrl?: string;
+  koordinat?: string;
+  akurasiGps?: number;
+  lokasiLabel?: string;
+  waktuTimestamp?: string;
+  wajahCocok?: boolean;
+  verifikasiAtasan?: 'Terverifikasi' | 'Menunggu';
+  sumberAbsen?: 'GPS Mobile' | 'Absen Pengajuan' | 'Input Manual';
+  catatanPengajuan?: string;
+}
+
+export interface SatpamPengajuanRequest {
+  id: string;
+  satpamId: string;
+  satpamNama: string;
+  tanggal: string;
+  jenis: 'Absen Pengajuan' | 'Izin' | 'Sakit' | 'Tukar Shift';
+  shiftId?: string;
+  shiftNama: string;
+  posJaga: string;
+  jamMulaiDiajukan?: string;
+  jamSelesaiDiajukan?: string;
+  kendalaKategori?: string;
+  buktiFotoUrl?: string;
+  penggantiNama?: string;
+  alasan: string;
+  status: 'Menunggu' | 'Disetujui' | 'Ditolak';
+  disetujuiOleh?: string;
+  waktuPengajuan: string;
+}
+
+export const SEED_SATPAM_LIST: SatpamProfile[] = [
+  {
+    id: 'satpam-riyadi',
+    userId: 'u-satpam-riyadi',
+    nama: 'Pak Riyadi',
+    jabatan: 'Komandan Regu Satpam',
+    posUtama: 'Pos Gerbang Utama Putra',
+    noWa: '085711220001',
+    shiftDefaultId: 'satpam-shift-pagi',
+  },
+  {
+    id: 'satpam-suwarno',
+    userId: 'u-satpam-suwarno',
+    nama: 'Pak Suwarno',
+    jabatan: 'Anggota Satpam Jaga',
+    posUtama: 'Pos Penjengukan & Gerbang',
+    noWa: '085711220002',
+    shiftDefaultId: 'satpam-shift-sore',
+  },
+  {
+    id: 'satpam-sopoyono',
+    userId: 'u-satpam-sopoyono',
+    nama: 'Pak Sopoyono',
+    jabatan: 'Anggota Satpam Patroli',
+    posUtama: 'Pos Patroli Asrama & Komplek Putri',
+    noWa: '085711220003',
+    shiftDefaultId: 'satpam-shift-malam',
+  },
+];
+
+export const SEED_SATPAM_SHIFTS: SatpamShiftConfig[] = [
+  {
+    id: 'satpam-shift-pagi',
+    nama: 'Shift Pagi — Gerbang Utama',
+    pos: 'Pos Gerbang Utama PP NU Darussalam',
+    jamMulai: '07:00',
+    jamSelesai: '15:00',
+    toleransiMenit: 10,
+    aktif: true,
+  },
+  {
+    id: 'satpam-shift-sore',
+    nama: 'Shift Sore — Penjengukan Wali',
+    pos: 'Pos Penjengukan & Pintu Masuk',
+    jamMulai: '15:00',
+    jamSelesai: '23:00',
+    toleransiMenit: 10,
+    aktif: true,
+  },
+  {
+    id: 'satpam-shift-malam',
+    nama: 'Shift Malam — Patroli Komplek',
+    pos: 'Keliling Asrama Putra & Putri',
+    jamMulai: '23:00',
+    jamSelesai: '07:00',
+    toleransiMenit: 10,
+    aktif: true,
+  },
+  {
+    id: 'satpam-slot-ronda-1jam',
+    nama: 'Slot Kontrol Ronda Malam (1 Jam)',
+    pos: 'Pos Gerbang, Masjid & Asrama',
+    jamMulai: '01:00',
+    jamSelesai: '02:00',
+    toleransiMenit: 5,
+    aktif: true,
+  },
+];
+
+export const SEED_SATPAM_ABSENSI: SatpamAbsensiRecord[] = [
+  {
+    id: 'sa-1',
+    tanggal: '2026-11-20',
+    satpamId: 'satpam-riyadi',
+    satpamNama: 'Pak Riyadi',
+    shiftId: 'satpam-shift-pagi',
+    shiftNama: 'Shift Pagi — Gerbang Utama',
+    posJaga: 'Pos Gerbang Utama PP NU Darussalam',
+    status: 'Hadir',
+    waktuInput: '06:55',
+    waktuCekOut: '15:02',
+    durasiKerja: '08:07:00',
+    statusKeterlambatan: 'Tepat Waktu',
+    menitTerlambat: 0,
+    koordinat: '-6.9765, 109.6832',
+    akurasiGps: 14,
+    lokasiLabel: 'Pos Gerbang Utama PP NU Darussalam',
+    waktuTimestamp: '20 Nov 2026 06:55 WIB',
+    wajahCocok: true,
+    verifikasiAtasan: 'Terverifikasi',
+    sumberAbsen: 'GPS Mobile',
+  },
+  {
+    id: 'sa-2',
+    tanggal: '2026-11-20',
+    satpamId: 'satpam-suwarno',
+    satpamNama: 'Pak Suwarno',
+    shiftId: 'satpam-shift-sore',
+    shiftNama: 'Shift Sore — Penjengukan Wali',
+    posJaga: 'Pos Penjengukan & Pintu Masuk',
+    status: 'Hadir',
+    waktuInput: '14:58',
+    waktuCekOut: '23:04',
+    durasiKerja: '08:06:00',
+    statusKeterlambatan: 'Tepat Waktu',
+    menitTerlambat: 0,
+    koordinat: '-6.9766, 109.6831',
+    akurasiGps: 18,
+    lokasiLabel: 'Pos Penjengukan & Pintu Masuk',
+    waktuTimestamp: '20 Nov 2026 14:58 WIB',
+    wajahCocok: true,
+    verifikasiAtasan: 'Terverifikasi',
+    sumberAbsen: 'GPS Mobile',
+  },
+  {
+    id: 'sa-3',
+    tanggal: '2026-11-20',
+    satpamId: 'satpam-sopoyono',
+    satpamNama: 'Pak Sopoyono',
+    shiftId: 'satpam-shift-malam',
+    shiftNama: 'Shift Malam — Patroli Komplek',
+    posJaga: 'Keliling Asrama Putra & Putri',
+    status: 'Hadir',
+    waktuInput: '23:14',
+    waktuCekOut: '07:02',
+    durasiKerja: '07:48:00',
+    statusKeterlambatan: 'Terlambat',
+    menitTerlambat: 14,
+    koordinat: '-6.9767, 109.6834',
+    akurasiGps: 21,
+    lokasiLabel: 'Keliling Asrama Putra & Putri',
+    waktuTimestamp: '20 Nov 2026 23:14 WIB',
+    wajahCocok: true,
+    verifikasiAtasan: 'Terverifikasi',
+    sumberAbsen: 'GPS Mobile',
+  },
+  {
+    id: 'sa-4',
+    tanggal: '2026-11-19',
+    satpamId: 'satpam-riyadi',
+    satpamNama: 'Pak Riyadi',
+    shiftId: 'satpam-shift-pagi',
+    shiftNama: 'Shift Pagi — Gerbang Utama',
+    posJaga: 'Pos Gerbang Utama PP NU Darussalam',
+    status: 'Hadir',
+    waktuInput: '06:57',
+    waktuCekOut: '15:00',
+    durasiKerja: '08:03:00',
+    statusKeterlambatan: 'Tepat Waktu',
+    menitTerlambat: 0,
+    koordinat: '-6.9765, 109.6832',
+    akurasiGps: 16,
+    lokasiLabel: 'Pos Gerbang Utama PP NU Darussalam',
+    waktuTimestamp: '19 Nov 2026 06:57 WIB',
+    wajahCocok: true,
+    verifikasiAtasan: 'Terverifikasi',
+    sumberAbsen: 'GPS Mobile',
+  },
+  {
+    id: 'sa-5',
+    tanggal: '2026-11-19',
+    satpamId: 'satpam-suwarno',
+    satpamNama: 'Pak Suwarno',
+    shiftId: 'satpam-shift-sore',
+    shiftNama: 'Shift Sore — Penjengukan Wali',
+    posJaga: 'Pos Penjengukan & Pintu Masuk',
+    status: 'Hadir',
+    waktuInput: '14:54',
+    waktuCekOut: '23:01',
+    durasiKerja: '08:07:00',
+    statusKeterlambatan: 'Tepat Waktu',
+    menitTerlambat: 0,
+    koordinat: '-6.9766, 109.6831',
+    akurasiGps: 19,
+    lokasiLabel: 'Pos Penjengukan & Pintu Masuk',
+    waktuTimestamp: '19 Nov 2026 14:54 WIB',
+    wajahCocok: true,
+    verifikasiAtasan: 'Terverifikasi',
+    sumberAbsen: 'GPS Mobile',
+  },
+  {
+    id: 'sa-6',
+    tanggal: '2026-11-19',
+    satpamId: 'satpam-sopoyono',
+    satpamNama: 'Pak Sopoyono',
+    shiftId: 'satpam-shift-malam',
+    shiftNama: 'Shift Malam — Patroli Komplek',
+    posJaga: 'Keliling Asrama Putra & Putri',
+    status: 'Hadir',
+    waktuInput: '22:57',
+    waktuCekOut: '07:00',
+    durasiKerja: '08:03:00',
+    statusKeterlambatan: 'Tepat Waktu',
+    menitTerlambat: 0,
+    koordinat: '-6.9767, 109.6834',
+    akurasiGps: 20,
+    lokasiLabel: 'Keliling Asrama Putra & Putri',
+    waktuTimestamp: '19 Nov 2026 22:57 WIB',
+    wajahCocok: true,
+    verifikasiAtasan: 'Terverifikasi',
+    sumberAbsen: 'GPS Mobile',
+  },
+];
+
+export const SEED_SATPAM_PENGAJUAN: SatpamPengajuanRequest[] = [
+  {
+    id: 'sp-1',
+    satpamId: 'satpam-suwarno',
+    satpamNama: 'Pak Suwarno',
+    tanggal: '2026-11-21',
+    jenis: 'Absen Pengajuan',
+    shiftId: 'satpam-slot-ronda-1jam',
+    shiftNama: 'Slot Kontrol Ronda Malam (1 Jam)',
+    posJaga: 'Pos Gerbang, Masjid & Asrama',
+    jamMulaiDiajukan: '01:00',
+    jamSelesaiDiajukan: '02:00',
+    kendalaKategori: 'Sinyal GPS Lemah / Tidak Terbaca',
+    alasan: 'Sinyal GPS sempat hilang di area lorong komplek putri saat ronda pukul 01.00 WIB, patroli terlaksana aman.',
+    status: 'Menunggu',
+    waktuPengajuan: '2026-11-21 02:05',
+  },
+];
+
 
 

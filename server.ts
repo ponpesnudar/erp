@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
+import compression from 'compression';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -11,6 +13,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
+app.use(compression({ threshold: 1024 }));
 app.use(express.json({ limit: '15mb' }));
 
 // Health Check Endpoint
@@ -389,7 +392,29 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(__dirname, 'dist');
-    app.use(express.static(distPath));
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' || !req.path.startsWith('/assets/')) return next();
+      const acceptEncoding = String(req.headers['accept-encoding'] || '');
+      const cleanRel = req.path.replace(/^\/+/, '');
+      const candidates: Array<{ ext: string; enc: string }> = [];
+      if (acceptEncoding.includes('br')) candidates.push({ ext: '.br', enc: 'br' });
+      if (acceptEncoding.includes('gzip')) candidates.push({ ext: '.gz', enc: 'gzip' });
+
+      for (const c of candidates) {
+        const compressedPath = path.resolve(distPath, `${cleanRel}${c.ext}`);
+        if (compressedPath.startsWith(distPath) && fs.existsSync(compressedPath)) {
+          if (req.path.endsWith('.js')) res.type('application/javascript');
+          else if (req.path.endsWith('.css')) res.type('text/css');
+          else if (req.path.endsWith('.svg')) res.type('image/svg+xml');
+          res.setHeader('Content-Encoding', c.enc);
+          res.setHeader('Vary', 'Accept-Encoding');
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          return res.sendFile(compressedPath);
+        }
+      }
+      return next();
+    });
+    app.use(express.static(distPath, { maxAge: '7d' }));
     app.get('*', (_req, res) => {
       res.sendFile(path.resolve(distPath, 'index.html'));
     });

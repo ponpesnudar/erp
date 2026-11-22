@@ -46,6 +46,7 @@ import {
 } from '../../data/seed/pondokData.ts';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { triggerReliablePrint } from '../../lib/printHelper.ts';
+import { RekapAbsensiSpreadsheet } from './RekapAbsensiSpreadsheet.tsx';
 
 function calcShiftDurationLabel(jamMulai: string, jamSelesai: string): string {
   const [sh, sm] = jamMulai.split(':').map(Number);
@@ -96,6 +97,9 @@ export const SdmMonitoringDashboard: React.FC = () => {
     izinBadalGuruList,
     absensiShiftConfigs,
     kalenderPendidikan,
+    satpamList,
+    satpamAbsensiList,
+    satpamPengajuanList,
     approveIzinBadalGuru,
     verifyAbsensiGuruRecord,
     addAbsensiShiftConfig,
@@ -126,6 +130,7 @@ export const SdmMonitoringDashboard: React.FC = () => {
   const [genderFilter, setGenderFilter] = useState<'Semua' | 'L' | 'P'>('Semua');
   const [searchQuery, setSearchQuery] = useState('');
   const [rekapBulan, setRekapBulan] = useState<string>(() => defaultDate.substring(0, 7) || '2026-11');
+  const [rekapTarget, setRekapTarget] = useState<'guru' | 'satpam' | 'semua'>('guru');
   const [previewRecord, setPreviewRecord] = useState<AbsensiGuruRecord | null>(null);
   const [buktiPreview, setBuktiPreview] = useState<{ url: string; title: string; meta: string } | null>(null);
   const [approvalFilter, setApprovalFilter] = useState<'Semua' | 'Absen Pengajuan' | 'Izin / Badal'>('Semua');
@@ -662,12 +667,12 @@ export const SdmMonitoringDashboard: React.FC = () => {
       {/* Filter & Action Toolbar */}
       <div className="rounded-3xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-4 no-print">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
-              Dashboard Monitoring Guru &amp; SDM Pondok
+              Panel Kontrol Monitoring Guru &amp; Rekapitulasi Diniyah
             </h2>
             <p className="text-xs text-slate-500">
-              Pemantauan kehadiran real-time Dewan Asatidz (Swafoto GPS), galeri foto absensi, serta manajemen rekapan 1 minggu &amp; 1 bulan.
+              Pemantauan kehadiran real-time Dewan Asatidz (Swafoto GPS), galeri foto absensi, serta rekapan format spreadsheet 1 minggu &amp; 1 bulan.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1190,8 +1195,8 @@ export const SdmMonitoringDashboard: React.FC = () => {
               />
             </div>
 
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-56 min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
                 <BarChart data={chartProgramData}>
                   <XAxis dataKey="program" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
@@ -1766,7 +1771,100 @@ export const SdmMonitoringDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* MODE 3: MANAJEMEN REKAP 1 BULAN (juga tampil di bawah harian saat cetak/rekap) */}
+        {/* MODE 3: MANAJEMEN REKAP 1 BULAN (Guru Diniyah & Regu Satpam) */}
+        {managementMode === 'rekap_bulanan' && (
+          <div className="space-y-5">
+            <div className="rounded-2xl bg-emerald-50/80 border border-emerald-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3 no-print">
+              <div className="text-xs">
+                <p className="font-extrabold text-emerald-950">
+                  Pilih Unit Rekapitulasi Bulanan (Format Spreadsheet Resmi + Cetak TTD Digital)
+                </p>
+                <p className="text-[11px] text-emerald-800">
+                  Menampilkan rekapitulasi Guru Diniyah dan regu Satpam Keamanan (Pak Riyadi, Pak Suwarno, Pak Sopoyono) beserta rincian tanggal &amp; status.
+                </p>
+              </div>
+              <div className="inline-flex flex-wrap gap-1 rounded-xl bg-white p-1 border border-emerald-200 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setRekapTarget('guru')}
+                  className={`px-3 py-1.5 rounded-lg transition ${
+                    rekapTarget === 'guru'
+                      ? 'bg-[#2E5D1A] text-white shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Guru Diniyah ({filteredUstadz.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRekapTarget('satpam')}
+                  className={`px-3 py-1.5 rounded-lg transition ${
+                    rekapTarget === 'satpam'
+                      ? 'bg-[#2E5D1A] text-white shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Satpam (Riyadi, Suwarno &amp; Sopoyono)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRekapTarget('semua')}
+                  className={`px-3 py-1.5 rounded-lg transition ${
+                    rekapTarget === 'semua'
+                      ? 'bg-[#2E5D1A] text-white shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Gabungan (Guru &amp; Satpam)
+                </button>
+              </div>
+            </div>
+
+            {(rekapTarget === 'guru' || rekapTarget === 'semua') && (
+              <RekapAbsensiSpreadsheet
+                mode="guru"
+                rekapBulan={rekapBulan}
+                onChangeRekapBulan={setRekapBulan}
+                ustadzList={filteredUstadz}
+                ustadzPayroll={ustadzPayroll}
+                absensiGuruList={absensiGuruList}
+                izinBadalGuruList={izinBadalGuruList}
+                signerName={reviewerDisplayName}
+                onNotify={notify}
+                onPrint={() =>
+                  triggerReliablePrint({
+                    title: `Rekapitulasi Absensi Guru Diniyah (${rekapBulan})`,
+                    orientation: printOrientation,
+                    paperSize: 'F4',
+                    targetElement: sdmPrintRef.current,
+                  })
+                }
+              />
+            )}
+
+            {(rekapTarget === 'satpam' || rekapTarget === 'semua') && (
+              <RekapAbsensiSpreadsheet
+                mode="satpam"
+                rekapBulan={rekapBulan}
+                onChangeRekapBulan={setRekapBulan}
+                satpamList={satpamList}
+                satpamAbsensiList={satpamAbsensiList}
+                satpamPengajuanList={satpamPengajuanList}
+                signerName={reviewerDisplayName}
+                onNotify={notify}
+                onPrint={() =>
+                  triggerReliablePrint({
+                    title: `Rekapitulasi Absensi Satpam Keamanan (${rekapBulan})`,
+                    orientation: printOrientation,
+                    paperSize: 'F4',
+                    targetElement: sdmPrintRef.current,
+                  })
+                }
+              />
+            )}
+          </div>
+        )}
+
         {(managementMode === 'rekap_bulanan' || managementMode === 'harian_foto') && (
           <div className="rounded-3xl bg-white border border-slate-200 p-5 shadow-2xs space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

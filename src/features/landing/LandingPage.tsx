@@ -25,14 +25,14 @@ import {
 import { useAppStore } from '../../lib/store.ts';
 import { AIAssistantModal } from '../../components/common/AIAssistantModal.tsx';
 import { PWAInstallButton } from '../../components/pwa/PWAInstallButton.tsx';
-import { BahtsulMasail3DSection } from './BahtsulMasail3DSection.tsx';
 
 interface LandingPageProps {
   onGoToLogin: () => void;
   onGoToPSB: () => void;
+  onOpenKhazanahApp: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB, onOpenKhazanahApp }) => {
   const landingConfig = useAppStore((s) => s.landingConfig);
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
@@ -78,9 +78,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
             <a href="#alur" className="px-2.5 py-1.5 rounded-lg hover:text-emerald-900 hover:bg-emerald-50/80 transition whitespace-nowrap">
               Alur Daftar
             </a>
-            <a href="#bahtsul-masail" className="px-2.5 py-1.5 rounded-lg text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition whitespace-nowrap">
-              Bahtsul Masail &amp; Munaqosyah 3D
-            </a>
+            <button
+              type="button"
+              onClick={onOpenKhazanahApp}
+              className="px-2.5 py-1.5 rounded-lg text-[#00897B] bg-[#E6F7F2] hover:bg-emerald-100 border border-[#00897B]/30 font-bold transition whitespace-nowrap"
+            >
+              Aplikasi Ibadah &amp; Qur&apos;an
+            </button>
             <a href="#faq" className="px-2.5 py-1.5 rounded-lg hover:text-emerald-900 hover:bg-emerald-50/80 transition whitespace-nowrap">
               Tanya Jawab
             </a>
@@ -89,6 +93,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
           {/* Action Buttons (Single-line height, never wrapping) */}
           <div className="flex items-center gap-2 shrink-0">
             <PWAInstallButton variant="header" />
+
+            <button
+              type="button"
+              onClick={onOpenKhazanahApp}
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#007366] bg-[#E6F7F2] hover:bg-emerald-100 border border-[#00897B]/40 rounded-xl transition shadow-2xs whitespace-nowrap shrink-0"
+            >
+              <BookOpen className="w-3.5 h-3.5 shrink-0" />
+              <span>Buka App Ibadah</span>
+            </button>
 
             <button
               onClick={onGoToPSB}
@@ -155,13 +168,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
               >
                 Alur Pendaftaran
               </a>
-              <a
-                href="#bahtsul-masail"
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2.5 rounded-xl bg-amber-50 text-amber-900 font-bold border border-amber-200 transition"
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenKhazanahApp();
+                }}
+                className="p-2.5 rounded-xl bg-[#E6F7F2] text-[#007366] font-bold border border-[#00897B]/30 transition text-left"
               >
-                Bahtsul Masail &amp; Munaqosyah 3D
-              </a>
+                Aplikasi Ibadah &amp; Al-Qur&apos;an
+              </button>
               <a
                 href="#faq"
                 onClick={() => setMobileMenuOpen(false)}
@@ -217,13 +233,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
                   <GraduationCap className="w-4 h-4" />
                   <span>Daftar Santri Baru (PSB Online)</span>
                 </button>
-                <a
-                  href="#bahtsul-masail"
-                  className="px-5 py-3 rounded-xl bg-amber-50 text-amber-950 border border-amber-300 text-xs sm:text-sm font-bold shadow-xs hover:bg-amber-100 transition flex items-center gap-2"
+                <button
+                  type="button"
+                  onClick={onOpenKhazanahApp}
+                  className="px-5 py-3 rounded-xl bg-[#00897B] text-white text-xs sm:text-sm font-bold shadow-md hover:bg-[#007366] transition flex items-center gap-2"
                 >
-                  <Sparkles className="w-4 h-4 text-amber-600" />
-                  <span>Bahtsul Masail &amp; Munaqosyah 3D</span>
-                </a>
+                  <BookOpen className="w-4 h-4 text-amber-200" />
+                  <span>Buka Aplikasi Ibadah &amp; Khazanah</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
                 <a
                   href="#biaya"
                   className="px-5 py-3 rounded-xl bg-white text-emerald-900 border border-emerald-300 text-xs sm:text-sm font-bold shadow-xs hover:bg-emerald-50 transition flex items-center gap-2"
@@ -345,9 +363,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
           </div>
         </div>
       </section>
-
-      {/* Forum Bahtsul Masail AI 3D Section */}
-      <BahtsulMasail3DSection />
 
       {/* Section 3 & 4: Visi Misi & Sejarah & Pengasuh */}
       <section className="py-16">
@@ -695,6 +710,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
               >
                 <GraduationCap className="w-3.5 h-3.5" />
                 <span>Formulir PSB Calon Santri</span>
+              </button>
+              <button
+                type="button"
+                onClick={onOpenKhazanahApp}
+                className="text-left text-amber-300 hover:text-white transition flex items-center gap-1.5 font-bold"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Buka Aplikasi Ibadah &amp; Khazanah (Mobile)</span>
               </button>
             </div>
           </div>

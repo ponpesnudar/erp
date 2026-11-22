@@ -13,24 +13,38 @@ import {
   Database,
   CheckCircle2,
   HardDrive,
+  Video,
+  Presentation,
 } from 'lucide-react';
 import { PWAInstallButton } from '../../components/pwa/PWAInstallButton.tsx';
+import { PanduanPresentationStudio } from './PanduanPresentationStudio.tsx';
 
 export const PanduanModule: React.FC = () => {
-  const [openGuide, setOpenGuide] = useState<string>('imtihan');
+  const [studioTab, setStudioTab] = useState<'ppt' | 'video' | 'buku'>('video');
+  const [openGuide, setOpenGuide] = useState<string>('satpam');
 
   const guides = [
     {
+      id: 'satpam',
+      title: 'Panduan Absensi Satpam HP (Pak Riyadi, Pak Suwarno, Pak Sopoyono)',
+      icon: Shield,
+      steps: [
+        'Pasang aplikasi ERP ke HP Android (Chrome > Install Aplikasi) atau iPhone (Safari > Tambah ke Layar Utama).',
+        'Login menggunakan username pribadi masing-masing: riyadi, suwarno, atau sopoyono (sandi: darussalam2026).',
+        'Pilih shift jaga aktif (Pagi 07-15, Sore 15-23, Malam 23-07, atau Slot Kontrol Ronda Malam), lalu tekan "Cek In Swafoto + GPS".',
+        'Gunakan tombol "Istirahat" untuk jeda sholat/makan, "Cek Out" saat selesai bertugas, atau "Absen Pengajuan / Tukar Shift" jika ada kendala sinyal GPS atau pergantian regu.',
+        'Koordinator Keamanan / Pengasuh dapat memantau foto absensi, menyetujui pengajuan, serta mengunduh Rekap Mingguan dan Bulanan dalam format PDF.',
+      ],
+    },
+    {
       id: 'imtihan',
-      title: 'Panduan Modul Imtihan (Ujian Santri)',
+      title: 'Panduan Imtihan, Majlis Ilmiah (Hadits & Munaqosyah 3D) & Sidang Kenaikan',
       icon: FileCheck,
       steps: [
         'Guru Pengampu menyusun naskah soal berhuruf Arab/Pegon di menu "Naskah Soal Guru" lalu mengklik tombol "Ajukan ke Panitia".',
-        'Panitia Imtihan membuka menu "Review Panitia" untuk membaca teks soal, menyetujui, atau memberikan catatan revisi jika ada kesalahan redaksi.',
-        'Setelah disetujui, buka menu "Cetak Blanko Soal" untuk mencetak lembar ujian resmi lengkap dengan kop pesantren, kotak nilai, tabel nama, dan soal berhuruf Arab-Indic.',
-        'Panitia membuka menu "Denah & Tempat Duduk" lalu menekan tombol "Acak Ulang" untuk membagi santri ke 7 ruang dan memastikan tidak ada teman sekelas yang bersebelahan.',
-        'Cetak kartu ujian peserta di menu "Kartu Imtihan" (format No. IMT 2MD#079 dengan tabel jadwal paraf pengawas di belakang).',
-        'Setelah ujian selesai, input nilai santri di menu "Input Nilai" untuk menghasilkan raport resmi dengan predikat Arab otomatis.',
+        'Panitia Imtihan mereview naskah soal, lalu mencetak blanko resmi serta mengacak Denah 7 Ruang Ujian anti-contek.',
+        'Pada Sidang Kenaikan Kelas, nilai Cawu 1 & 2, Absensi KBM (Sakit 0, Bolos -3), Ubudiyah, Amaliyah & MQK direkap otomatis; santri di bawah KKM 65 memicu notifikasi jadwal sidang untuk Pengasuh & Panitia.',
+        'Di Modul Majlis Ilmiah & Munaqosyah 3D, panitia memantau antrean 4 bangku penguji real-time, mengunduh laporan akhir PDF, serta menggunakan Halaqah Perumusan Hadits (Ruang Hadis 51 Kitab).',
       ],
     },
     {
@@ -47,12 +61,12 @@ export const PanduanModule: React.FC = () => {
     },
     {
       id: 'keuangan',
-      title: 'Panduan Transparansi Anggaran & Rekapitulasi Kas',
+      title: 'Panduan Laporan Keuangan (Neraca, Laba/Rugi, Cashflow) & Syahriyah',
       icon: DollarSign,
       steps: [
-        'Pengasuh dan Bendahara dapat memantau realisasi penerimaan syahriyah, infaq santri, dan pengeluaran operasional secara real-time.',
-        'Buka menu "Rekapitulasi Anggaran Bulanan" untuk melihat perbandingan rencana anggaran (RAB) dengan realisasi kas serta persentase kinerja.',
-        'Pada menu RAB Imtihan, rincian pengeluaran soal, insentif pengawas, konsumsi, dan tunjangan panitia tersaji transparan.',
+        'Sub-menu Laporan Keuangan Bendahara menyajikan Neraca (terhubung nilai aset Sarpras), Laba/Rugi, serta Cashflow dengan rincian Buku Besar (GL) yang bisa diklik per akun.',
+        'Menu Pembayaran Bulanan, Daftar Ulang & Kema\'hadiyahan menjaga data piutang secara mandiri sehingga santri keluar/boyong yang masih memiliki tanggungan tetap terdeteksi.',
+        'Pada menu RAB Imtihan & Bisyaroh Guru, seluruh rincian realisasi anggaran tersaji transparan siap cetak F4/A4.',
       ],
     },
     {
@@ -70,16 +84,47 @@ export const PanduanModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200 pb-3">
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-          <HelpCircle className="w-5 h-5 text-emerald-700" />
-          <span>Buku Panduan Operasional & Status Sistem ERP</span>
-        </h2>
-        <p className="text-xs text-slate-500">
-          Petunjuk langkah demi langkah pengoperasian sistem dan parameter teknis komputer server pondok.
-        </p>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-emerald-700" />
+            <span>Pusat Tutorial Video, Slide Presentasi PPT &amp; Buku Panduan ERP</span>
+          </h2>
+          <p className="text-xs text-slate-500">
+            Video panduan interaktif seluruh modul, slide presentasi kombinasi gambar &amp; teks (.pptx) untuk Pengasuh, Dewan Guru, dan Satpam, serta arsip database.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { id: 'video', label: 'Video Tutorial Semua Modul', icon: Video },
+            { id: 'ppt', label: 'Slide PPT (Gambar + Teks) & Unduh .pptx', icon: Presentation },
+            { id: 'buku', label: 'Buku Panduan & Database', icon: BookOpen },
+          ].map((tb) => {
+            const Icon = tb.icon;
+            return (
+              <button
+                key={tb.id}
+                type="button"
+                onClick={() => setStudioTab(tb.id as typeof studioTab)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                  studioTab === tb.id
+                    ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-emerald-50'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tb.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
+      {studioTab === 'video' && <PanduanPresentationStudio initialMode="video" />}
+      {studioTab === 'ppt' && <PanduanPresentationStudio initialMode="ppt" />}
+
+      {studioTab === 'buku' && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (8 cols): Step-by-Step Guides */}
         <div className="lg:col-span-8 space-y-4">
@@ -222,6 +267,7 @@ export const PanduanModule: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

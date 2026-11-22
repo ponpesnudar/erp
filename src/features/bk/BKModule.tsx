@@ -15,9 +15,11 @@ import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import type { JadwalKeamananItem, TitipanWaliRecord } from '../../data/seed/pondokData.ts';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
+import { SatpamAbsensiSubTab } from './SatpamAbsensiSubTab.tsx';
 
 export const BKModule: React.FC = () => {
   const {
+    currentUser,
     pelanggaranList,
     addPelanggaran,
     selesaikanPelanggaran,
@@ -30,12 +32,18 @@ export const BKModule: React.FC = () => {
     titipanWali,
     addTitipanWali,
     updateStatusTitipanWali,
+    satpamPengajuanList,
     printOrientation,
   } = useAppStore();
 
+  const isSatpamUser =
+    currentUser.id === 'u-satpam-riyadi' ||
+    currentUser.id === 'u-satpam-suwarno' ||
+    currentUser.id === 'u-satpam-sopoyono';
+
   const [activeTab, setActiveTab] = useState<
-    'pelanggaran' | 'buku_tamu' | 'jadwal_keamanan' | 'titipan_wali' | 'peraturan'
-  >('pelanggaran');
+    'absensi_satpam' | 'pelanggaran' | 'buku_tamu' | 'jadwal_keamanan' | 'titipan_wali' | 'peraturan'
+  >(isSatpamUser ? 'absensi_satpam' : 'pelanggaran');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showTamuModal, setShowTamuModal] = useState<boolean>(false);
   const [showTitipanModal, setShowTitipanModal] = useState<boolean>(false);
@@ -170,22 +178,32 @@ export const BKModule: React.FC = () => {
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           {[
-            { id: 'pelanggaran', label: `Pelanggaran (${pelanggaranList.length})` },
-            { id: 'buku_tamu', label: `Buku Tamu (${bukuTamu.length})` },
-            { id: 'jadwal_keamanan', label: 'Jadwal Keamanan' },
-            { id: 'titipan_wali', label: `Titipan Wali (${titipanWali.length})` },
-            { id: 'peraturan', label: 'Tata Tertib' },
+            {
+              id: 'absensi_satpam',
+              label: `Absensi Satpam (HP)`,
+              badge: satpamPengajuanList.filter((p) => p.status === 'Menunggu').length,
+            },
+            { id: 'pelanggaran', label: `Pelanggaran (${pelanggaranList.length})`, badge: 0 },
+            { id: 'buku_tamu', label: `Buku Tamu (${bukuTamu.length})`, badge: 0 },
+            { id: 'jadwal_keamanan', label: 'Jadwal Keamanan', badge: 0 },
+            { id: 'titipan_wali', label: `Titipan Wali (${titipanWali.length})`, badge: 0 },
+            { id: 'peraturan', label: 'Tata Tertib', badge: 0 },
           ].map((tb) => (
             <button
               key={tb.id}
-              onClick={() => setActiveTab(tb.id as any)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+              onClick={() => setActiveTab(tb.id as typeof activeTab)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
                 activeTab === tb.id
                   ? 'bg-emerald-800 text-white'
                   : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
-              {tb.label}
+              <span>{tb.label}</span>
+              {tb.badge > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
+                  {tb.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -225,6 +243,8 @@ export const BKModule: React.FC = () => {
           <span>{toast}</span>
         </div>
       )}
+
+      {activeTab === 'absensi_satpam' && <SatpamAbsensiSubTab />}
 
       {/* TAB 1: PELANGGARAN */}
       {activeTab === 'pelanggaran' && (

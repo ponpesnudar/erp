@@ -104,7 +104,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLa
       if (matched && validPass) {
         loginAs(matched.id);
         setLoading(false);
-        onLoginSuccess(targetTab);
+        const autoTab = targetTab || (matched.id.startsWith('u-satpam-') ? 'bk' : undefined);
+        onLoginSuccess(autoTab);
       } else {
         const newFails = failedAttempts + 1;
         setFailedAttempts(newFails);
