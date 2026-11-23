@@ -15,6 +15,8 @@ import {
   KeyRound,
   Filter,
   UserCheck,
+  Compass,
+  Camera,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -31,6 +33,7 @@ import {
 import { useAppStore } from '../../lib/store.ts';
 import { useAuth, canAccessErpTab } from '../../lib/auth.ts';
 import { GlobalDashboard } from './GlobalDashboard.tsx';
+import { UserAvatarBadge } from '../../components/common/UserAvatarBadge.tsx';
 
 interface PortalBerandaProps {
   onNavigate: (moduleTab: string) => void;
@@ -148,6 +151,22 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {[
+                {
+                  id: 'ibadah_khazanah',
+                  title: 'Ibadah & Khazanah',
+                  desc: "Al-Qur'an, Jadwal Shalat, Tahlil Aswaja, Maulid, Manaqib & Wirid",
+                  icon: Compass,
+                  badge: 'Santri & Guru',
+                  color: 'text-teal-700 bg-teal-50',
+                },
+                {
+                  id: 'kalender',
+                  title: 'Kalender Pendidikan',
+                  desc: 'Jadwal libur madrasah, imtihan, & agenda resmi pondok',
+                  icon: CalendarIcon,
+                  badge: 'Pondok',
+                  color: 'text-emerald-700 bg-emerald-50',
+                },
                 {
                   id: 'imtihan',
                   title: 'Imtihan & Ujian',
@@ -433,10 +452,13 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
           {/* Profil Saya Card */}
           <div className="rounded-3xl bg-white p-5 border border-slate-200 shadow-2xs">
             <div className="flex items-center gap-3">
-              <img
+              <UserAvatarBadge
                 src={currentUser.avatar}
-                alt={currentUser.nama}
-                className="w-12 h-12 rounded-2xl object-cover border border-emerald-600"
+                name={currentUser.nama}
+                sizeClass="w-12 h-12"
+                textClass="text-sm"
+                roundedClass="rounded-2xl"
+                borderClass="border border-emerald-600"
               />
               <div className="min-w-0 flex-1">
                 <h4 className="font-bold text-xs text-slate-900 truncate">{currentUser.nama}</h4>
@@ -444,8 +466,16 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
                 <p className="text-[10px] text-slate-400 truncate">{currentUser.email}</p>
               </div>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-600 leading-relaxed">
-              {currentUser.keterangan}
+            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-600 leading-relaxed space-y-2.5">
+              <p>{currentUser.keterangan}</p>
+              <button
+                type="button"
+                onClick={() => onNavigate('profil')}
+                className="w-full py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-[11px] font-bold inline-flex items-center justify-center gap-1.5 transition"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Profil &amp; Ganti Foto Saya</span>
+              </button>
             </div>
           </div>
 

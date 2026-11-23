@@ -93,6 +93,8 @@ export type KhazanahRoute =
 interface KhazanahMobileAppProps {
   onBackToLanding: () => void;
   initialRoute?: KhazanahRoute;
+  embeddedInErp?: boolean;
+  backButtonLabel?: string;
 }
 
 const GPS_STORAGE_KEY = 'darussalam_khazanah_gps';
@@ -149,6 +151,8 @@ const NUPEDIA_TOPICS = [
 export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
   onBackToLanding,
   initialRoute = 'home',
+  embeddedInErp = false,
+  backButtonLabel,
 }) => {
   const khazanahCms = useAppStore((s) => s.khazanahItems);
   const tutorialVideoLinks = useAppStore((s) => s.tutorialVideoLinks);
@@ -391,9 +395,21 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
     route === 'home' || route === 'quran' || route === 'kalam' || route === 'kalender' || route === 'pengaturan';
 
   return (
-    <div className="min-h-screen bg-[#E9ECEB] flex justify-center sm:py-3 font-sans">
-      {/* Centered Mobile App Shell (100% Native Android/iOS Feel, 430px wide) */}
-      <div className="w-full max-w-[430px] h-screen sm:h-[calc(100vh-24px)] bg-white sm:rounded-[32px] sm:border border-slate-200/80 shadow-2xl flex flex-col overflow-hidden relative">
+    <div
+      className={
+        embeddedInErp
+          ? 'flex justify-center py-0 sm:py-2 font-sans'
+          : 'min-h-screen bg-[#E9ECEB] flex justify-center sm:py-3 font-sans'
+      }
+    >
+      {/* Centered Mobile App Shell (100% Native Android/iOS Feel, 430-460px wide) */}
+      <div
+        className={`w-full bg-white sm:rounded-[32px] sm:border border-slate-200/80 shadow-2xl flex flex-col overflow-hidden relative ${
+          embeddedInErp
+            ? 'max-w-[460px] h-[calc(100vh-170px)] min-h-[540px] md:h-[calc(100vh-135px)] rounded-3xl border'
+            : 'max-w-[430px] h-screen sm:h-[calc(100vh-24px)]'
+        }`}
+      >
         {/* ================= MAIN SCREEN BODY ================= */}
         {route === 'home' && (
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-20 bg-white">
@@ -440,7 +456,7 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
                     className="px-2.5 py-1 rounded-full bg-white/15 hover:bg-white/25 text-[11px] font-bold flex items-center gap-1 transition"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>Website</span>
+                    <span>{backButtonLabel || (embeddedInErp ? 'Beranda ERP' : 'Website')}</span>
                   </button>
                 </div>
               </div>

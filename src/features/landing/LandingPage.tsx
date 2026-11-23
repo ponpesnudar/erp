@@ -518,12 +518,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Tabel Biaya */}
-            <div className="lg:col-span-7 rounded-3xl bg-[#F6F3EA] p-6 border border-emerald-900/10 shadow-xs">
+            <div className="lg:col-span-7 min-w-0 rounded-3xl bg-[#F6F3EA] p-4 sm:p-6 border border-emerald-900/10 shadow-xs">
               <h3 className="text-base font-bold text-emerald-950 mb-4 flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-emerald-700" />
                 Rincian Biaya Pendaftaran & Syahriyah
               </h3>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-w-full">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-emerald-900/15 text-slate-600 font-bold">
@@ -560,7 +560,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
             </div>
 
             {/* Checklist Perlengkapan */}
-            <div className="lg:col-span-5 rounded-3xl bg-white p-6 border border-emerald-900/10 shadow-xs space-y-4">
+            <div className="lg:col-span-5 min-w-0 rounded-3xl bg-white p-5 sm:p-6 border border-emerald-900/10 shadow-xs space-y-4">
               <h3 className="text-base font-bold text-emerald-950 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-700" />
                 Perlengkapan Wajib Dibawa Santri

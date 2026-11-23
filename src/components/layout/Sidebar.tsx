@@ -17,9 +17,13 @@ import {
   UserCheck,
   LayoutGrid,
   X,
+  Compass,
+  CalendarDays,
+  User,
 } from 'lucide-react';
 import { useAuth, canAccessErpTab } from '../../lib/auth.ts';
 import { useAppStore } from '../../lib/store.ts';
+import { UserAvatarBadge } from '../common/UserAvatarBadge.tsx';
 
 export interface NavItem {
   id: string;
@@ -53,10 +57,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const allNavItems: NavItem[] = [
     { id: 'beranda', label: 'Beranda Portal', icon: Home },
+    { id: 'ibadah_khazanah', label: 'Ibadah & Khazanah', icon: Compass },
     { id: 'imtihan', label: 'Imtihan & Nilai', icon: FileCheck, fiturId: 'imtihan_soal' },
     { id: 'munaqosyah', label: 'Majlis Ilmiah & Munaqosyah', icon: School, badge: '3D' },
     { id: 'maarifan', label: "Ma'arifan Diniyah", icon: BookOpen, fiturId: 'maarifan_absensi' },
     { id: 'sdm_absensi', label: 'SDM & Absensi Guru', icon: UserCheck },
+    { id: 'kalender', label: 'Kalender Pendidikan', icon: CalendarDays },
     { id: 'sekretaris', label: 'Sekretariat', icon: Mail, fiturId: 'sekretaris_persuratan' },
     { id: 'bendahara', label: 'Bendahara & Kas', icon: DollarSign, fiturId: 'bendahara_keuangan' },
     { id: 'kemahadiyahan', label: "Kema'hadiyahan", icon: Users2 },
@@ -64,6 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'transaksi', label: 'Kartu & Kantin', icon: CreditCard, fiturId: 'transaksi_kartu_pos' },
     { id: 'psb', label: 'Pendaftaran PSB', icon: UserPlus, fiturId: 'psb_verifikasi' },
     { id: 'akses', label: 'Hak Akses Role', icon: KeyRound },
+    { id: 'profil', label: 'Profil & Foto Saya', icon: User },
     { id: 'panduan', label: 'Buku Panduan', icon: HelpCircle },
   ];
 
@@ -157,23 +164,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </div>
 
-      {/* Bottom Panel: Academic Year & User Snapshot */}
+      {/* Bottom Panel: Academic Year & User Snapshot (klik buka Profil) */}
       <div className="p-3 border-t border-emerald-800/80 bg-emerald-950/40 shrink-0">
-        <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-8 h-8 rounded-full bg-emerald-800/80 border border-emerald-600/50 flex items-center justify-center font-bold text-xs text-amber-300 shrink-0">
-            {currentUser.nama.charAt(0)}
-          </div>
+        <button
+          type="button"
+          onClick={() => {
+            onSelectTab('profil');
+            onCloseMobile();
+          }}
+          className="w-full flex items-center gap-2.5 overflow-hidden text-left rounded-xl p-1 -m-1 hover:bg-emerald-900/50 transition"
+          title="Buka Profil & Edit Foto Saya"
+        >
+          <UserAvatarBadge
+            src={currentUser.avatar}
+            name={currentUser.nama}
+            sizeClass="w-8 h-8"
+            textClass="text-xs"
+            roundedClass="rounded-full"
+            borderClass="border border-emerald-500/70"
+          />
           {!collapsed && (
             <div className="min-w-0 flex-1">
               <p className="font-bold text-xs text-white truncate leading-tight">
                 {currentUser.nama}
               </p>
               <p className="text-[10px] text-emerald-300 truncate">
-                T.A. {currentTahunAjaran}
+                T.A. {currentTahunAjaran} · Profil
               </p>
             </div>
           )}
-        </div>
+        </button>
       </div>
     </div>
   );
@@ -199,12 +219,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Mobile Bottom Navigation (5 Slots — hanya modul yang diberi izin akses) */}
+      {/* Mobile Bottom Navigation (5 Slots: Beranda | Absen/Ibadah | Menu | Kalender | Profil) */}
       <div className="fixed bottom-0 left-0 right-0 z-30 h-16 bg-white/98 backdrop-blur-md border-t border-slate-200 md:hidden print:hidden grid grid-cols-5 items-center px-1 shadow-lg no-print">
         <button
           type="button"
           onClick={() => onSelectTab('beranda')}
-          className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
+          className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold min-h-[44px] ${
             activeTab === 'beranda' ? 'text-emerald-800' : 'text-slate-500'
           }`}
         >
@@ -216,34 +236,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={() => onSelectTab('sdm_absensi')}
-            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold min-h-[44px] ${
               activeTab === 'sdm_absensi' ? 'text-emerald-800' : 'text-slate-500'
             }`}
           >
             <UserCheck className="w-4 h-4 mb-0.5" />
             <span>Absen</span>
           </button>
-        ) : canAccessErpTab('psb', effectiveRole, can) ? (
-          <button
-            type="button"
-            onClick={() => onSelectTab('psb')}
-            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
-              activeTab === 'psb' ? 'text-emerald-800' : 'text-slate-500'
-            }`}
-          >
-            <UserPlus className="w-4 h-4 mb-0.5" />
-            <span>PSB</span>
-          </button>
         ) : (
           <button
             type="button"
-            onClick={() => onSelectTab('panduan')}
-            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
-              activeTab === 'panduan' ? 'text-emerald-800' : 'text-slate-500'
+            onClick={() => onSelectTab('ibadah_khazanah')}
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold min-h-[44px] ${
+              activeTab === 'ibadah_khazanah' ? 'text-emerald-800' : 'text-slate-500'
             }`}
           >
-            <HelpCircle className="w-4 h-4 mb-0.5" />
-            <span>Panduan</span>
+            <Compass className="w-4 h-4 mb-0.5" />
+            <span>Ibadah</span>
           </button>
         )}
 
@@ -266,64 +275,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className="mt-0.5 leading-none">Menu</span>
         </button>
 
-        {canAccessErpTab('imtihan', effectiveRole, can) ? (
-          <button
-            type="button"
-            onClick={() => onSelectTab('imtihan')}
-            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
-              activeTab === 'imtihan' ? 'text-emerald-800' : 'text-slate-500'
-            }`}
-          >
-            <FileCheck className="w-4 h-4 mb-0.5" />
-            <span>Imtihan</span>
-          </button>
-        ) : canAccessErpTab('maarifan', effectiveRole, can) ? (
-          <button
-            type="button"
-            onClick={() => onSelectTab('maarifan')}
-            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
-              activeTab === 'maarifan' ? 'text-emerald-800' : 'text-slate-500'
-            }`}
-          >
-            <BookOpen className="w-4 h-4 mb-0.5" />
-            <span>Diniyah</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onSelectTab('panduan')}
-            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
-              activeTab === 'panduan' ? 'text-emerald-800' : 'text-slate-500'
-            }`}
-          >
-            <HelpCircle className="w-4 h-4 mb-0.5" />
-            <span>Panduan</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => onSelectTab('kalender')}
+          className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold min-h-[44px] ${
+            activeTab === 'kalender' ? 'text-emerald-800' : 'text-slate-500'
+          }`}
+        >
+          <CalendarDays className="w-4 h-4 mb-0.5" />
+          <span>Kalender</span>
+        </button>
 
-        {canAccessErpTab('transaksi', effectiveRole, can) ? (
-          <button
-            type="button"
-            onClick={() => onSelectTab('transaksi')}
-            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
-              activeTab === 'transaksi' ? 'text-emerald-800' : 'text-slate-500'
-            }`}
-          >
-            <CreditCard className="w-4 h-4 mb-0.5" />
-            <span>Kantin</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onSelectTab('panduan')}
-            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
-              activeTab === 'panduan' ? 'text-emerald-800' : 'text-slate-500'
-            }`}
-          >
-            <HelpCircle className="w-4 h-4 mb-0.5" />
-            <span>Panduan</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => onSelectTab('profil')}
+          className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold min-h-[44px] ${
+            activeTab === 'profil' ? 'text-emerald-800' : 'text-slate-500'
+          }`}
+        >
+          <User className="w-4 h-4 mb-0.5" />
+          <span>Profil</span>
+        </button>
       </div>
     </>
   );

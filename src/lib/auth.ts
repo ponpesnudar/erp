@@ -5,7 +5,15 @@ export function canAccessErpTab(
   effectiveRole: string,
   can: (fiturId: string, action?: string) => boolean
 ): boolean {
-  if (tabId === 'beranda' || tabId === 'panduan') return true;
+  if (
+    tabId === 'beranda' ||
+    tabId === 'ibadah_khazanah' ||
+    tabId === 'kalender' ||
+    tabId === 'profil' ||
+    tabId === 'panduan'
+  ) {
+    return true;
+  }
   if (tabId === 'akses') return effectiveRole === 'admin_sistem';
   if (tabId === 'imtihan') {
     return (

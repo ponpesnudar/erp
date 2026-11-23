@@ -8,6 +8,7 @@ import {
   X,
   ArrowLeft,
   ShieldAlert,
+  Compass,
 } from 'lucide-react';
 import { useAppStore, PSBApplicant } from '../../lib/store.ts';
 
@@ -15,12 +16,14 @@ interface PSBModuleProps {
   publicMode?: boolean;
   onBackToLanding?: () => void;
   onGoToLogin?: () => void;
+  onOpenKhazanahApp?: () => void;
 }
 
 export const PSBModule: React.FC<PSBModuleProps> = ({
   publicMode = false,
   onBackToLanding,
   onGoToLogin,
+  onOpenKhazanahApp,
 }) => {
   const { psbList, addPSBApplicant, verifyPSB, convertPSBToSantri, currentTahunAjaran } =
     useAppStore();
@@ -180,6 +183,16 @@ export const PSBModule: React.FC<PSBModuleProps> = ({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {onOpenKhazanahApp && (
+              <button
+                type="button"
+                onClick={onOpenKhazanahApp}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-500/25 hover:bg-teal-500/40 border border-teal-300/40 text-white text-xs font-bold transition"
+              >
+                <Compass className="w-3.5 h-3.5 text-amber-300" />
+                <span>Ibadah &amp; Khazanah</span>
+              </button>
+            )}
             {onBackToLanding && (
               <button
                 type="button"
@@ -280,6 +293,16 @@ export const PSBModule: React.FC<PSBModuleProps> = ({
             >
               Daftarkan Calon Santri Lainnya
             </button>
+            {onOpenKhazanahApp && (
+              <button
+                type="button"
+                onClick={onOpenKhazanahApp}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-bold transition"
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>Buka Ibadah &amp; Khazanah</span>
+              </button>
+            )}
             {onBackToLanding && (
               <button
                 type="button"

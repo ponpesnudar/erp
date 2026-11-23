@@ -27,6 +27,8 @@ const HakAksesModule = lazy(() => import('./features/akses/HakAksesModule.tsx').
 const PanduanModule = lazy(() => import('./features/panduan/PanduanModule.tsx').then((m) => ({ default: m.PanduanModule })));
 const SdmAbsensiModule = lazy(() => import('./features/sdm/SdmAbsensiModule.tsx').then((m) => ({ default: m.SdmAbsensiModule })));
 const MunaqosyahModule = lazy(() => import('./features/munaqosyah/MunaqosyahModule.tsx').then((m) => ({ default: m.MunaqosyahModule })));
+const ProfilPenggunaModule = lazy(() => import('./features/profil/ProfilPenggunaModule.tsx').then((m) => ({ default: m.ProfilPenggunaModule })));
+const KalenderPendidikanErpView = lazy(() => import('./features/kalender/KalenderPendidikanErpView.tsx').then((m) => ({ default: m.KalenderPendidikanErpView })));
 const AIAssistantModal = lazy(() => import('./components/common/AIAssistantModal.tsx').then((m) => ({ default: m.AIAssistantModal })));
 const PrintPreviewModal = lazy(() => import('./components/common/PrintPreviewModal.tsx').then((m) => ({ default: m.PrintPreviewModal })));
 
@@ -68,6 +70,7 @@ export default function App() {
     }
     return 'beranda';
   });
+  const [khazanahReturnScreen, setKhazanahReturnScreen] = useState<'landing' | 'psb_public'>('landing');
 
   // Sidebar collapsed state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
@@ -129,6 +132,7 @@ export default function App() {
   // Quick module search items
   const allSearchItems = [
     { id: 'beranda', name: 'Beranda Portal ERP', desc: 'KPI, ringkasan, dan akses cepat modul', tab: 'beranda' },
+    { id: 'ibadah_khazanah', name: 'Ibadah & Khazanah Islam', desc: "Al-Qur'an, Jadwal Shalat, Tahlil Aswaja, Maulid, Manaqib & Wirid", tab: 'ibadah_khazanah' },
     { id: 'imtihan_soal', name: 'Naskah Soal Imtihan', desc: 'Penyusunan naskah Arab/Pegon guru & cetak kop', tab: 'imtihan' },
     { id: 'imtihan_denah', name: 'Denah & Tempat Duduk Ujian', desc: 'Acak denah 7 ruang bebas contek sekelas', tab: 'imtihan' },
     { id: 'imtihan_kartu', name: 'Kartu Peserta Imtihan', desc: 'Cetak kartu format 2MD#079 dan jadwal paraf', tab: 'imtihan' },
@@ -137,12 +141,14 @@ export default function App() {
     { id: 'munaqosyah_3d', name: 'Majlis Ilmiah, Bahtsul Masail, Hadits & Munaqosyah 3D', desc: "Forum Bahtsul Masail 4 Madzhab, Perumusan Hadits 51 Kitab & Munaqosyah 4 Bangku", tab: 'munaqosyah' },
     { id: 'maarifan_absensi', name: 'Absensi Diniyah Salafiyah', desc: 'Presensi cepat Hadir Semua & riwayat', tab: 'maarifan' },
     { id: 'sdm_absensi', name: 'SDM & Absensi Mobile Guru', desc: 'Dashboard Monitoring SDM, Cek In Selfie GPS & Monitoring Satpam', tab: 'sdm_absensi' },
-    { id: 'sekretaris_santri', name: 'Master Data Santri', desc: 'Data 366 santri putra & putri', tab: 'sekretaris' },
+    { id: 'kalender_pondok', name: 'Kalender Pendidikan Pondok', desc: 'Jadwal libur madrasah, imtihan & agenda pondok per bulan', tab: 'kalender' },
+    { id: 'sekretaris_santri', name: 'Master Data Santri', desc: 'Data santri putra & putri', tab: 'sekretaris' },
     { id: 'sekretaris_surat', name: 'Persuratan Resmi Yayasan', desc: 'Penomoran otomatis surat keluar/masuk', tab: 'sekretaris' },
     { id: 'bendahara_kas', name: 'Rekapitulasi Anggaran Bulanan', desc: 'Realisasi pemasukan vs pengeluaran kas', tab: 'bendahara' },
     { id: 'transaksi_pos', name: 'Kasir Kantin & Laundry (POS)', desc: 'Tap kartu RFID santri & kontrol batas belanja', tab: 'transaksi' },
     { id: 'psb_daftar', name: 'Penerimaan Santri Baru (PSB)', desc: 'Verifikasi pendaftar & jadikan santri', tab: 'psb' },
     { id: 'akses_role', name: 'Hak Akses Role ERP', desc: 'Peta wewenang & akun login guru/staf', tab: 'akses' },
+    { id: 'profil_saya', name: 'Profil & Foto Saya', desc: 'Unggah foto profil sendiri, ubah biodata & PIN pengesahan', tab: 'profil' },
     { id: 'panduan_sistem', name: 'Buku Panduan & Status Server', desc: 'Petunjuk penggunaan lengkap per modul', tab: 'panduan' },
   ];
 
@@ -157,10 +163,12 @@ export default function App() {
   // Tab Titles mapping for Header Breadcrumb
   const moduleTitles: Record<string, string> = {
     beranda: 'Beranda Portal',
+    ibadah_khazanah: 'Ibadah & Khazanah Islam',
     imtihan: 'Imtihan & Evaluasi Santri',
     munaqosyah: 'Majlis Ilmiah, Perumusan Hadits & Munaqosyah 3D',
     maarifan: "Madrasah Diniyah (Ma'arifan)",
     sdm_absensi: 'Dashboard Monitoring Guru, SDM & Absensi Mobile',
+    kalender: 'Kalender Pendidikan Pondok',
     sekretaris: 'Sekretariat & Data Santri',
     bendahara: 'Bendahara & Transparansi Anggaran',
     kemahadiyahan: "Kema'hadiyahan & Organisasi",
@@ -168,6 +176,7 @@ export default function App() {
     transaksi: 'Transaksi Kartu & Kantin POS',
     psb: 'Pendaftaran Santri Baru (PSB)',
     akses: 'Hak Akses Role ERP',
+    profil: 'Profil & Akun Saya',
     panduan: 'Buku Panduan & Parameter Sistem',
   };
 
@@ -180,7 +189,10 @@ export default function App() {
           <LandingPage
             onGoToLogin={() => setCurrentScreen('login')}
             onGoToPSB={() => setCurrentScreen('psb_public')}
-            onOpenKhazanahApp={() => setCurrentScreen('khazanah_app')}
+            onOpenKhazanahApp={() => {
+              setKhazanahReturnScreen('landing');
+              setCurrentScreen('khazanah_app');
+            }}
           />
         </Suspense>
       )}
@@ -194,6 +206,10 @@ export default function App() {
                 publicMode
                 onBackToLanding={() => setCurrentScreen('landing')}
                 onGoToLogin={() => setCurrentScreen('login')}
+                onOpenKhazanahApp={() => {
+                  setKhazanahReturnScreen('psb_public');
+                  setCurrentScreen('khazanah_app');
+                }}
               />
             </div>
           </div>
@@ -203,7 +219,10 @@ export default function App() {
       {/* 1B. STANDALONE MOBILE APP: KHAZANAH & IBADAH */}
       {currentScreen === 'khazanah_app' && (
         <Suspense fallback={<ModuleFallback />}>
-          <KhazanahMobileApp onBackToLanding={() => setCurrentScreen('landing')} />
+          <KhazanahMobileApp
+            onBackToLanding={() => setCurrentScreen(khazanahReturnScreen)}
+            backButtonLabel={khazanahReturnScreen === 'psb_public' ? 'Kembali PSB' : 'Website'}
+          />
         </Suspense>
       )}
 
@@ -282,6 +301,13 @@ export default function App() {
                       {activeTab === 'beranda' && (
                         <PortalBeranda onNavigate={(tab) => setActiveTab(tab)} />
                       )}
+                      {activeTab === 'ibadah_khazanah' && (
+                        <KhazanahMobileApp
+                          embeddedInErp
+                          backButtonLabel="Beranda ERP"
+                          onBackToLanding={() => setActiveTab('beranda')}
+                        />
+                      )}
                       {activeTab === 'imtihan' && <ImtihanModule />}
                       {activeTab === 'munaqosyah' && <MunaqosyahModule />}
                       {activeTab === 'maarifan' && (
@@ -296,6 +322,9 @@ export default function App() {
                           }}
                         />
                       )}
+                      {activeTab === 'kalender' && (
+                        <KalenderPendidikanErpView onNavigateErp={(tab) => setActiveTab(tab)} />
+                      )}
                       {activeTab === 'sekretaris' && <SekretarisModule />}
                       {activeTab === 'bendahara' && <BendaharaModule />}
                       {activeTab === 'kemahadiyahan' && <KemahadiyahanModule />}
@@ -303,6 +332,15 @@ export default function App() {
                       {activeTab === 'transaksi' && <TransaksiModule />}
                       {activeTab === 'psb' && <PSBModule />}
                       {activeTab === 'akses' && <HakAksesModule />}
+                      {activeTab === 'profil' && (
+                        <ProfilPenggunaModule
+                          onNavigateErp={(tab) => setActiveTab(tab)}
+                          onLogout={() => {
+                            setCurrentScreen('login');
+                            setActiveTab('beranda');
+                          }}
+                        />
+                      )}
                       {activeTab === 'panduan' && <PanduanModule />}
                     </>
                   )}
@@ -315,9 +353,15 @@ export default function App() {
 
       {/* Global Search Modal (Ctrl+K) */}
       {searchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-xs p-4 pt-20 no-print print:hidden">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+        <div
+          onClick={() => setSearchModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-xs p-4 pt-16 sm:pt-20 no-print print:hidden"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl rounded-2xl bg-white p-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 max-h-[80vh] flex flex-col"
+          >
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3 shrink-0">
               <Search className="w-4 h-4 text-slate-400" />
               <input
                 type="text"
@@ -328,10 +372,12 @@ export default function App() {
                 className="w-full text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden"
               />
               <button
+                type="button"
                 onClick={() => setSearchModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-500 hover:text-slate-700 px-2 py-1 rounded-lg bg-slate-100 text-[11px] font-bold flex items-center gap-1 shrink-0"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
+                <span>Tutup</span>
               </button>
             </div>
 

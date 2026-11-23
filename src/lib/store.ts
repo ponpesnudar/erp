@@ -605,6 +605,7 @@ export interface AppState {
   resetAbsensiShiftConfigs: () => void;
   toggleSdmNotif: () => void;
   setUserPinPengesahan: (userId: string, pin: string) => void;
+  updateCurrentUserProfile: (data: Partial<Pick<UserAccount, 'nama' | 'email' | 'noWa' | 'avatar' | 'keterangan'>>) => void;
   updateKurikulumMatrixCell: (rowId: string, kelasKey: 'kelas1' | 'kelas2' | 'kelas3' | 'kelas4' | 'kelas5' | 'kelas6', kitab: string, jtm: number) => void;
   addKitabPdf: (item: Omit<KitabPdfItem, 'id'>) => void;
   deleteKitabPdf: (id: string) => void;
@@ -1368,6 +1369,17 @@ export const useAppStore = create<AppState>()(
           currentUser: state.currentUser.id === id ? { ...state.currentUser, ...data } : state.currentUser,
         }));
         get().addAuditLog('Hak Akses', 'Update Akun', `Data akun pengguna ID ${id} diperbarui.`);
+      },
+
+      updateCurrentUserProfile: (data) => {
+        const cur = get().currentUser;
+        set((state) => ({
+          currentUser: { ...state.currentUser, ...data },
+          userAccounts: state.userAccounts.map((u) =>
+            u.id === cur.id ? { ...u, ...data } : u
+          ),
+        }));
+        get().addAuditLog('Profil', 'Perbarui Profil', `Pengguna ${cur.nama} memperbarui foto/biodata profil pribadi.`);
       },
 
       deleteUserAccount: (id) => {

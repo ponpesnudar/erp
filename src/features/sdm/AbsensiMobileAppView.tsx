@@ -38,6 +38,7 @@ import {
 } from 'recharts';
 import { useAppStore } from '../../lib/store.ts';
 import { useAuth } from '../../lib/auth.ts';
+import { UserAvatarBadge } from '../../components/common/UserAvatarBadge.tsx';
 import {
   formatNamaWithGelar,
   type ProgramAbsensiType,
@@ -45,7 +46,8 @@ import {
   type AbsensiShiftConfig,
 } from '../../data/seed/pondokData.ts';
 
-type MobileTab = 'beranda' | 'absensi' | 'kalender' | 'kotak_masuk' | 'profil';
+export type AttendanceSubTab = 'beranda' | 'absensi' | 'kotak_masuk';
+type MobileTab = AttendanceSubTab | 'kalender' | 'profil';
 type OverlayFlow =
   | null
   | { type: 'camera'; action: 'checkin' | 'checkout' }
@@ -100,6 +102,9 @@ interface AbsensiMobileAppViewProps {
   onLogout?: () => void;
   canApproveIzin?: boolean;
   openPengajuanSignal?: number;
+  controlledSubTab?: AttendanceSubTab;
+  onChangeSubTab?: (tab: AttendanceSubTab) => void;
+  hideInternalSubNav?: boolean;
 }
 
 export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
@@ -107,6 +112,9 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
   onLogout,
   canApproveIzin = false,
   openPengajuanSignal = 0,
+  controlledSubTab,
+  onChangeSubTab,
+  hideInternalSubNav = false,
 }) => {
   const {
     currentUser,
@@ -208,8 +216,19 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
     return active.length > 0 ? active : absensiShiftConfigs;
   }, [absensiShiftConfigs]);
 
-  // UI Navigation & Overlays
-  const [activeTab, setActiveTab] = useState<MobileTab>('beranda');
+  // UI Navigation & Overlays (synchronized cleanly with ERP header/footbar)
+  const [internalTab, setInternalTab] = useState<MobileTab>('beranda');
+  const activeTab: MobileTab = controlledSubTab ?? internalTab;
+  const setActiveTab = (next: MobileTab) => {
+    if ((next === 'kalender' || next === 'profil') && onNavigateErp) {
+      onNavigateErp(next);
+      return;
+    }
+    if ((next === 'beranda' || next === 'absensi' || next === 'kotak_masuk') && onChangeSubTab) {
+      onChangeSubTab(next);
+    }
+    setInternalTab(next);
+  };
   const [selectedShiftId, setSelectedShiftId] = useState<string>(() => {
     const h = new Date().getHours();
     if (h < 10) return 'shift-subuh';
@@ -1042,16 +1061,14 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
             : 'w-full'
         }`}
       >
-        {/* Mobile Top Sub-Nav Strip (hanya tampil di HP agar tidak menumpuk dengan footbar utama ERP) */}
-        {!compactPhoneFrame && (
-          <div className="grid grid-cols-5 gap-1 rounded-2xl bg-white p-1.5 border border-slate-200 shadow-2xs mb-4 md:hidden no-print">
+        {/* Integrated 3-Tab Attendance Segmented Switcher (when standalone — hidden when hosted inside SdmAbsensiModule header) */}
+        {!hideInternalSubNav && (
+          <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-white p-1.5 border border-slate-200 shadow-2xs mb-4 no-print">
             {(
               [
-                { id: 'beranda', label: 'Beranda', icon: Home },
-                { id: 'absensi', label: 'Absensi', icon: Clock },
-                { id: 'kalender', label: 'Kalender', icon: CalendarIcon },
+                { id: 'beranda', label: 'Cek In & Beranda', icon: Home },
+                { id: 'absensi', label: 'Riwayat & Rekapan', icon: Clock },
                 { id: 'kotak_masuk', label: 'Kotak Masuk', icon: Inbox },
-                { id: 'profil', label: 'Profil', icon: User },
               ] as const
             ).map((tab) => {
               const Icon = tab.icon;
@@ -1061,14 +1078,14 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-[10px] font-bold transition ${
+                  className={`inline-flex items-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition ${
                     isActive
                       ? 'bg-emerald-800 text-white shadow-2xs'
                       : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5 mb-0.5" />
-                  <span className="truncate max-w-full">{tab.label}</span>
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
@@ -1104,9 +1121,17 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveTab('profil')}
-                      className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 text-white font-extrabold text-xs flex items-center justify-center shadow-xs"
+                      title="Buka Profil & Ganti Foto Saya"
+                      className="relative rounded-2xl focus:outline-hidden hover:opacity-90 transition"
                     >
-                      {initials}
+                      <UserAvatarBadge
+                        src={currentUser.avatar}
+                        name={displayName}
+                        sizeClass="w-11 h-11"
+                        textClass="text-xs"
+                        roundedClass="rounded-2xl"
+                        borderClass="border-2 border-emerald-600 shadow-xs"
+                      />
                     </button>
                   </div>
                 </div>
@@ -1115,15 +1140,25 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                 <div className="rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 shadow-2xs space-y-5">
                   {/* Profile Identity Row (Ustadz/Ustadzah + Pondok Jabatan) */}
                   <div className="flex items-center gap-3.5">
-                    <div
-                      className={`w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 text-white font-extrabold text-sm flex items-center justify-center shrink-0 ring-2 ${
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('profil')}
+                      title="Edit Foto & Profil"
+                      className={`rounded-2xl shrink-0 ring-2 transition ${
                         todayShift?.status === 'bertugas'
                           ? 'ring-emerald-500 ring-offset-2'
-                          : 'ring-slate-200'
+                          : 'ring-slate-200 hover:ring-emerald-400'
                       }`}
                     >
-                      {initials}
-                    </div>
+                      <UserAvatarBadge
+                        src={currentUser.avatar}
+                        name={displayName}
+                        sizeClass="w-12 h-12"
+                        textClass="text-sm"
+                        roundedClass="rounded-2xl"
+                        borderClass="border-0"
+                      />
+                    </button>
                     <div className="min-w-0">
                       <h3 className="font-bold text-sm sm:text-base text-slate-900 truncate">
                         {displayName}
@@ -2201,40 +2236,6 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
             </div>
           )}
 
-          {/* ============== EMERALD BOTTOM PILL NAVIGATION BAR (Desktop / Frame Preview only — HP pakai nav atas + 1 footbar ERP) ============== */}
-          <div
-            className={`${
-              compactPhoneFrame ? 'grid' : 'hidden md:grid'
-            } sticky bottom-3 z-20 mx-auto max-w-md rounded-3xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg p-1.5 grid-cols-5 gap-1 no-print`}
-          >
-            {(
-              [
-                { id: 'beranda', label: 'Beranda', icon: Home },
-                { id: 'absensi', label: 'Absensi', icon: Clock },
-                { id: 'kalender', label: 'Kalender', icon: CalendarIcon },
-                { id: 'kotak_masuk', label: 'Kotak Masuk', icon: Inbox },
-                { id: 'profil', label: 'Profil', icon: User },
-              ] as const
-            ).map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-[10px] font-bold transition min-h-[48px] ${
-                    isActive
-                      ? 'bg-emerald-700 text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800'
-                  }`}
-                >
-                  <Icon className="w-4 h-4 mb-0.5" />
-                  <span className="truncate max-w-full">{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
         </div>
       </div>
 

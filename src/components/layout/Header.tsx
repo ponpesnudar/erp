@@ -15,10 +15,14 @@ import {
   HelpCircle,
   X,
   Layers,
+  ArrowLeft,
+  User,
+  CalendarDays,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
 import { useAuth, canAccessErpTab } from '../../lib/auth.ts';
 import { PWAInstallButton } from '../pwa/PWAInstallButton.tsx';
+import { UserAvatarBadge } from '../common/UserAvatarBadge.tsx';
 
 interface HeaderProps {
   currentModuleTitle: string;
@@ -150,8 +154,12 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Notifications Bell Dropdown */}
         <div className="relative">
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition"
+            type="button"
+            onClick={() => {
+              setShowUserMenu(false);
+              setShowNotifications((v) => !v);
+            }}
+            className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition min-w-[36px] min-h-[36px] flex items-center justify-center"
             title="Kotak Masuk & Notifikasi"
           >
             <Bell className="w-4 h-4" />
@@ -163,40 +171,62 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white border border-slate-200 shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h4 className="font-bold text-xs text-slate-900 flex items-center gap-2">
-                  <Bell className="w-3.5 h-3.5 text-emerald-700" />
-                  Notifikasi & Kotak Masuk
-                </h4>
-                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">
-                  {pendingCount} Menunggu
-                </span>
-              </div>
-              <div className="mt-3 space-y-2 max-h-72 overflow-y-auto">
-                {visibleKotakMasuk.map((k) => (
-                  <div
-                    key={k.id}
-                    onClick={() => {
-                      if (canAccessErpTab(k.linkTab, effectiveRole, can)) {
-                        onSelectModule(k.linkTab);
-                      }
-                      setShowNotifications(false);
-                    }}
-                    className="p-2.5 rounded-xl border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/50 cursor-pointer transition text-left"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700">
-                        {k.modul}
-                      </span>
-                      <span className="text-[10px] text-slate-400">{k.waktu}</span>
-                    </div>
-                    <p className="font-bold text-xs text-slate-800 mt-1">{k.judul}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{k.keterangan}</p>
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowNotifications(false)}
+              />
+              <div className="fixed inset-x-3 top-16 max-h-[75vh] flex flex-col sm:inset-x-auto sm:top-auto sm:absolute sm:right-0 sm:mt-2 sm:w-96 rounded-2xl bg-white border border-slate-200 shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100 shrink-0">
+                  <h4 className="font-bold text-xs text-slate-900 flex items-center gap-2 min-w-0">
+                    <Bell className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <span className="truncate">Notifikasi &amp; Kotak Masuk</span>
+                  </h4>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px] tabular-nums">
+                      {pendingCount} Menunggu
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowNotifications(false)}
+                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
+                      aria-label="Tutup Notifikasi"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                ))}
+                </div>
+                <div className="mt-3 space-y-2 overflow-y-auto pr-0.5 flex-1">
+                  {visibleKotakMasuk.length === 0 ? (
+                    <p className="py-6 text-center text-xs text-slate-400">
+                      Tidak ada notifikasi baru.
+                    </p>
+                  ) : (
+                    visibleKotakMasuk.map((k) => (
+                      <div
+                        key={k.id}
+                        onClick={() => {
+                          if (canAccessErpTab(k.linkTab, effectiveRole, can)) {
+                            onSelectModule(k.linkTab);
+                          }
+                          setShowNotifications(false);
+                        }}
+                        className="p-2.5 rounded-xl border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/50 cursor-pointer transition text-left"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 truncate">
+                            {k.modul}
+                          </span>
+                          <span className="text-[10px] text-slate-400 shrink-0 tabular-nums">{k.waktu}</span>
+                        </div>
+                        <p className="font-bold text-xs text-slate-800 mt-1">{k.judul}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{k.keterangan}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 
@@ -221,13 +251,20 @@ export const Header: React.FC<HeaderProps> = ({
         {/* User Account Dropdown */}
         <div className="relative">
           <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
+            type="button"
+            onClick={() => {
+              setShowNotifications(false);
+              setShowUserMenu((v) => !v);
+            }}
             className="flex items-center gap-2 p-1 pl-1.5 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
           >
-            <img
+            <UserAvatarBadge
               src={currentUser.avatar}
-              alt={currentUser.nama}
-              className="w-7 h-7 rounded-full object-cover border border-emerald-600"
+              name={currentUser.nama}
+              sizeClass="w-7 h-7"
+              textClass="text-[11px]"
+              roundedClass="rounded-full"
+              borderClass="border border-emerald-600"
             />
             <div className="hidden sm:block text-left">
               <p className="font-bold text-slate-800 text-[11px] leading-tight max-w-[120px] truncate">
@@ -241,79 +278,128 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white border border-slate-200 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2">
-              <div className="p-3 border-b border-slate-100">
-                <p className="font-bold text-xs text-slate-900">{currentUser.nama}</p>
-                <p className="text-[11px] text-slate-500 truncate">{currentUser.email}</p>
-                <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-bold text-[10px]">
-                  {currentUser.peranLabel}
-                </span>
-              </div>
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowUserMenu(false)}
+              />
+              <div className="fixed right-3 top-16 w-72 max-w-[calc(100vw-24px)] sm:inset-x-auto sm:top-auto sm:absolute sm:right-0 sm:mt-2 sm:w-64 rounded-2xl bg-white border border-slate-200 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="p-3 border-b border-slate-100 flex items-center gap-2.5">
+                  <UserAvatarBadge
+                    src={currentUser.avatar}
+                    name={currentUser.nama}
+                    sizeClass="w-10 h-10"
+                    textClass="text-xs"
+                    roundedClass="rounded-xl"
+                    borderClass="border border-emerald-600"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-xs text-slate-900 truncate">{currentUser.nama}</p>
+                    <p className="text-[11px] text-slate-500 truncate">{currentUser.email}</p>
+                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-bold text-[10px]">
+                      {currentUser.peranLabel}
+                    </span>
+                  </div>
+                </div>
 
-              <div className="py-1 space-y-0.5 text-xs">
-                {currentUser.rolesAvailable.length > 1 && (
+                <div className="py-1 space-y-0.5 text-xs">
                   <button
+                    type="button"
                     onClick={() => {
-                      setShowSwitchRoleModal(true);
+                      onSelectModule('profil');
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-emerald-50 text-emerald-900 font-bold"
+                  >
+                    <User className="w-4 h-4 text-emerald-700" />
+                    <span>Profil &amp; Ganti Foto Saya</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectModule('kalender');
                       setShowUserMenu(false);
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-slate-100 text-slate-700"
                   >
-                    <Layers className="w-4 h-4 text-emerald-700" />
-                    <span>Ganti Peran ({currentUser.rolesAvailable.length} peran)</span>
+                    <CalendarDays className="w-4 h-4 text-emerald-700" />
+                    <span>Kalender Pendidikan</span>
                   </button>
-                )}
 
-                <button
-                  onClick={() => {
-                    onSelectModule('panduan');
-                    setShowUserMenu(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-slate-100 text-slate-700"
-                >
-                  <HelpCircle className="w-4 h-4 text-emerald-700" />
-                  <span>Buku Panduan ERP</span>
-                </button>
+                  {currentUser.rolesAvailable.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSwitchRoleModal(true);
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-slate-100 text-slate-700"
+                    >
+                      <Layers className="w-4 h-4 text-emerald-700" />
+                      <span>Ganti Peran ({currentUser.rolesAvailable.length} peran)</span>
+                    </button>
+                  )}
 
-                <div className="px-3 py-1.5">
-                  <PWAInstallButton variant="header" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectModule('panduan');
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-slate-100 text-slate-700"
+                  >
+                    <HelpCircle className="w-4 h-4 text-emerald-700" />
+                    <span>Buku Panduan ERP</span>
+                  </button>
+
+                  <div className="px-3 py-1.5">
+                    <PWAInstallButton variant="header" />
+                  </div>
+                </div>
+
+                <div className="pt-1 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logout();
+                      setShowUserMenu(false);
+                      onLogout?.();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-rose-700 hover:bg-rose-50 font-semibold"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Keluar dari Akun</span>
+                  </button>
                 </div>
               </div>
-
-              <div className="pt-1 border-t border-slate-100">
-                <button
-                  onClick={() => {
-                    logout();
-                    setShowUserMenu(false);
-                    onLogout?.();
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-rose-700 hover:bg-rose-50 font-semibold"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Keluar dari Akun</span>
-                </button>
-              </div>
-            </div>
+            </>
           )}
         </div>
       </div>
 
       {/* Sync Status Modal */}
       {showStatusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 no-print">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <div
+          onClick={() => setShowStatusModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 no-print"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl max-h-[85vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                Status Jaringan & Sinkronisasi
+                Status Jaringan &amp; Sinkronisasi
               </h3>
-              <button onClick={() => setShowStatusModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowStatusModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="mt-4 space-y-3 text-xs text-slate-600">
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                <p className="font-bold text-emerald-900">Penyimpanan Offline & PWA Aktif</p>
+                <p className="font-bold text-emerald-900">Penyimpanan Offline &amp; PWA Aktif</p>
                 <p className="mt-1 text-[11px] text-emerald-700">
                   Data absensi dan input nilai disimpan otomatis di memori lokal terenkripsi dan disinkronkan saat koneksi kembali stabil.
                 </p>
@@ -330,10 +416,11 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
             <button
+              type="button"
               onClick={() => setShowStatusModal(false)}
-              className="mt-6 w-full py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-700"
+              className="mt-6 w-full py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-700"
             >
-              Tutup
+              Kembali / Tutup
             </button>
           </div>
         </div>
@@ -341,25 +428,50 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Module Grid Launcher Modal */}
       {showGridModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                <Grid className="w-5 h-5 text-emerald-700" />
-                Semua Modul ERP NU Darussalam
-              </h3>
-              <button onClick={() => setShowGridModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
+        <div
+          onClick={() => setShowGridModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 no-print"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+          >
+            {/* Sticky Top Header with Back & Close */}
+            <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 border-b border-slate-100 shrink-0 bg-white">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setShowGridModal(false)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold shrink-0"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Kembali</span>
+                </button>
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2 truncate">
+                  <Grid className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-700 shrink-0" />
+                  <span className="truncate">Semua Modul ERP</span>
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGridModal(false)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 shrink-0"
+                aria-label="Tutup Menu Modul"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {/* Scrollable Modules Grid */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3 content-start">
               {[
                 { id: 'beranda', name: 'Beranda Portal', desc: 'KPI & Akses Cepat' },
+                { id: 'ibadah_khazanah', name: 'Ibadah & Khazanah', desc: "Al-Qur'an, Jadwal Shalat, Tahlil, Maulid & Manaqib" },
                 { id: 'imtihan', name: 'Imtihan & Nilai', desc: 'Soal, Denah, Kartu, Raport, RAB' },
                 { id: 'munaqosyah', name: 'Majlis Ilmiah & Munaqosyah 3D', desc: 'Bahtsul Masail, Perumusan Hadits & Sidang 3D' },
                 { id: 'maarifan', name: "Ma'arifan Diniyah", desc: 'Absensi Guru & Santri, Kitab' },
                 { id: 'sdm_absensi', name: 'SDM & Absensi Guru', desc: 'Monitoring SDM & Absensi Mobile GPS' },
+                { id: 'kalender', name: 'Kalender Pendidikan', desc: 'Jadwal Libur, Imtihan & Agenda Pondok' },
                 { id: 'sekretaris', name: 'Sekretaris', desc: 'Surat Masuk/Keluar & Data Santri' },
                 { id: 'bendahara', name: 'Bendahara', desc: 'Arus Kas, Gaji, Rekap Anggaran' },
                 { id: 'kemahadiyahan', name: "Kema'hadiyahan", desc: 'Bagan Jabatan & Acara PHBI' },
@@ -367,22 +479,35 @@ export const Header: React.FC<HeaderProps> = ({
                 { id: 'transaksi', name: 'Transaksi & POS', desc: 'Kartu Jajan, Kantin & Laundry' },
                 { id: 'psb', name: 'Pendaftaran PSB', desc: 'Verifikasi & Jadikan Santri' },
                 { id: 'akses', name: 'Hak Akses Role', desc: 'Wewenang, Matriks Izin & Akun Login' },
+                { id: 'profil', name: 'Profil & Foto Saya', desc: 'Ubah Foto Profil, Kontak & PIN' },
                 { id: 'panduan', name: 'Buku Panduan', desc: 'Video Tutorial, Slide PPT & PWA' },
               ]
                 .filter((m) => canAccessErpTab(m.id, effectiveRole, can))
                 .map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    onSelectModule(m.id);
-                    setShowGridModal(false);
-                  }}
-                  className="p-3 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/50 text-left transition"
-                >
-                  <p className="font-bold text-xs text-slate-900">{m.name}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{m.desc}</p>
-                </button>
-              ))}
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectModule(m.id);
+                      setShowGridModal(false);
+                    }}
+                    className="p-3 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/50 text-left transition"
+                  >
+                    <p className="font-bold text-xs text-slate-900">{m.name}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{m.desc}</p>
+                  </button>
+                ))}
+            </div>
+
+            {/* Sticky Bottom Dismiss Action */}
+            <div className="px-4 sm:px-6 py-3 border-t border-slate-100 bg-slate-50 shrink-0 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowGridModal(false)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold transition"
+              >
+                Tutup &amp; Kembali
+              </button>
             </div>
           </div>
         </div>
@@ -390,8 +515,14 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Switch Role Modal */}
       {showSwitchRoleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <div
+          onClick={() => setShowSwitchRoleModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl max-h-[85vh] overflow-y-auto"
+          >
             <h3 className="font-bold text-sm text-slate-900">Ganti Peran Aktif</h3>
             <p className="text-xs text-slate-500 mt-1">
               Akun Anda memiliki lebih dari satu peran operasional:
@@ -400,6 +531,7 @@ export const Header: React.FC<HeaderProps> = ({
               {currentUser.rolesAvailable.map((r) => (
                 <button
                   key={r}
+                  type="button"
                   onClick={() => {
                     switchRole(r);
                     setShowSwitchRoleModal(false);
@@ -416,10 +548,11 @@ export const Header: React.FC<HeaderProps> = ({
               ))}
             </div>
             <button
+              type="button"
               onClick={() => setShowSwitchRoleModal(false)}
-              className="mt-4 w-full py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-700"
+              className="mt-4 w-full py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-700"
             >
-              Batal
+              Kembali / Batal
             </button>
           </div>
         </div>

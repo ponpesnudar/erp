@@ -48,7 +48,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
   // Draggable floating bubble coordinates (anchored relative to bottom-right offsets)
   const [bubbleOffset, setBubbleOffset] = useState<{ right: number; bottom: number }>(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      return { right: 14, bottom: 72 };
+      return { right: 14, bottom: mode === 'erp_internal' ? 72 : 16 };
     }
     return { right: 24, bottom: 24 };
   });
