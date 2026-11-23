@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { LayoutDashboard, Smartphone, ShieldCheck, FilePlus2, AlertTriangle, Shield } from 'lucide-react';
+import { LayoutDashboard, Smartphone, ShieldCheck, FilePlus2, AlertTriangle, Shield, UserCog } from 'lucide-react';
 import { useAuth } from '../../lib/auth.ts';
 import { useAppStore } from '../../lib/store.ts';
 import { SdmMonitoringDashboard } from './SdmMonitoringDashboard.tsx';
@@ -20,13 +20,19 @@ export const SdmAbsensiModule: React.FC<SdmAbsensiModuleProps> = ({
   const { effectiveRole, can } = useAuth();
   const izinBadalGuruList = useAppStore((s) => s.izinBadalGuruList);
   const satpamPengajuanList = useAppStore((s) => s.satpamPengajuanList);
+  const satpamList = useAppStore((s) => s.satpamList);
 
   // Strictly restrict Monitoring Dashboard to Administrator, Pengasuh, Kepala Majlis Ma'arif, and Sekretaris
   const canMonitorSdm =
     SDM_MONITORING_ROLES.includes(effectiveRole) && can('sdm_absensi_monitoring', 'baca');
 
-  const [subTab, setSubTab] = useState<'monitoring' | 'satpam_monitoring' | 'mobile'>('monitoring');
+  const [subTab, setSubTab] = useState<'monitoring' | 'satpam_monitoring' | 'satpam_admin' | 'mobile'>('monitoring');
   const [openPengajuanSignal, setOpenPengajuanSignal] = useState(0);
+
+  const satpamNamesLabel = useMemo(
+    () => (satpamList.length > 0 ? satpamList.map((s) => s.nama).join(', ') : 'Belum ada personil terdaftar'),
+    [satpamList]
+  );
 
   const pendingPengajuanCount = useMemo(
     () =>
@@ -99,8 +105,8 @@ export const SdmAbsensiModule: React.FC<SdmAbsensiModuleProps> = ({
               SDM, Monitoring Guru &amp; Absensi Satpam Terintegrasi
             </h1>
             <p className="text-xs text-emerald-100 leading-relaxed max-w-3xl">
-              Pantau kehadiran dewan asatidz &amp; regu Satpam (Riyadi, Suwarno, Sopoyono) real-time, verifikasi{' '}
-              <strong className="text-amber-200">Absensi Pengajuan</strong>, atur shift jaga, dan unduh rekapitulasi spreadsheet Excel/PDF.
+              Pantau kehadiran dewan asatidz &amp; regu Satpam ({satpamNamesLabel}) real-time, verifikasi{' '}
+              <strong className="text-amber-200">Absensi Pengajuan</strong>, kelola data personil &amp; shift kerja, dan unduh rekapitulasi spreadsheet Excel/PDF.
             </p>
           </div>
 
@@ -147,12 +153,25 @@ export const SdmAbsensiModule: React.FC<SdmAbsensiModuleProps> = ({
               }`}
             >
               <Shield className="w-4 h-4" />
-              <span>Monitoring &amp; Manajemen Satpam</span>
+              <span>Monitoring &amp; Rekap Satpam</span>
               {pendingSatpamCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-extrabold tabular-nums">
                   {pendingSatpamCount}
                 </span>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSubTab('satpam_admin')}
+              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+                subTab === 'satpam_admin'
+                  ? 'bg-white text-emerald-950 shadow-sm'
+                  : 'text-emerald-100 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <UserCog className="w-4 h-4" />
+              <span>Kelola Data &amp; Shift Satpam ({satpamList.length})</span>
             </button>
 
             <button
@@ -183,7 +202,12 @@ export const SdmAbsensiModule: React.FC<SdmAbsensiModuleProps> = ({
       )}
 
       {subTab === 'monitoring' && <SdmMonitoringDashboard />}
-      {subTab === 'satpam_monitoring' && <SatpamAbsensiSubTab initialMode="monitoring" />}
+      {subTab === 'satpam_monitoring' && (
+        <SatpamAbsensiSubTab initialMode="monitoring" initialSubMode="harian_foto" />
+      )}
+      {subTab === 'satpam_admin' && (
+        <SatpamAbsensiSubTab initialMode="monitoring" initialSubMode="manajemen_satpam" />
+      )}
       {subTab === 'mobile' && (
         <AbsensiMobileAppView
           onNavigateErp={onNavigateErp}

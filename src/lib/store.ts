@@ -690,6 +690,10 @@ export interface AppState {
   updateSatpamShiftConfig: (id: string, cfg: Partial<SatpamShiftConfig>) => void;
   deleteSatpamShiftConfig: (id: string) => void;
   resetSatpamShiftConfigs: () => void;
+  addSatpamPersonil: (payload: Omit<SatpamProfile, 'id' | 'userId'> & { username?: string }) => SatpamProfile;
+  updateSatpamPersonil: (id: string, data: Partial<SatpamProfile>) => void;
+  deleteSatpamPersonil: (id: string) => void;
+  resetSatpamList: () => void;
 
   // Sekretaris, Pengurus & Sarpras
   updateLandingConfig: (data: Partial<LandingPageConfig>) => void;
@@ -3412,6 +3416,126 @@ export const useAppStore = create<AppState>()(
         get().addAuditLog('BK & Keamanan', 'Reset Shift Satpam', 'Shift Satpam dikembalikan ke standar 3 shift + kontrol ronda.');
       },
 
+      addSatpamPersonil: (payload) => {
+        const state = get();
+        const rawSlug = payload.nama
+          .replace(/^Pak\s+/i, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') || 'personil';
+        const suffix = Date.now().toString().slice(-4);
+        const newId = `satpam-${rawSlug}-${suffix}`;
+        const newUserId = `u-satpam-${rawSlug}-${suffix}`;
+        const defaultShiftId =
+          payload.shiftDefaultId ||
+          state.satpamShiftConfigs.find((s) => s.aktif)?.id ||
+          state.satpamShiftConfigs[0]?.id ||
+          'satpam-shift-pagi';
+
+        const newPersonil: SatpamProfile = {
+          id: newId,
+          userId: newUserId,
+          nama: payload.nama.trim(),
+          jabatan: payload.jabatan.trim() || 'Anggota Satpam Jaga',
+          posUtama: payload.posUtama.trim() || 'Pos Gerbang Utama PP NU Darussalam',
+          noWa: payload.noWa.trim() || '-',
+          shiftDefaultId: defaultShiftId,
+        };
+
+        const desiredUsername = (payload.username || rawSlug.replace(/-/g, ''))
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, '');
+        const finalUsername = state.userAccounts.some((u) => u.username.toLowerCase() === desiredUsername)
+          ? `${desiredUsername}${suffix}`
+          : desiredUsername || `satpam${suffix}`;
+
+        const newUserAccount: UserAccount = {
+          id: newUserId,
+          username: finalUsername,
+          nama: newPersonil.nama,
+          email: `${finalUsername}.satpam@darussalam.id`,
+          noWa: newPersonil.noWa,
+          password: 'darussalam2026',
+          peran: 'bk_keamanan',
+          peranLabel: newPersonil.jabatan,
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+          rolesAvailable: ['bk_keamanan'],
+          keterangan: `Petugas Satpam PP NU Darussalam — ${newPersonil.posUtama}`,
+        };
+
+        set({
+          satpamList: [...state.satpamList, newPersonil],
+          userAccounts: [...state.userAccounts, newUserAccount],
+        });
+        get().addAuditLog(
+          'SDM & Keamanan',
+          'Tambah Personil Satpam',
+          `Menambahkan personil Satpam baru: ${newPersonil.nama} (${newPersonil.jabatan}, Pos: ${newPersonil.posUtama}, username HP: ${finalUsername}).`
+        );
+        return newPersonil;
+      },
+
+      updateSatpamPersonil: (id, data) => {
+        const state = get();
+        const existing = state.satpamList.find((s) => s.id === id);
+        if (!existing) return;
+        const updated: SatpamProfile = { ...existing, ...data };
+        set({
+          satpamList: state.satpamList.map((s) => (s.id === id ? updated : s)),
+          userAccounts: state.userAccounts.map((u) =>
+            u.id === existing.userId
+              ? {
+                  ...u,
+                  nama: updated.nama,
+                  noWa: updated.noWa,
+                  peranLabel: updated.jabatan,
+                }
+              : u
+          ),
+        });
+        get().addAuditLog(
+          'SDM & Keamanan',
+          'Ubah Data Satpam',
+          `Memperbarui data / shift kerja Satpam: ${updated.nama} (${updated.jabatan}).`
+        );
+      },
+
+      deleteSatpamPersonil: (id) => {
+        const state = get();
+        const target = state.satpamList.find((s) => s.id === id);
+        if (!target) return;
+        const nextActiveMap = { ...state.activeSatpamShiftMap };
+        delete nextActiveMap[id];
+        set({
+          satpamList: state.satpamList.filter((s) => s.id !== id),
+          activeSatpamShiftMap: nextActiveMap,
+          userAccounts: state.userAccounts.filter((u) => u.id !== target.userId),
+        });
+        get().addAuditLog(
+          'SDM & Keamanan',
+          'Hapus Personil Satpam',
+          `Menghapus personil Satpam ${target.nama} (${target.jabatan}) dari daftar regu keamanan.`
+        );
+      },
+
+      resetSatpamList: () => {
+        const state = get();
+        const seedSatpamUsers = SEED_USERS.filter((u) =>
+          SEED_SATPAM_LIST.some((s) => s.userId === u.id)
+        );
+        const existingIds = new Set(state.userAccounts.map((u) => u.id));
+        const missingUsers = seedSatpamUsers.filter((u) => !existingIds.has(u.id));
+        set({
+          satpamList: SEED_SATPAM_LIST,
+          userAccounts: [...state.userAccounts, ...missingUsers],
+        });
+        get().addAuditLog(
+          'SDM & Keamanan',
+          'Reset Regu Satpam',
+          'Daftar regu Satpam dikembalikan ke data awal (Pak Riyadi, Pak Suwarno, Pak Sopoyono).'
+        );
+      },
+
       addSurat: (surat) => {
         const state = get();
         const nomor = `0${state.suratList.length + 43}/PND/SEKR/XI/2026`;
@@ -4027,11 +4151,11 @@ export const useAppStore = create<AppState>()(
           }));
         }
 
-        // Backfill Satpam Riyadi, Suwarno, Sopoyono attendance data
-        if (!Array.isArray(persisted.satpamList) || persisted.satpamList.length === 0) {
+        // Backfill Satpam Riyadi, Suwarno, Sopoyono attendance data only when key is missing
+        if (!Array.isArray(persisted.satpamList)) {
           merged.satpamList = SEED_SATPAM_LIST;
         }
-        if (!Array.isArray(persisted.satpamShiftConfigs) || persisted.satpamShiftConfigs.length === 0) {
+        if (!Array.isArray(persisted.satpamShiftConfigs)) {
           merged.satpamShiftConfigs = SEED_SATPAM_SHIFTS;
         }
         if (!Array.isArray(persisted.satpamAbsensiList) || persisted.satpamAbsensiList.length === 0) {

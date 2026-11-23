@@ -1780,7 +1780,7 @@ export const SdmMonitoringDashboard: React.FC = () => {
                   Pilih Unit Rekapitulasi Bulanan (Format Spreadsheet Resmi + Cetak TTD Digital)
                 </p>
                 <p className="text-[11px] text-emerald-800">
-                  Menampilkan rekapitulasi Guru Diniyah dan regu Satpam Keamanan (Pak Riyadi, Pak Suwarno, Pak Sopoyono) beserta rincian tanggal &amp; status.
+                  Menampilkan rekapitulasi Guru Diniyah dan regu Satpam Keamanan ({satpamList.length > 0 ? satpamList.map((s) => s.nama).join(', ') : 'Belum ada personil'}) beserta rincian tanggal &amp; status.
                 </p>
               </div>
               <div className="inline-flex flex-wrap gap-1 rounded-xl bg-white p-1 border border-emerald-200 text-xs font-bold">
@@ -1804,7 +1804,7 @@ export const SdmMonitoringDashboard: React.FC = () => {
                       : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  Satpam (Riyadi, Suwarno &amp; Sopoyono)
+                  Satpam ({satpamList.length} Personil)
                 </button>
                 <button
                   type="button"

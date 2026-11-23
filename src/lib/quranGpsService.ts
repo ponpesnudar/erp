@@ -417,6 +417,64 @@ export async function fetchPrayerTimesForCoords(
   return offline;
 }
 
+export async function fetchMonthlyPrayerSchedule(
+  lat: number,
+  lng: number,
+  year: number,
+  monthIdx: number
+): Promise<PrayerScheduleDay[]> {
+  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+  const offlineDays: PrayerScheduleDay[] = Array.from({ length: daysInMonth }, (_, idx) =>
+    computeAstronomicalPrayerTimes(lat, lng, new Date(year, monthIdx, idx + 1))
+  );
+
+  try {
+    const controller = new AbortController();
+    const tid = window.setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(
+      `https://api.aladhan.com/v1/calendar/${year}/${monthIdx + 1}?latitude=${lat}&longitude=${lng}&method=20`,
+      { signal: controller.signal }
+    );
+    window.clearTimeout(tid);
+
+    if (res.ok) {
+      const json = (await res.json()) as {
+        data?: Array<{ timings?: Record<string, string> }>;
+      };
+      if (Array.isArray(json?.data) && json.data.length >= daysInMonth) {
+        const cleanTime = (s?: string) => (s || '').replace(/\s*\(.*?\)\s*/g, '').slice(0, 5);
+        return offlineDays.map((offline, i) => {
+          const t = json.data?.[i]?.timings;
+          if (t?.Fajr && t?.Dhuhr && t?.Asr && t?.Maghrib && t?.Isha) {
+            const sunrise = cleanTime(t.Sunrise) || offline.timings[2].waktu;
+            const [sH, sM] = sunrise.split(':').map(Number);
+            const dhuhaMin = (sH || 5) * 60 + (sM || 20) + 23;
+            return {
+              ...offline,
+              source: 'aladhan_kemenag',
+              timings: [
+                { key: 'imsak', nama: 'Imsak', waktu: cleanTime(t.Imsak) || offline.timings[0].waktu, arab: 'الإمساك' },
+                { key: 'subuh', nama: 'Subuh', waktu: cleanTime(t.Fajr), arab: 'الفجر' },
+                { key: 'terbit', nama: 'Terbit', waktu: sunrise, arab: 'الشروق' },
+                { key: 'dhuha', nama: 'Dhuha', waktu: formatMinutesToHHMM(dhuhaMin), arab: 'الضحى' },
+                { key: 'zuhur', nama: 'Zuhur', waktu: cleanTime(t.Dhuhr), arab: 'الظهر' },
+                { key: 'ashar', nama: 'Ashar', waktu: cleanTime(t.Asr), arab: 'العصر' },
+                { key: 'maghrib', nama: 'Maghrib', waktu: cleanTime(t.Maghrib), arab: 'المغرب' },
+                { key: 'isya', nama: "Isya'", waktu: cleanTime(t.Isha), arab: 'العشاء' },
+              ],
+            };
+          }
+          return offline;
+        });
+      }
+    }
+  } catch {
+    // Fallback offline calculation already ready
+  }
+
+  return offlineDays;
+}
+
 export async function detectCurrentGpsLocation(): Promise<GpsLocationInfo> {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     throw new Error('Perangkat / browser tidak mendukung sensor GPS.');

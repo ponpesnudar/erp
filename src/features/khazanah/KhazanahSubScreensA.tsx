@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Compass,
+  Download,
   Info,
   Loader2,
   MapPin,
@@ -17,6 +18,7 @@ import {
   MoreVertical,
   Pause,
   Play,
+  Printer,
   RefreshCw,
   Search,
   Settings,
@@ -29,6 +31,7 @@ import { MAULID_QASIDAH_LIST, TAHLIL_VERSES, WIRID_DOA_GROUPS } from '../../data
 import { useAppStore } from '../../lib/store.ts';
 import {
   calculateQiblaAzimuth,
+  fetchMonthlyPrayerSchedule,
   fetchPrayerTimesForCoords,
   fetchSurahVerses,
   type GpsLocationInfo,
@@ -614,6 +617,8 @@ export const JadwalShalatMobileScreen: React.FC<{
   const [schedule, setSchedule] = useState<PrayerScheduleDay | null>(null);
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
   const [mutedKeys, setMutedKeys] = useState<Record<string, boolean>>({ imsak: true });
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [pdfFeedback, setPdfFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => {
     const id = window.setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000);
@@ -629,6 +634,31 @@ export const JadwalShalatMobileScreen: React.FC<{
       cancelled = true;
     };
   }, [location.lat, location.lng, selectedDate]);
+
+  useEffect(() => {
+    if (!pdfFeedback) return;
+    const t = window.setTimeout(() => setPdfFeedback(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [pdfFeedback]);
+
+  const activeMonthLabel = useMemo(
+    () =>
+      selectedDate.toLocaleDateString('id-ID', {
+        month: 'long',
+        year: 'numeric',
+      }),
+    [selectedDate]
+  );
+
+  const tzZoneLabel = useMemo(
+    () =>
+      location.subLabel.includes('WITA')
+        ? 'WITA'
+        : location.subLabel.includes('WIT')
+          ? 'WIT'
+          : 'WIB',
+    [location.subLabel]
+  );
 
   const nextPrayerInfo = useMemo(() => {
     if (!schedule) return { nama: 'Subuh', waktu: '04:11', countdown: '00 : 30 : 00', activeKey: 'subuh' };
@@ -657,6 +687,167 @@ export const JadwalShalatMobileScreen: React.FC<{
     });
   };
 
+  const handleExportMonthlyPdf = async () => {
+    if (isExportingPdf) return;
+    setIsExportingPdf(true);
+    setPdfFeedback(null);
+    try {
+      const year = selectedDate.getFullYear();
+      const monthIdx = selectedDate.getMonth();
+      const activeDayNum = selectedDate.getDate();
+
+      const [days, { jsPDF }, { default: autoTable }] = await Promise.all([
+        fetchMonthlyPrayerSchedule(location.lat, location.lng, year, monthIdx),
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      // Header Resmi Jadwal Shalat (A4 Portrait 210mm width)
+      doc.setFillColor(0, 121, 107);
+      doc.rect(12, 10, 186, 26, 'F');
+
+      doc.setFillColor(253, 224, 71);
+      doc.circle(23, 23, 6.2, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6);
+      doc.setTextColor(0, 90, 79);
+      doc.text('LFNU', 23, 22.3, { align: 'center' });
+      doc.setFontSize(4.5);
+      doc.text('DARUSSALAM', 23, 25, { align: 'center' });
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('JADWAL SHALAT & IMSAKIYAH BULANAN', 33, 18.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.text(`Periode: ${activeMonthLabel} · Wilayah: ${location.label} (${tzZoneLabel})`, 33, 24);
+      doc.setFontSize(7.5);
+      doc.setTextColor(209, 250, 229);
+      doc.text(
+        `Koordinat GPS: ${location.lat.toFixed(4)}°, ${location.lng.toFixed(4)}° · Metode Hisab Kemenag RI & Lembaga Falakiyah NU`,
+        33,
+        29.2
+      );
+
+      const monthSlug = `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
+      const bodyRows = days.map((d, idx) => {
+        const dayNum = idx + 1;
+        const getW = (key: PrayerScheduleDay['timings'][number]['key']) =>
+          d.timings.find((item) => item.key === key)?.waktu || '-';
+        return [
+          String(dayNum).padStart(2, '0'),
+          d.pasaranLabel,
+          d.hijriLabel,
+          getW('imsak'),
+          getW('subuh'),
+          getW('terbit'),
+          getW('dhuha'),
+          getW('zuhur'),
+          getW('ashar'),
+          getW('maghrib'),
+          getW('isya'),
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 40,
+        margin: { left: 12, right: 12 },
+        head: [
+          ['Tgl', 'Hari & Pasaran', 'Tanggal Hijriah', 'Imsak', 'Subuh', 'Terbit', 'Dhuha', 'Zuhur', 'Ashar', 'Maghrib', "Isya'"],
+        ],
+        body: bodyRows,
+        styles: {
+          font: 'helvetica',
+          fontSize: 7.5,
+          cellPadding: 1.5,
+          halign: 'center',
+          valign: 'middle',
+          lineColor: [203, 213, 225],
+          lineWidth: 0.15,
+          textColor: [30, 41, 59],
+        },
+        headStyles: {
+          fillColor: [0, 115, 102],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 7.5,
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252],
+        },
+        columnStyles: {
+          0: { cellWidth: 9, fontStyle: 'bold' },
+          1: { cellWidth: 27, halign: 'left' },
+          2: { cellWidth: 34, halign: 'left' },
+          3: { cellWidth: 14 },
+          4: { cellWidth: 14, fontStyle: 'bold', textColor: [0, 105, 92] },
+          5: { cellWidth: 14 },
+          6: { cellWidth: 14 },
+          7: { cellWidth: 15, fontStyle: 'bold' },
+          8: { cellWidth: 15 },
+          9: { cellWidth: 15, fontStyle: 'bold', textColor: [0, 105, 92] },
+          10: { cellWidth: 15 },
+        },
+        didParseCell: (hookData) => {
+          if (hookData.section === 'body') {
+            const rowIndex = hookData.row.index;
+            const dayRow = days[rowIndex];
+            const isSelectedDay = rowIndex + 1 === activeDayNum;
+            const isFriday = dayRow?.pasaranLabel.startsWith("Jum'at");
+            if (isSelectedDay) {
+              hookData.cell.styles.fillColor = [254, 243, 199];
+              hookData.cell.styles.fontStyle = 'bold';
+            } else if (isFriday) {
+              hookData.cell.styles.fillColor = [230, 247, 242];
+            }
+          }
+        },
+      });
+
+      const finalY =
+        (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 265;
+      const footerY = Math.min(finalY + 6.5, 282);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.2);
+      doc.setTextColor(71, 85, 105);
+      doc.text(
+        `Catatan: Waktu shalat dihitung berdasarkan standar Kemenag RI (Subuh 20°, Isya' 18°, Ihtiyat +2 menit) dalam zona ${tzZoneLabel}.`,
+        12,
+        footerY
+      );
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 121, 107);
+      doc.text(
+        'Sumber: Khazanah Santri · PP NU Darussalam Karangdadap & Lembaga Falakiyah Nahdlatul Ulama',
+        12,
+        footerY + 4
+      );
+
+      const safeLocSlug = location.label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 32);
+      const fileName = `Jadwal-Shalat-${monthSlug}-${safeLocSlug || 'lokasi'}.pdf`;
+
+      doc.save(fileName);
+      setPdfFeedback({
+        type: 'ok',
+        text: `PDF jadwal shalat ${activeMonthLabel} berhasil diunduh.`,
+      });
+    } catch {
+      setPdfFeedback({
+        type: 'err',
+        text: 'Gagal membuat PDF jadwal bulanan. Silakan coba lagi.',
+      });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 bg-white min-h-0 relative">
       {/* Teal Mosque Silhouette Top Hero matching screenshot */}
@@ -668,7 +859,16 @@ export const JadwalShalatMobileScreen: React.FC<{
             </button>
             <h1 className="text-lg font-bold">Jadwal Shalat</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleExportMonthlyPdf}
+              disabled={isExportingPdf}
+              className="p-1.5 rounded-full hover:bg-white/15 disabled:opacity-50"
+              title="Cetak Jadwal Bulanan (PDF)"
+            >
+              {isExportingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+            </button>
             <button type="button" onClick={onRefreshGps} className="p-1.5 rounded-full hover:bg-white/15" title="Perbarui GPS">
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -761,6 +961,50 @@ export const JadwalShalatMobileScreen: React.FC<{
             </div>
           );
         })}
+
+        {/* Tombol Cetak / Unduh Jadwal Bulanan (PDF untuk Perangkat Mobile) */}
+        <div className="pt-3">
+          <button
+            type="button"
+            onClick={handleExportMonthlyPdf}
+            disabled={isExportingPdf}
+            className="w-full rounded-2xl bg-[#E6F7F2] hover:bg-[#d7f1e9] active:scale-[0.99] border border-[#00897B]/25 px-4 py-3 flex items-center justify-between transition disabled:opacity-60"
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-9 h-9 rounded-xl bg-[#00897B] text-white flex items-center justify-center shrink-0">
+                {isExportingPdf ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-extrabold text-[#005950]">
+                  {isExportingPdf ? 'Menyiapkan PDF Jadwal...' : 'Cetak Jadwal Bulanan'}
+                </p>
+                <p className="text-[11px] text-[#007366]/85">
+                  Unduh PDF {activeMonthLabel} · {location.label}
+                </p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-lg bg-white text-[#00897B] text-[11px] font-extrabold border border-[#00897B]/20 shrink-0">
+              PDF
+            </span>
+          </button>
+
+          {pdfFeedback && (
+            <div
+              className={`mt-2 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                pdfFeedback.type === 'ok'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{pdfFeedback.text}</span>
+            </div>
+          )}
+        </div>
 
         <div className="pt-4 pb-2 text-center space-y-0.5">
           <p className="text-xs text-slate-500">Waktu Shalat telah ditashih oleh</p>

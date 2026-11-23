@@ -31,6 +31,10 @@ import {
   AlertTriangle,
   Share2,
   Printer,
+  UserPlus,
+  UserCog,
+  Phone,
+  KeyRound,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -48,6 +52,7 @@ import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import { RekapAbsensiSpreadsheet } from '../sdm/RekapAbsensiSpreadsheet.tsx';
 import {
   formatNamaWithGelar,
+  type SatpamProfile,
   type SatpamShiftConfig,
   type SatpamAbsensiRecord,
   type SatpamPengajuanRequest,
@@ -93,15 +98,25 @@ function getMondayOfWeek(isoDate: string): string {
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
 }
 
+export type SatpamMonitoringSubMode =
+  | 'harian_foto'
+  | 'rekap_mingguan'
+  | 'rekap_bulanan'
+  | 'manajemen_satpam'
+  | 'pengaturan_shift';
+
 export interface SatpamAbsensiSubTabProps {
   initialMode?: 'mobile_hp' | 'monitoring';
+  initialSubMode?: SatpamMonitoringSubMode;
 }
 
 export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
   initialMode = 'mobile_hp',
+  initialSubMode = 'harian_foto',
 }) => {
   const {
     currentUser,
+    userAccounts,
     satpamList,
     satpamShiftConfigs,
     satpamAbsensiList,
@@ -117,15 +132,18 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
     updateSatpamShiftConfig,
     deleteSatpamShiftConfig,
     resetSatpamShiftConfigs,
+    addSatpamPersonil,
+    updateSatpamPersonil,
+    deleteSatpamPersonil,
+    resetSatpamList,
     printOrientation,
   } = useAppStore();
   const { effectiveRole } = useAuth();
   const satpamPrintRef = useRef<HTMLDivElement | null>(null);
 
   const isSatpamPersonalUser =
-    currentUser.id === 'u-satpam-riyadi' ||
-    currentUser.id === 'u-satpam-suwarno' ||
-    currentUser.id === 'u-satpam-sopoyono';
+    currentUser.id.startsWith('u-satpam-') ||
+    satpamList.some((s) => s.userId === currentUser.id);
 
   const canManageSatpam =
     !isSatpamPersonalUser &&
@@ -135,6 +153,11 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
   useEffect(() => {
     setMainMode(initialMode);
   }, [initialMode]);
+
+  const satpamNamesSummary = useMemo(
+    () => (satpamList.length > 0 ? satpamList.map((s) => s.nama).join(', ') : 'Belum ada personil'),
+    [satpamList]
+  );
   const [compactPhoneFrame, setCompactPhoneFrame] = useState(false);
   const [showHpInstallModal, setShowHpInstallModal] = useState(false);
 
@@ -578,14 +601,29 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
     return latest || todayIso;
   }, [satpamAbsensiList, todayIso]);
 
-  const [monitoringSubMode, setMonitoringSubMode] = useState<
-    'harian_foto' | 'rekap_mingguan' | 'rekap_bulanan' | 'pengaturan_shift'
-  >('harian_foto');
+  const [monitoringSubMode, setMonitoringSubMode] =
+    useState<SatpamMonitoringSubMode>(initialSubMode);
+  useEffect(() => {
+    setMonitoringSubMode(initialSubMode);
+  }, [initialSubMode]);
+
   const [tanggalFilter, setTanggalFilter] = useState<string>(defaultDate);
   const [weekStartIso, setWeekStartIso] = useState<string>(() => getMondayOfWeek(defaultDate));
   const [rekapBulan, setRekapBulan] = useState<string>(() => defaultDate.substring(0, 7) || '2026-11');
   const [previewRecord, setPreviewRecord] = useState<SatpamAbsensiRecord | null>(null);
   const [buktiPreview, setBuktiPreview] = useState<{ url: string; title: string; meta: string } | null>(null);
+
+  // Admin Satpam Personil CRUD Form State
+  const [editingSatpamId, setEditingSatpamId] = useState<string | null>(null);
+  const [satNama, setSatNama] = useState('');
+  const [satJabatan, setSatJabatan] = useState('Anggota Satpam Jaga');
+  const [satPos, setSatPos] = useState('Pos Gerbang Utama PP NU Darussalam');
+  const [satNoWa, setSatNoWa] = useState('');
+  const [satUsername, setSatUsername] = useState('');
+  const [satShiftDefaultId, setSatShiftDefaultId] = useState(
+    () => satpamShiftConfigs[0]?.id || 'satpam-shift-pagi'
+  );
+  const [confirmDeleteSatpamId, setConfirmDeleteSatpamId] = useState<string | null>(null);
 
   // Admin Shift Config Form
   const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
@@ -599,6 +637,53 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
   const notify = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3500);
+  };
+
+  const resetSatpamForm = () => {
+    setEditingSatpamId(null);
+    setSatNama('');
+    setSatJabatan('Anggota Satpam Jaga');
+    setSatPos('Pos Gerbang Utama PP NU Darussalam');
+    setSatNoWa('');
+    setSatUsername('');
+    setSatShiftDefaultId(satpamShiftConfigs[0]?.id || 'satpam-shift-pagi');
+  };
+
+  const handleEditSatpam = (sat: SatpamProfile) => {
+    setEditingSatpamId(sat.id);
+    setSatNama(sat.nama);
+    setSatJabatan(sat.jabatan);
+    setSatPos(sat.posUtama);
+    setSatNoWa(sat.noWa === '-' ? '' : sat.noWa);
+    const linkedUser = userAccounts.find((u) => u.id === sat.userId);
+    setSatUsername(linkedUser?.username || '');
+    setSatShiftDefaultId(sat.shiftDefaultId || satpamShiftConfigs[0]?.id || 'satpam-shift-pagi');
+  };
+
+  const handleSaveSatpamForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!satNama.trim()) return;
+    if (editingSatpamId) {
+      updateSatpamPersonil(editingSatpamId, {
+        nama: satNama.trim(),
+        jabatan: satJabatan.trim() || 'Anggota Satpam Jaga',
+        posUtama: satPos.trim() || 'Pos Keamanan Pondok',
+        noWa: satNoWa.trim() || '-',
+        shiftDefaultId: satShiftDefaultId,
+      });
+      notify(`Data & shift kerja "${satNama.trim()}" berhasil diperbarui.`);
+    } else {
+      const created = addSatpamPersonil({
+        nama: satNama.trim(),
+        jabatan: satJabatan.trim() || 'Anggota Satpam Jaga',
+        posUtama: satPos.trim() || 'Pos Keamanan Pondok',
+        noWa: satNoWa.trim() || '-',
+        shiftDefaultId: satShiftDefaultId,
+        username: satUsername.trim() || undefined,
+      });
+      notify(`Personil baru "${created.nama}" ditambahkan & siap login mobile.`);
+    }
+    resetSatpamForm();
   };
 
   const resetShiftForm = () => {
@@ -722,7 +807,7 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(
-      `Rekapitulasi Absensi Mingguan Satpam & Keamanan (Riyadi, Suwarno, Sopoyono) · ${weekStartIso} s.d. ${endIso}`,
+      `Rekapitulasi Absensi Mingguan Satpam & Keamanan (${satpamNamesSummary}) · ${weekStartIso} s.d. ${endIso}`,
       18,
       23.5
     );
@@ -817,7 +902,7 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
     doc.setFontSize(8.5);
     doc.setTextColor(51, 65, 85);
     doc.text(
-      `No. Dok: PP-DS/KEAM/ABS-${rekapBulan.replace('-', '')} · Periode: ${rekapBulan} · Regu: Pak Riyadi, Pak Suwarno, Pak Sopoyono`,
+      `No. Dok: PP-DS/KEAM/ABS-${rekapBulan.replace('-', '')} · Periode: ${rekapBulan} · Regu: ${satpamNamesSummary}`,
       316,
       35.5,
       { align: 'right' }
@@ -911,7 +996,7 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold text-amber-300 border border-white/15">
               <Shield className="w-3.5 h-3.5" />
-              <span>Absensi Mobile Satpam Keamanan · Pak Riyadi, Pak Suwarno &amp; Pak Sopoyono</span>
+              <span>Absensi Mobile Satpam Keamanan · {satpamNamesSummary}</span>
             </div>
             <h3 className="text-base sm:text-lg font-extrabold tracking-tight">
               Pasang Aplikasi Absensi Satpam Langsung di HP Android &amp; iPhone
@@ -1300,7 +1385,9 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
             <div className="rounded-2xl bg-white p-4 border border-slate-200 shadow-2xs">
               <span className="text-xs font-semibold text-slate-500">Personil Regu Satpam</span>
               <p className="text-2xl font-black text-slate-900 mt-1 tabular-nums">{satpamList.length} Personil</p>
-              <p className="text-[10px] text-emerald-700 font-bold mt-0.5">Riyadi, Suwarno, Sopoyono</p>
+              <p className="text-[10px] text-emerald-700 font-bold mt-0.5 truncate" title={satpamNamesSummary}>
+                {satpamNamesSummary}
+              </p>
             </div>
             <div className="rounded-2xl bg-white p-4 border border-slate-200 shadow-2xs">
               <span className="text-xs font-semibold text-slate-500">Hadir ({tanggalFilter})</span>
@@ -1389,6 +1476,7 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
                 { id: 'harian_foto', label: 'Log Harian & Swafoto', icon: Camera },
                 { id: 'rekap_mingguan', label: 'Rekap Mingguan', icon: CalendarRange },
                 { id: 'rekap_bulanan', label: 'Rekap Bulanan (%)', icon: CalendarDays },
+                { id: 'manajemen_satpam', label: `Kelola Data & Shift (${satpamList.length})`, icon: UserCog },
                 { id: 'pengaturan_shift', label: 'Pengaturan Shift Satpam', icon: SlidersHorizontal },
               ].map((t) => {
                 const Icon = t.icon;
@@ -1469,7 +1557,7 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
               </div>
               <div className="text-right text-[11px] tabular-nums">
                 <p className="font-bold">Periode: {rekapBulan}</p>
-                <p>Regu: Pak Riyadi, Pak Suwarno, Pak Sopoyono</p>
+                <p>Regu: {satpamNamesSummary}</p>
               </div>
             </div>
 
@@ -1985,6 +2073,328 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
               </div>
             </div>
           )}
+
+          {/* SUB-MODE 5: MANAJEMEN ADMIN DATA & SHIFT KERJA SATPAM */}
+          {monitoringSubMode === 'manajemen_satpam' && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                {/* Left Column: Dynamic Personnel Roster + Inline Shift Assignment */}
+                <div className="lg:col-span-7 rounded-3xl bg-white border border-slate-200 p-5 shadow-2xs space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                        <UserCog className="w-4 h-4 text-emerald-700" />
+                        <span>Database Personil &amp; Penugasan Shift Satpam ({satpamList.length})</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Tambahkan, perbarui shift kerja default, atau hapus personil regu Satpam secara real-time.
+                      </p>
+                    </div>
+                    {canManageSatpam && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          resetSatpamList();
+                          notify('Daftar regu Satpam dikembalikan ke data awal (Riyadi, Suwarno, Sopoyono).');
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Reset Regu Awal</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {satpamList.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center space-y-2">
+                      <p className="text-xs font-bold text-slate-600">
+                        Belum ada personil Satpam terdaftar di database.
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Gunakan formulir di sebelah kanan untuk menambahkan petugas keamanan baru atau klik Reset Regu Awal.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {satpamList.map((sat) => {
+                        const linkedUser = userAccounts.find((u) => u.id === sat.userId);
+                        const activeCfg = satpamShiftConfigs.find((c) => c.id === sat.shiftDefaultId);
+                        const isConfirmingDel = confirmDeleteSatpamId === sat.id;
+                        return (
+                          <div
+                            key={sat.id}
+                            className={`p-4 rounded-2xl border transition space-y-3 ${
+                              editingSatpamId === sat.id
+                                ? 'bg-emerald-50/70 border-emerald-400'
+                                : 'bg-slate-50/80 border-slate-200'
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                              <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-extrabold text-sm text-slate-900">{sat.nama}</span>
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                                    {sat.jabatan}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-600 flex items-center gap-1.5">
+                                  <MapPin className="w-3 h-3 text-emerald-700 shrink-0" />
+                                  <span>{sat.posUtama}</span>
+                                </p>
+                                <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Phone className="w-3 h-3 text-slate-400" />
+                                    {sat.noWa || '-'}
+                                  </span>
+                                  {linkedUser && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <KeyRound className="w-3 h-3 text-amber-600" />
+                                      Login HP:{' '}
+                                      <code className="font-mono font-bold text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                                        {linkedUser.username}
+                                      </code>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {canManageSatpam && (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditSatpam(sat)}
+                                    className="px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-emerald-800 hover:border-emerald-300 text-xs font-bold inline-flex items-center gap-1"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                    <span>Edit</span>
+                                  </button>
+
+                                  {isConfirmingDel ? (
+                                    <div className="inline-flex items-center gap-1 bg-rose-50 border border-rose-300 rounded-xl px-2 py-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          deleteSatpamPersonil(sat.id);
+                                          if (editingSatpamId === sat.id) resetSatpamForm();
+                                          setConfirmDeleteSatpamId(null);
+                                          notify(`Personil "${sat.nama}" berhasil dihapus dari database.`);
+                                        }}
+                                        className="px-2 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold"
+                                      >
+                                        Ya, Hapus
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmDeleteSatpamId(null)}
+                                        className="px-2 py-0.5 rounded-lg bg-white text-slate-600 text-[11px] font-bold border border-slate-200"
+                                      >
+                                        Batal
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteSatpamId(sat.id)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold inline-flex items-center gap-1"
+                                      title={`Hapus ${sat.nama}`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>Hapus</span>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Quick Inline Shift Assignment */}
+                            <div className="pt-2.5 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                                <span>Shift Kerja Utama:</span>
+                              </span>
+                              {canManageSatpam ? (
+                                <select
+                                  value={sat.shiftDefaultId}
+                                  onChange={(e) => {
+                                    const nextId = e.target.value;
+                                    const cfg = satpamShiftConfigs.find((c) => c.id === nextId);
+                                    updateSatpamPersonil(sat.id, { shiftDefaultId: nextId });
+                                    notify(
+                                      `Shift kerja ${sat.nama} diubah ke ${cfg?.nama || nextId}.`
+                                    );
+                                  }}
+                                  className="rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 min-w-[230px]"
+                                >
+                                  {satpamShiftConfigs.map((cfg) => (
+                                    <option key={cfg.id} value={cfg.id}>
+                                      {cfg.nama} ({cfg.jamMulai}–{cfg.jamSelesai} WIB)
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className="text-xs font-bold text-emerald-800">
+                                  {activeCfg
+                                    ? `${activeCfg.nama} (${activeCfg.jamMulai}–${activeCfg.jamSelesai})`
+                                    : sat.shiftDefaultId}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: Add / Edit Satpam Form + Shift Summary */}
+                <div className="lg:col-span-5 space-y-4">
+                  <div className="rounded-3xl bg-white border border-slate-200 p-5 shadow-2xs space-y-3">
+                    <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                      <UserPlus className="w-4 h-4 text-emerald-700" />
+                      <span>
+                        {editingSatpamId ? 'Edit Data & Shift Satpam' : 'Tambah Personil Satpam Baru'}
+                      </span>
+                    </h4>
+
+                    {canManageSatpam ? (
+                      <form onSubmit={handleSaveSatpamForm} className="space-y-3 text-xs">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Nama Personil Satpam *
+                          </label>
+                          <input
+                            required
+                            value={satNama}
+                            onChange={(e) => setSatNama(e.target.value)}
+                            placeholder="Contoh: Pak Ahmad Fauzi"
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">Jabatan / Peran</label>
+                            <input
+                              value={satJabatan}
+                              onChange={(e) => setSatJabatan(e.target.value)}
+                              placeholder="Anggota Satpam Jaga"
+                              className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">No. WhatsApp</label>
+                            <input
+                              value={satNoWa}
+                              onChange={(e) => setSatNoWa(e.target.value)}
+                              placeholder="0857xxxxxxxx"
+                              className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Pos Jaga Utama</label>
+                          <input
+                            value={satPos}
+                            onChange={(e) => setSatPos(e.target.value)}
+                            placeholder="Pos Gerbang Utama PP NU Darussalam"
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Pengaturan Shift Kerja Default *
+                          </label>
+                          <select
+                            value={satShiftDefaultId}
+                            onChange={(e) => setSatShiftDefaultId(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white font-semibold"
+                          >
+                            {satpamShiftConfigs.map((cfg) => (
+                              <option key={cfg.id} value={cfg.id}>
+                                {cfg.nama} ({cfg.jamMulai}–{cfg.jamSelesai} WIB)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {!editingSatpamId && (
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">
+                              Username Login Aplikasi HP (Opsional)
+                            </label>
+                            <input
+                              value={satUsername}
+                              onChange={(e) => setSatUsername(e.target.value)}
+                              placeholder="Otomatis dari nama (sandi awal: darussalam2026)"
+                              className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="submit"
+                            className="flex-1 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold flex items-center justify-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>{editingSatpamId ? 'Simpan Perubahan' : 'Tambah Satpam'}</span>
+                          </button>
+                          {editingSatpamId && (
+                            <button
+                              type="button"
+                              onClick={resetSatpamForm}
+                              className="px-3 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold"
+                            >
+                              Batal
+                            </button>
+                          )}
+                        </div>
+                      </form>
+                    ) : (
+                      <p className="text-xs text-slate-500">
+                        Hanya Administrator, Pengasuh, Koordinator Keamanan, atau Sekretaris yang dapat mengubah daftar Satpam.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Quick Shift Schedule Overview & Link to Full Shift Config */}
+                  <div className="rounded-3xl bg-emerald-50/70 border border-emerald-200 p-4 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <h5 className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Daftar Shift Kerja Aktif ({satpamShiftConfigs.length})</span>
+                      </h5>
+                      <button
+                        type="button"
+                        onClick={() => setMonitoringSubMode('pengaturan_shift')}
+                        className="text-[11px] font-extrabold text-emerald-800 hover:underline"
+                      >
+                        Kelola Jam Shift →
+                      </button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {satpamShiftConfigs.map((cfg) => (
+                        <div
+                          key={cfg.id}
+                          className="rounded-xl bg-white border border-emerald-200/80 px-3 py-2 flex items-center justify-between text-[11px]"
+                        >
+                          <div>
+                            <p className="font-bold text-slate-900">{cfg.nama}</p>
+                            <p className="text-[10px] text-slate-500">{cfg.pos}</p>
+                          </div>
+                          <span className="font-bold text-emerald-800 tabular-nums shrink-0 ml-2">
+                            {cfg.jamMulai}–{cfg.jamSelesai}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2263,9 +2673,15 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
               <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 space-y-1">
                 <p className="font-extrabold text-amber-900">3. Akun Login Regu Satpam:</p>
                 <ul className="list-disc pl-4 space-y-0.5">
-                  <li><strong>Pak Riyadi</strong>: username <code className="font-mono font-bold">riyadi</code></li>
-                  <li><strong>Pak Suwarno</strong>: username <code className="font-mono font-bold">suwarno</code></li>
-                  <li><strong>Pak Sopoyono</strong>: username <code className="font-mono font-bold">sopoyono</code></li>
+                  {satpamList.map((sat) => {
+                    const u = userAccounts.find((acc) => acc.id === sat.userId);
+                    return (
+                      <li key={sat.id}>
+                        <strong>{sat.nama}</strong>: username{' '}
+                        <code className="font-mono font-bold">{u?.username || sat.id}</code>
+                      </li>
+                    );
+                  })}
                   <li>Sandi awal semua akun: <code className="font-mono font-bold">darussalam2026</code></li>
                 </ul>
               </div>
