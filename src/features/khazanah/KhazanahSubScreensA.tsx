@@ -26,7 +26,7 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
-import { SURAH_ALQURAN_LIST, type SurahRingkas } from '../../data/seed/khazanahData.ts';
+import { SURAH_ALQURAN_LIST, type KhazanahItem, type SurahRingkas } from '../../data/seed/khazanahData.ts';
 import { MAULID_QASIDAH_LIST, TAHLIL_VERSES, WIRID_DOA_GROUPS } from '../../data/seed/khazanahAppSeed.ts';
 import { useAppStore } from '../../lib/store.ts';
 import {
@@ -469,13 +469,28 @@ export const QuranMobileScreen: React.FC<{
 };
 
 // ==========================================
-// 2. WIRID & DOA (EXACT 1..8 WIRID & 1..9 DOA)
+// 2. WIRID & DOA (EXACT 1..9 WIRID & 1..9 DOA)
 // ==========================================
-export const WiridDoaMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+export const WiridDoaMobileScreen: React.FC<{
+  onBack: () => void;
+  initialGroupKey?: string;
+}> = ({ onBack, initialGroupKey }) => {
   const khazanahCms = useAppStore((s) => s.khazanahItems);
-  const [tab, setTab] = useState<'wirid' | 'doa'>('wirid');
+  const [tab, setTab] = useState<'wirid' | 'doa'>(() =>
+    initialGroupKey?.startsWith('doa-') ? 'doa' : 'wirid'
+  );
   const [search, setSearch] = useState('');
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(initialGroupKey ?? null);
+  const [selectedCmsItem, setSelectedCmsItem] = useState<KhazanahItem | null>(null);
+  const [largeFont, setLargeFont] = useState(false);
+
+  useEffect(() => {
+    if (initialGroupKey) {
+      setTab(initialGroupKey.startsWith('doa-') ? 'doa' : 'wirid');
+      setSelectedGroupId(initialGroupKey);
+      setSelectedCmsItem(null);
+    }
+  }, [initialGroupKey]);
 
   const cmsWiridDoa = useMemo(
     () => khazanahCms.filter((i) => i.kategori === 'Wirid & Doa'),
@@ -485,38 +500,116 @@ export const WiridDoaMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack 
   const groups = useMemo(() => {
     const q = search.trim().toLowerCase();
     return WIRID_DOA_GROUPS.filter(
-      (g) => g.tab === tab && (!q || g.judul.toLowerCase().includes(q))
+      (g) =>
+        g.tab === tab &&
+        (!q ||
+          g.judul.toLowerCase().includes(q) ||
+          g.items.some((it) => it.judul.toLowerCase().includes(q)))
     );
   }, [tab, search]);
 
   const activeGroup = WIRID_DOA_GROUPS.find((g) => `${g.tab}-${g.no}` === selectedGroupId);
 
+  if (selectedCmsItem) {
+    return (
+      <div className="flex flex-col flex-1 bg-white min-h-0">
+        <div className="bg-[#00897B] text-white px-3 py-3 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <button type="button" onClick={() => setSelectedCmsItem(null)} className="p-1 rounded-full hover:bg-white/15">
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold truncate">{selectedCmsItem.judul}</h2>
+              <p className="text-[11px] text-emerald-100 truncate">{selectedCmsItem.subKategori}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLargeFont((v) => !v)}
+            className="px-2 py-1 rounded-lg hover:bg-white/15 text-sm font-bold shrink-0"
+          >
+            aA
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20">
+          <div className="rounded-2xl border border-slate-200 p-4 space-y-3 bg-white shadow-2xs">
+            <h3 className="text-base font-extrabold text-slate-900">{selectedCmsItem.judul}</h3>
+            {selectedCmsItem.subjudul && (
+              <p className="text-xs font-medium text-[#00897B]">{selectedCmsItem.subjudul}</p>
+            )}
+            {selectedCmsItem.teksArab && (
+              <p
+                className={`font-arabic text-right text-slate-900 whitespace-pre-line ${
+                  largeFont ? 'text-2xl leading-[2.3]' : 'text-xl leading-[2.1]'
+                }`}
+                dir="rtl"
+              >
+                {selectedCmsItem.teksArab}
+              </p>
+            )}
+            {selectedCmsItem.latin && (
+              <p className="text-xs text-[#00897B] font-medium whitespace-pre-line leading-relaxed">
+                {selectedCmsItem.latin}
+              </p>
+            )}
+            {selectedCmsItem.terjemah && (
+              <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">
+                {selectedCmsItem.terjemah}
+              </p>
+            )}
+            <p className="text-xs text-slate-700 whitespace-pre-line leading-relaxed pt-2 border-t border-slate-100">
+              {selectedCmsItem.isiLengkap}
+            </p>
+            {selectedCmsItem.sumber && (
+              <p className="text-[11px] text-slate-400">Sumber: {selectedCmsItem.sumber}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (activeGroup) {
     return (
       <div className="flex flex-col flex-1 bg-white min-h-0">
-        <div className="bg-[#00897B] text-white px-3 py-3 flex items-center gap-2 shrink-0">
-          <button type="button" onClick={() => setSelectedGroupId(null)} className="p-1.5 rounded-full hover:bg-white/15">
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-          <div className="min-w-0">
-            <h2 className="text-base font-bold truncate">{activeGroup.judul}</h2>
-            <p className="text-[11px] text-emerald-100">{activeGroup.jumlahBacaan} Bacaan</p>
+        <div className="bg-[#00897B] text-white px-3 py-3 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <button type="button" onClick={() => setSelectedGroupId(null)} className="p-1 rounded-full hover:bg-white/15">
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold truncate">{activeGroup.judul}</h2>
+              <p className="text-[11px] text-emerald-100">{activeGroup.items.length} Bacaan Lengkap</p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setLargeFont((v) => !v)}
+            className="px-2 py-1 rounded-lg hover:bg-white/15 text-sm font-bold shrink-0"
+            title="Ubah Ukuran Teks Arab"
+          >
+            aA
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20">
           {activeGroup.items.map((item, idx) => (
             <div key={item.id} className="rounded-2xl border border-slate-200 p-4 space-y-2.5 bg-white shadow-2xs">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#E6F7F2] text-[#00897B] text-xs font-bold flex items-center justify-center">
+                <span className="w-6 h-6 rounded-full bg-[#E6F7F2] text-[#00897B] text-xs font-bold flex items-center justify-center shrink-0">
                   {idx + 1}
                 </span>
                 <h3 className="text-sm font-bold text-slate-900">{item.judul}</h3>
               </div>
-              <p className="font-arabic text-xl leading-[2.1] text-right text-slate-900" dir="rtl">
+              <p
+                className={`font-arabic text-right text-slate-900 whitespace-pre-line ${
+                  largeFont ? 'text-2xl leading-[2.3]' : 'text-xl leading-[2.1]'
+                }`}
+                dir="rtl"
+              >
                 {item.arab}
               </p>
-              <p className="text-xs text-[#00897B] font-medium leading-relaxed">{item.latin}</p>
-              <p className="text-xs text-slate-600 leading-relaxed">{item.arti}</p>
+              <p className="text-xs text-[#00897B] font-medium whitespace-pre-line leading-relaxed">{item.latin}</p>
+              <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">{item.arti}</p>
             </div>
           ))}
         </div>
@@ -536,7 +629,7 @@ export const WiridDoaMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack 
             onClick={() => setTab('wirid')}
             className={`py-1.5 rounded-lg transition ${tab === 'wirid' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-700'}`}
           >
-            Wirid
+            Wirid &amp; Kitab
           </button>
           <button
             type="button"
@@ -556,7 +649,7 @@ export const WiridDoaMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack 
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari Wirid/Doa"
+            placeholder="Cari Wirid, Manaqib, Haikal, Dalail, Hizib, Doa..."
             className="w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden"
           />
         </div>
@@ -567,34 +660,42 @@ export const WiridDoaMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack 
               key={`${g.tab}-${g.no}`}
               type="button"
               onClick={() => setSelectedGroupId(`${g.tab}-${g.no}`)}
-              className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-2xs flex items-center text-left overflow-hidden hover:border-[#00897B]/50 transition"
+              className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between text-left overflow-hidden hover:border-[#00897B]/50 transition pr-3"
             >
-              <OctagonNumberBadge num={g.no} variant="mint" />
-              <div className="px-4 py-3.5 min-w-0">
-                <p className="text-[15px] font-bold text-slate-900">{g.judul}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{g.jumlahBacaan} Bacaan</p>
+              <div className="flex items-center min-w-0">
+                <OctagonNumberBadge num={g.no} variant="mint" />
+                <div className="px-4 py-3.5 min-w-0">
+                  <p className="text-[15px] font-bold text-slate-900 truncate">{g.judul}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{g.items.length} Bacaan</p>
+                </div>
               </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
             </button>
           ))}
 
           {/* Sekretaris CMS Custom Wirid/Doa items synced live */}
           {cmsWiridDoa.map((cms, i) => (
-            <div
+            <button
               key={cms.id}
-              className="w-full bg-white rounded-2xl border border-emerald-200 shadow-2xs flex items-center text-left overflow-hidden"
+              type="button"
+              onClick={() => setSelectedCmsItem(cms)}
+              className="w-full bg-white rounded-2xl border border-emerald-200 shadow-2xs flex items-center justify-between text-left overflow-hidden hover:border-[#00897B] transition pr-3"
             >
-              <OctagonNumberBadge num={groups.length + i + 1} variant="mint" />
-              <div className="px-4 py-3 min-w-0">
-                <p className="text-sm font-bold text-slate-900">{cms.judul}</p>
-                <p className="text-xs text-slate-500 line-clamp-1">{cms.subjudul || cms.isiLengkap}</p>
+              <div className="flex items-center min-w-0">
+                <OctagonNumberBadge num={groups.length + i + 1} variant="mint" />
+                <div className="px-4 py-3 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate">{cms.judul}</p>
+                  <p className="text-xs text-slate-500 line-clamp-1">{cms.subjudul || cms.isiLengkap}</p>
+                </div>
               </div>
-            </div>
+              <ChevronRight className="w-4 h-4 text-[#00897B] shrink-0" />
+            </button>
           ))}
         </div>
 
         {tab === 'wirid' && (
           <div className="rounded-2xl bg-[#FAF4EC] border border-[#EDE0CF] px-4 py-3.5 flex items-center justify-between text-[#8B6239]">
-            <span className="text-sm font-bold">Artikel Wirid Lainnya</span>
+            <span className="text-sm font-bold">Koleksi Manaqib, Haikal, Dalail &amp; Hizib Lengkap</span>
             <ChevronRight className="w-4 h-4" />
           </div>
         )}
@@ -747,6 +848,7 @@ export const JadwalShalatMobileScreen: React.FC<{
           getW('dhuha'),
           getW('zuhur'),
           getW('ashar'),
+          getW('nastakmir'),
           getW('maghrib'),
           getW('isya'),
         ];
@@ -756,13 +858,13 @@ export const JadwalShalatMobileScreen: React.FC<{
         startY: 40,
         margin: { left: 12, right: 12 },
         head: [
-          ['Tgl', 'Hari & Pasaran', 'Tanggal Hijriah', 'Imsak', 'Subuh', 'Terbit', 'Dhuha', 'Zuhur', 'Ashar', 'Maghrib', "Isya'"],
+          ['Tgl', 'Hari & Pasaran', 'Tanggal Hijriah', 'Imsak', 'Subuh', 'Terbit', 'Dhuha', 'Zuhur', 'Ashar', 'Nastakmir', 'Maghrib', "Isya'"],
         ],
         body: bodyRows,
         styles: {
           font: 'helvetica',
-          fontSize: 7.5,
-          cellPadding: 1.5,
+          fontSize: 7.2,
+          cellPadding: 1.4,
           halign: 'center',
           valign: 'middle',
           lineColor: [203, 213, 225],
@@ -773,23 +875,24 @@ export const JadwalShalatMobileScreen: React.FC<{
           fillColor: [0, 115, 102],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 7.5,
+          fontSize: 7.2,
         },
         alternateRowStyles: {
           fillColor: [248, 250, 252],
         },
         columnStyles: {
-          0: { cellWidth: 9, fontStyle: 'bold' },
-          1: { cellWidth: 27, halign: 'left' },
-          2: { cellWidth: 34, halign: 'left' },
-          3: { cellWidth: 14 },
-          4: { cellWidth: 14, fontStyle: 'bold', textColor: [0, 105, 92] },
-          5: { cellWidth: 14 },
-          6: { cellWidth: 14 },
-          7: { cellWidth: 15, fontStyle: 'bold' },
-          8: { cellWidth: 15 },
-          9: { cellWidth: 15, fontStyle: 'bold', textColor: [0, 105, 92] },
-          10: { cellWidth: 15 },
+          0: { cellWidth: 8, fontStyle: 'bold' },
+          1: { cellWidth: 24, halign: 'left' },
+          2: { cellWidth: 30, halign: 'left' },
+          3: { cellWidth: 12 },
+          4: { cellWidth: 13, fontStyle: 'bold', textColor: [0, 105, 92] },
+          5: { cellWidth: 12 },
+          6: { cellWidth: 12 },
+          7: { cellWidth: 13, fontStyle: 'bold' },
+          8: { cellWidth: 13 },
+          9: { cellWidth: 17, fontStyle: 'bold', textColor: [180, 83, 9] },
+          10: { cellWidth: 16, fontStyle: 'bold', textColor: [0, 105, 92] },
+          11: { cellWidth: 16 },
         },
         didParseCell: (hookData) => {
           if (hookData.section === 'body') {
@@ -926,21 +1029,57 @@ export const JadwalShalatMobileScreen: React.FC<{
         {(schedule?.timings || []).map((t) => {
           const isNext = t.key === nextPrayerInfo.activeKey;
           const isMuted = mutedKeys[t.key];
+          const isNastakmir = t.key === 'nastakmir';
           return (
             <div
               key={t.key}
               className={`px-3.5 py-3 rounded-xl flex items-center justify-between transition ${
-                isNext ? 'bg-[#E5F7EF]' : 'bg-white'
+                isNext
+                  ? 'bg-[#E5F7EF] ring-1 ring-[#00897B]/30'
+                  : isNastakmir
+                    ? 'bg-amber-50/80 border border-amber-200/70'
+                    : 'bg-white'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-base">{t.key === 'maghrib' || t.key === 'terbit' ? '🌅' : t.key === 'isya' ? '🌙' : '☀️'}</span>
-                <span className={`text-[15px] ${isNext ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
-                  {t.nama}
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-base shrink-0">
+                  {isNastakmir
+                    ? '🕌'
+                    : t.key === 'maghrib' || t.key === 'terbit'
+                      ? '🌅'
+                      : t.key === 'isya'
+                        ? '🌙'
+                        : '☀️'}
                 </span>
+                <div className="min-w-0">
+                  <span
+                    className={`block text-[15px] ${
+                      isNext
+                        ? 'font-bold text-slate-900'
+                        : isNastakmir
+                          ? 'font-bold text-amber-950'
+                          : 'font-medium text-slate-700'
+                    }`}
+                  >
+                    {t.nama}
+                  </span>
+                  {isNastakmir && (
+                    <span className="block text-[10px] font-semibold text-amber-800">
+                      15 menit sebelum Maghrib · Persiapan Jamaah
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className={`text-[15px] tabular-nums ${isNext ? 'font-extrabold text-slate-900' : 'font-semibold text-slate-700'}`}>
+              <div className="flex items-center gap-4 shrink-0">
+                <span
+                  className={`text-[15px] tabular-nums ${
+                    isNext
+                      ? 'font-extrabold text-slate-900'
+                      : isNastakmir
+                        ? 'font-extrabold text-amber-900'
+                        : 'font-semibold text-slate-700'
+                  }`}
+                >
                   {t.waktu}
                 </span>
                 <button
@@ -951,7 +1090,7 @@ export const JadwalShalatMobileScreen: React.FC<{
                 >
                   {isMuted ? (
                     <BellOff className="w-4 h-4 text-slate-400" />
-                  ) : t.key === 'terbit' || t.key === 'dhuha' ? (
+                  ) : t.key === 'terbit' || t.key === 'dhuha' || isNastakmir ? (
                     <Bell className="w-4 h-4" />
                   ) : (
                     <Volume2 className="w-4 h-4" />
@@ -1031,25 +1170,112 @@ export const KiblatMobileScreen: React.FC<{
 }> = ({ onBack, location, onOpenLocationPicker }) => {
   const azimuth = useMemo(() => calculateQiblaAzimuth(location.lat, location.lng), [location.lat, location.lng]);
   const [heading, setHeading] = useState(0);
+  const [sensorStatus, setSensorStatus] = useState<'idle' | 'active' | 'permission_needed' | 'denied' | 'manual'>('idle');
+  const [sensorModeLabel, setSensorModeLabel] = useState<string>('Menunggu gerak kompas...');
   const [showCalibrateModal, setShowCalibrateModal] = useState(false);
   const [cameraMode, setCameraMode] = useState(false);
+  const [calibrationOffset, setCalibrationOffset] = useState(0);
+  const hasAbsoluteRef = useRef(false);
+
+  const parseHeadingFromEvent = (e: DeviceOrientationEvent): { deg: number; isAbs: boolean } | null => {
+    const ext = e as DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number };
+    if (typeof ext.webkitCompassHeading === 'number' && !Number.isNaN(ext.webkitCompassHeading)) {
+      return { deg: ((ext.webkitCompassHeading % 360) + 360) % 360, isAbs: true };
+    }
+    if (typeof e.alpha === 'number' && !Number.isNaN(e.alpha)) {
+      // alpha rotates counter-clockwise on Web Standards; clockwise magnetic/true heading = 360 - alpha
+      const clockwise = ((360 - e.alpha) % 360 + 360) % 360;
+      return { deg: clockwise, isAbs: Boolean(e.absolute) };
+    }
+    return null;
+  };
 
   useEffect(() => {
-    const handler = (e: DeviceOrientationEvent) => {
-      if (typeof e.alpha === 'number') {
-        setHeading(e.alpha);
-      }
+    const reqPerm = (
+      DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<'granted' | 'denied'> }
+    )?.requestPermission;
+    if (typeof reqPerm === 'function') {
+      setSensorStatus('permission_needed');
+      setSensorModeLabel('Ketuk "Aktifkan Sensor Kompas" (iOS)');
+    }
+
+    const onAbsOrientation = (e: Event) => {
+      const parsed = parseHeadingFromEvent(e as DeviceOrientationEvent);
+      if (!parsed) return;
+      hasAbsoluteRef.current = true;
+      setHeading(parsed.deg);
+      setSensorStatus('active');
+      setSensorModeLabel('Sensor Kompas Absolut Aktif');
     };
-    window.addEventListener('deviceorientation', handler, true);
-    return () => window.removeEventListener('deviceorientation', handler, true);
+
+    const onRelOrientation = (e: Event) => {
+      const parsed = parseHeadingFromEvent(e as DeviceOrientationEvent);
+      if (!parsed) return;
+      if (hasAbsoluteRef.current && !parsed.isAbs) return;
+      setHeading(parsed.deg);
+      setSensorStatus('active');
+      setSensorModeLabel(parsed.isAbs ? 'Sensor Kompas Aktif' : 'Sensor Orientasi Perangkat Aktif');
+    };
+
+    window.addEventListener('deviceorientationabsolute', onAbsOrientation, true);
+    window.addEventListener('deviceorientation', onRelOrientation, true);
+
+    const fallbackTimer = window.setTimeout(() => {
+      setSensorStatus((prev) => {
+        if (prev === 'idle') {
+          setSensorModeLabel('Mode Simulasi / Slider (Perangkat tanpa magnetometer)');
+          return 'manual';
+        }
+        return prev;
+      });
+    }, 1800);
+
+    return () => {
+      window.clearTimeout(fallbackTimer);
+      window.removeEventListener('deviceorientationabsolute', onAbsOrientation, true);
+      window.removeEventListener('deviceorientation', onRelOrientation, true);
+    };
   }, []);
 
-  const needleDeg = azimuth - heading;
+  const requestCompassSensor = async () => {
+    try {
+      const reqPerm = (
+        DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<'granted' | 'denied'> }
+      )?.requestPermission;
+      if (typeof reqPerm === 'function') {
+        const res = await reqPerm();
+        if (res === 'granted') {
+          setSensorStatus('active');
+          setSensorModeLabel('Izin Sensor Diberikan · Putar Perangkat');
+        } else {
+          setSensorStatus('denied');
+          setSensorModeLabel('Izin kompas ditolak browser · Gunakan slider di bawah');
+        }
+      } else {
+        // Re-center / re-calibrate heading check on Android & Desktop
+        setCalibrationOffset(0);
+        setSensorModeLabel(
+          sensorStatus === 'active'
+            ? 'Kalibrasi Ulang Selesai · Putar Perangkat'
+            : 'Sensor listening aktif · Putar perangkat Anda'
+        );
+      }
+    } catch {
+      setSensorStatus('denied');
+      setSensorModeLabel('Gagal meminta izin sensor · Gunakan slider manual');
+    }
+  };
+
+  const effectiveHeading = ((heading + calibrationOffset) % 360 + 360) % 360;
+  // Shortest signed angular diff in [-180, +180]: + means turn clockwise/right, - means turn left
+  const signedDiff = ((azimuth - effectiveHeading + 540) % 360) - 180;
+  const isAligned = Math.abs(signedDiff) <= 5;
+  const absDiff = Math.round(Math.abs(signedDiff));
 
   return (
-    <div className="flex flex-col flex-1 bg-gradient-to-b from-[#00897B] via-[#006F63] to-[#005950] text-white min-h-0 relative">
+    <div className="flex flex-col flex-1 bg-gradient-to-b from-[#00897B] via-[#006F63] to-[#005950] text-white min-h-0 relative overflow-y-auto">
       {/* Top Bar */}
-      <div className="px-3 py-3 flex items-center justify-between">
+      <div className="px-3 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <button type="button" onClick={onBack} className="p-1 rounded-full hover:bg-white/15">
             <ChevronLeft className="w-6 h-6" />
@@ -1060,10 +1286,11 @@ export const KiblatMobileScreen: React.FC<{
           <button
             type="button"
             onClick={() => setShowCalibrateModal(true)}
-            className="p-1.5 rounded-full hover:bg-white/15"
+            className="px-2.5 py-1 rounded-full bg-white/15 hover:bg-white/25 text-[11px] font-bold flex items-center gap-1"
             title="Kalibrasi Kompas"
           >
-            <Info className="w-5 h-5" />
+            <Info className="w-3.5 h-3.5" />
+            <span>Kalibrasi</span>
           </button>
           <button type="button" onClick={onOpenLocationPicker} className="p-1.5 rounded-full hover:bg-white/15">
             <MoreVertical className="w-5 h-5" />
@@ -1072,7 +1299,7 @@ export const KiblatMobileScreen: React.FC<{
       </div>
 
       {/* Location & Degree Display */}
-      <div className="px-4 text-center space-y-2 mt-2">
+      <div className="px-4 text-center space-y-1.5 mt-1 shrink-0">
         <button
           type="button"
           onClick={onOpenLocationPicker}
@@ -1081,61 +1308,106 @@ export const KiblatMobileScreen: React.FC<{
           <MapPin className="w-4 h-4 text-rose-400 fill-rose-400" />
           <span>{location.label}</span>
         </button>
-        <p className="text-xs text-emerald-100">Derajat Sudut Kiblat dari Utara</p>
-        <p className="text-4xl font-extrabold tracking-tight tabular-nums">{azimuth.toFixed(2)}°</p>
+        <p className="text-xs text-emerald-100">Derajat Sudut Kiblat dari Utara · Arah HP: {Math.round(effectiveHeading)}°</p>
+        <p className="text-3xl font-extrabold tracking-tight tabular-nums">{azimuth.toFixed(2)}°</p>
+        <div className="pt-1">
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold shadow-xs ${
+              isAligned
+                ? 'bg-amber-300 text-emerald-950'
+                : 'bg-black/25 text-white border border-white/20'
+            }`}
+          >
+            {isAligned
+              ? "✓ Lurus Menghadap Kiblat (Ka'bah)"
+              : signedDiff > 0
+                ? `Putar ${absDiff}° ke Kanan →`
+                : `← Putar ${absDiff}° ke Kiri`}
+          </span>
+        </div>
       </div>
 
-      {/* Circular Compass */}
+      {/* Circular Compass: Outer Phone Target Indicator ▲ + Rotating Compass Rose (-effectiveHeading) */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-4">
-        <div className="relative w-64 h-64 rounded-full bg-white shadow-2xl flex items-center justify-center">
-          {/* Compass Ticks */}
-          <div className="absolute inset-3 rounded-full border border-slate-200 flex items-center justify-center">
-            <span className="absolute top-1.5 font-extrabold text-sm text-[#00897B]">U</span>
-            <span className="absolute right-2 font-extrabold text-sm text-[#00897B]">T</span>
-            <span className="absolute bottom-1.5 font-extrabold text-sm text-[#00897B]">S</span>
-            <span className="absolute left-2 font-extrabold text-sm text-[#00897B]">B</span>
-          </div>
-
-          {/* Ka'bah target icon rotated on outer edge */}
-          <div
-            className="absolute inset-0 transition-transform duration-300"
-            style={{ transform: `rotate(${needleDeg}deg)` }}
-          >
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white shadow-md border border-amber-300 flex items-center justify-center text-sm">
-              🕋
-            </div>
-            {/* Needle pointing straight toward Ka'bah */}
-            <div className="absolute top-12 bottom-12 left-1/2 -translate-x-1/2 w-4 flex flex-col items-center">
-              <div
-                className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[96px] border-b-rose-600"
-              />
-              <div
-                className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-t-[96px] border-t-slate-200"
-              />
-            </div>
-          </div>
-
-          <div className="w-5 h-5 rounded-full bg-slate-200 border-2 border-white shadow-sm z-10" />
+        <div className="relative mb-1.5 flex flex-col items-center">
+          <span className="text-[10px] font-extrabold tracking-wider uppercase text-amber-300">
+            Arah Atas HP
+          </span>
+          <span className={`text-sm leading-none ${isAligned ? 'text-amber-300 scale-125' : 'text-white/80'} transition`}>
+            ▼
+          </span>
         </div>
 
-        {/* Desktop Manual Heading Fine-Tune */}
-        <div className="mt-4 w-full max-w-[240px] space-y-1 text-center">
-          <p className="text-[11px] text-emerald-100">
-            Putar perangkat menghadap barat laut ({azimuth.toFixed(1)}°)
-          </p>
-          <input
-            type="range"
-            min={0}
-            max={359}
-            value={Math.round(heading)}
-            onChange={(e) => setHeading(Number(e.target.value))}
-            className="w-full accent-amber-300 h-1.5"
-          />
+        <div
+          className={`relative w-60 h-60 rounded-full bg-white shadow-2xl flex items-center justify-center transition-all ${
+            isAligned ? 'ring-4 ring-amber-300' : ''
+          }`}
+        >
+          {/* Rotating Compass Card locked to true North */}
+          <div
+            className="absolute inset-0 transition-transform duration-150 ease-out"
+            style={{ transform: `rotate(${-effectiveHeading}deg)` }}
+          >
+            <div className="absolute inset-3 rounded-full border border-slate-200 flex items-center justify-center">
+              <span className="absolute top-1.5 font-extrabold text-sm text-rose-600">U</span>
+              <span className="absolute right-2 font-extrabold text-sm text-[#00897B]">T</span>
+              <span className="absolute bottom-1.5 font-extrabold text-sm text-[#00897B]">S</span>
+              <span className="absolute left-2 font-extrabold text-sm text-[#00897B]">B</span>
+            </div>
+
+            {/* Ka'bah target arm fixed at Qibla Azimuth relative to North */}
+            <div
+              className="absolute inset-0"
+              style={{ transform: `rotate(${azimuth}deg)` }}
+            >
+              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white shadow-md border-2 border-amber-400 flex items-center justify-center text-sm z-10">
+                🕋
+              </div>
+              <div className="absolute top-11 bottom-11 left-1/2 -translate-x-1/2 w-4 flex flex-col items-center">
+                <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[88px] border-b-[#00897B]" />
+                <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-t-[88px] border-t-slate-200" />
+              </div>
+            </div>
+          </div>
+
+          <div className="w-5 h-5 rounded-full bg-amber-400 border-2 border-white shadow-sm z-20" />
+        </div>
+
+        {/* Sensor Action & Manual Fine-Tune Slider */}
+        <div className="mt-4 w-full max-w-[270px] space-y-2 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={requestCompassSensor}
+              className="px-3 py-1.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-emerald-950 text-[11px] font-extrabold inline-flex items-center gap-1.5 shadow-xs"
+            >
+              <Compass className="w-3.5 h-3.5" />
+              <span>
+                {sensorStatus === 'permission_needed'
+                  ? 'Aktifkan Sensor Kompas'
+                  : 'Kalibrasi / Sinkron Sensor'}
+              </span>
+            </button>
+          </div>
+          <p className="text-[11px] text-emerald-100">{sensorModeLabel}</p>
+          <div className="pt-1">
+            <p className="text-[10px] text-emerald-100/80 mb-1">
+              Atau geser arah kompas manual (Simulasi Desktop): {Math.round(effectiveHeading)}°
+            </p>
+            <input
+              type="range"
+              min={0}
+              max={359}
+              value={Math.round(heading)}
+              onChange={(e) => setHeading(Number(e.target.value))}
+              className="w-full accent-amber-300 h-1.5"
+            />
+          </div>
         </div>
       </div>
 
       {/* Bottom Camera Button */}
-      <div className="px-6 pb-8">
+      <div className="px-6 pb-6 shrink-0">
         <button
           type="button"
           onClick={() => setCameraMode((c) => !c)}
@@ -1158,9 +1430,9 @@ export const KiblatMobileScreen: React.FC<{
           <div className="bg-white text-slate-900 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
             <h3 className="text-lg font-extrabold">Kalibrasi Kompas Anda</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Lakukan gerakan 3 kali membentuk angka delapan (∞), seperti gambar berikut:
+              Lakukan gerakan 3 kali membentuk angka delapan (∞) jauh dari benda logam, lalu ketuk tombol di bawah untuk mengaktifkan pembacaan sensor kompas perangkat:
             </p>
-            <div className="py-6 flex items-center justify-center">
+            <div className="py-5 flex items-center justify-center">
               <svg viewBox="0 0 180 90" className="w-44 h-24 text-sky-500">
                 <path
                   d="M 45,45 C 45,18 80,18 90,45 C 100,72 135,72 135,45 C 135,18 100,18 90,45 C 80,72 45,72 45,45 Z"
@@ -1174,10 +1446,13 @@ export const KiblatMobileScreen: React.FC<{
             </div>
             <button
               type="button"
-              onClick={() => setShowCalibrateModal(false)}
+              onClick={async () => {
+                await requestCompassSensor();
+                setShowCalibrateModal(false);
+              }}
               className="w-full py-3 rounded-xl bg-[#00897B] text-white font-bold text-sm"
             >
-              Oke
+              Oke, Aktifkan Sensor Kompas
             </button>
           </div>
         </div>
@@ -1259,18 +1534,34 @@ export const TahlilYasinMobileScreen: React.FC<{ onBack: () => void }> = ({ onBa
 
       {tab === 'Tahlil' ? (
         <div className="flex-1 overflow-y-auto px-4 divide-y divide-slate-200 pb-20">
-          {TAHLIL_VERSES.map((item) => (
+          <div className="my-3 rounded-2xl bg-[#E6F7F2] border border-[#BFE8DC] px-3.5 py-2.5 flex items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-extrabold text-[#00695C]">
+                Tahlil Ahlussunnah wal Jama&apos;ah · Madzhab Syafi&apos;i Lengkap
+              </p>
+              <p className="text-[11px] text-[#00897B]">
+                {TAHLIL_VERSES.length} Susunan Bacaan · Termasuk Ayat Kursi &amp; Doa Arwah Lengkap
+              </p>
+            </div>
+          </div>
+          {TAHLIL_VERSES.map((item, idx) => (
             <div key={item.id} className="py-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-[#E6F7F2] text-[#00897B] text-[11px] font-extrabold shrink-0">
+                  {idx + 1}
+                </span>
+                <p className="text-xs font-extrabold text-slate-900">{item.judul}</p>
+              </div>
               <p
-                className={`font-arabic text-right text-slate-900 ${
+                className={`font-arabic text-right text-slate-900 whitespace-pre-line ${
                   largeFont ? 'text-[26px] leading-[2.3]' : 'text-[22px] leading-[2.15]'
                 }`}
                 dir="rtl"
               >
                 {item.arab}
               </p>
-              <p className="text-[13px] text-[#00897B] leading-relaxed font-medium">{item.latin}</p>
-              <p className="text-[13px] text-slate-500 leading-relaxed">{item.arti}</p>
+              <p className="text-[13px] text-[#00897B] whitespace-pre-line leading-relaxed font-medium">{item.latin}</p>
+              <p className="text-[13px] text-slate-500 whitespace-pre-line leading-relaxed">{item.arti}</p>
             </div>
           ))}
         </div>
@@ -1334,24 +1625,98 @@ export const TahlilYasinMobileScreen: React.FC<{ onBack: () => void }> = ({ onBa
 };
 
 // ==========================================
-// 6. MAULID & MAHALLUL QIYAM
+// 6. MAULID, MAHALLUL QIYAM AZ-ZAHIR & SYAIR PESANTREN
 // ==========================================
-export const MaulidMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+const MAULID_FILTER_TABS = [
+  'Semua',
+  'Mahallul Qiyam Az-Zahir',
+  'Syair & Qasidah',
+  'Maulid & Pujian Nabi',
+] as const;
+
+export const MaulidMobileScreen: React.FC<{
+  onBack: () => void;
+  initialFilter?: string;
+}> = ({ onBack, initialFilter }) => {
   const khazanahCms = useAppStore((s) => s.khazanahItems);
   const [search, setSearch] = useState('');
+  const [activeCat, setActiveCat] = useState<string>(initialFilter || 'Semua');
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [selectedCmsItem, setSelectedCmsItem] = useState<KhazanahItem | null>(null);
   const [largeFont, setLargeFont] = useState(false);
+
+  useEffect(() => {
+    if (initialFilter) {
+      setActiveCat(initialFilter);
+      setSelectedIdx(null);
+      setSelectedCmsItem(null);
+    }
+  }, [initialFilter]);
 
   const combinedList = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = [...MAULID_QASIDAH_LIST];
-    return list.filter((it) => !q || it.judul.toLowerCase().includes(q));
-  }, [search]);
+    return MAULID_QASIDAH_LIST.filter((it) => {
+      const catOk = activeCat === 'Semua' || it.subKategori === activeCat;
+      const qOk =
+        !q ||
+        it.judul.toLowerCase().includes(q) ||
+        it.subKategori.toLowerCase().includes(q);
+      return catOk && qOk;
+    });
+  }, [search, activeCat]);
 
   const cmsMaulid = useMemo(
-    () => khazanahCms.filter((i) => i.kategori === 'Maulid & Qasidah'),
-    [khazanahCms]
+    () =>
+      khazanahCms.filter(
+        (i) =>
+          i.kategori === 'Maulid & Qasidah' &&
+          (!search.trim() || i.judul.toLowerCase().includes(search.toLowerCase()))
+      ),
+    [khazanahCms, search]
   );
+
+  if (selectedCmsItem) {
+    return (
+      <div className="flex flex-col flex-1 bg-white min-h-0">
+        <div className="bg-[#00897B] text-white px-3 py-3 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <button type="button" onClick={() => setSelectedCmsItem(null)} className="p-1 rounded-full hover:bg-white/15">
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <p className="text-sm font-bold truncate">{selectedCmsItem.subKategori}</p>
+          </div>
+          <button type="button" onClick={() => setLargeFont((v) => !v)} className="text-sm font-bold px-2">
+            aA
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 pb-20">
+          <h2 className="text-base font-extrabold text-slate-900">{selectedCmsItem.judul}</h2>
+          {selectedCmsItem.subjudul && (
+            <p className="text-xs font-semibold text-[#00897B]">{selectedCmsItem.subjudul}</p>
+          )}
+          {selectedCmsItem.teksArab && (
+            <p
+              className={`font-arabic text-right text-slate-900 whitespace-pre-line ${
+                largeFont ? 'text-2xl leading-[2.3]' : 'text-xl leading-[2.1]'
+              }`}
+              dir="rtl"
+            >
+              {selectedCmsItem.teksArab}
+            </p>
+          )}
+          {selectedCmsItem.latin && (
+            <p className="text-[13px] text-[#00897B] whitespace-pre-line leading-relaxed">{selectedCmsItem.latin}</p>
+          )}
+          {selectedCmsItem.terjemah && (
+            <p className="text-[13px] text-slate-600 whitespace-pre-line leading-relaxed">{selectedCmsItem.terjemah}</p>
+          )}
+          <p className="text-xs text-slate-700 whitespace-pre-line leading-relaxed border-t border-slate-100 pt-3">
+            {selectedCmsItem.isiLengkap}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedIdx !== null && combinedList[selectedIdx]) {
     const item = combinedList[selectedIdx];
@@ -1373,7 +1738,6 @@ export const MaulidMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack })
           </div>
         </div>
 
-        {/* Sub Pagination Bar 19/49 */}
         <div className="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
           <button
             type="button"
@@ -1384,8 +1748,10 @@ export const MaulidMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack })
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div className="text-center">
-            <p className="text-[11px] font-bold text-slate-900">{item.no}/41</p>
-            <p className="text-xs font-extrabold text-slate-900">{item.judul}</p>
+            <p className="text-[11px] font-bold text-slate-900">
+              {selectedIdx + 1}/{combinedList.length}
+            </p>
+            <p className="text-xs font-extrabold text-slate-900 line-clamp-1">{item.judul}</p>
           </div>
           <button
             type="button"
@@ -1432,7 +1798,7 @@ export const MaulidMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack })
           <button type="button" onClick={onBack} className="p-1 rounded-full hover:bg-white/15">
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-lg font-bold">Maulid &amp; Mahallul Qiyam</h1>
+          <h1 className="text-base font-bold">Maulid, Mahallul Qiyam &amp; Syair</h1>
         </div>
         <Info className="w-5 h-5 mr-1" />
       </div>
@@ -1444,9 +1810,30 @@ export const MaulidMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack })
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari"
+            placeholder="Cari Mahallul Qiyam Az-Zahir, Syi'ir Tanpo Waton, Burdah..."
             className="w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden"
           />
+        </div>
+
+        {/* Category Filter Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          {MAULID_FILTER_TABS.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => {
+                setActiveCat(cat);
+                setSelectedIdx(null);
+              }}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition shrink-0 ${
+                activeCat === cat
+                  ? 'bg-[#00897B] text-white shadow-xs'
+                  : 'bg-[#E6F7F2] text-[#00695C] hover:bg-[#d3efe6]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
 
         <div className="divide-y divide-slate-200/80">
@@ -1459,22 +1846,34 @@ export const MaulidMobileScreen: React.FC<{ onBack: () => void }> = ({ onBack })
             >
               <div className="flex items-center gap-3.5 min-w-0">
                 <span className="w-7 text-sm font-bold text-[#00897B] tabular-nums shrink-0">{item.no}</span>
-                <span className="text-[15px] font-medium text-slate-900">{item.judul}</span>
+                <div className="min-w-0">
+                  <p className="text-[14px] font-bold text-slate-900 truncate">{item.judul}</p>
+                  <p className="text-[11px] text-[#00897B] font-medium truncate">
+                    {item.subKategori} · {item.baits.length} bait
+                  </p>
+                </div>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
             </button>
           ))}
           {cmsMaulid.map((c, idx) => (
-            <div key={c.id} className="py-3.5 flex items-center justify-between gap-3 text-left">
-              <div className="flex items-center gap-3.5">
-                <span className="w-7 text-sm font-bold text-[#00897B]">{42 + idx}</span>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{c.judul}</p>
-                  <p className="text-[11px] text-slate-500">{c.subjudul}</p>
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setSelectedCmsItem(c)}
+              className="w-full py-3.5 flex items-center justify-between gap-3 text-left hover:bg-emerald-50/40"
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <span className="w-7 text-sm font-bold text-[#00897B] shrink-0">
+                  {MAULID_QASIDAH_LIST.length + idx + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{c.judul}</p>
+                  <p className="text-[11px] text-slate-500 truncate">{c.subjudul}</p>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-            </div>
+            </button>
           ))}
         </div>
       </div>

@@ -104,7 +104,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBackToLa
       if (matched && validPass) {
         loginAs(matched.id);
         setLoading(false);
-        const autoTab = targetTab || (matched.id.startsWith('u-satpam-') ? 'bk' : undefined);
+        const autoTab =
+          targetTab ||
+          (matched.id.startsWith('u-satpam-')
+            ? 'bk'
+            : matched.peran === 'guru_pengampu'
+            ? 'sdm_absensi'
+            : 'beranda');
         onLoginSuccess(autoTab);
       } else {
         const newFails = failedAttempts + 1;

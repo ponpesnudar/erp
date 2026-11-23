@@ -60,7 +60,7 @@ const SEED_BISYAROH_GURU: BisyarohGuruRow[] = [
   { id: 'bg-pa-12', kelompok: 'PUTRA', no: 12, nama: 'Ust. Nidhomul Muna L.', jtm: 8, walkel: '', paketSoal: 2.0, jamJaga: 0, malamPiket: 4, lembarKoreksi: 80, santriRapor: 0 },
   { id: 'bg-pa-13', kelompok: 'PUTRA', no: 13, nama: 'Ust. M. Nur Arif Hakam', jtm: 9, walkel: '', paketSoal: 3.0, jamJaga: 3, malamPiket: 1, lembarKoreksi: 78, santriRapor: 0 },
   { id: 'bg-pa-14', kelompok: 'PUTRA', no: 14, nama: 'Ust. Kharis Maulana', jtm: 10, walkel: '', paketSoal: 2.0, jamJaga: 3, malamPiket: 0, lembarKoreksi: 80, santriRapor: 0 },
-  { id: 'bg-pa-15', kelompok: 'PUTRA', no: 15, nama: 'Ust. Bahrul Ulum', jtm: 11, walkel: '', paketSoal: 2.0, jamJaga: 0, malamPiket: 4, lembarKoreksi: 54, santriRapor: 0 },
+  { id: 'bg-pa-15', kelompok: 'PUTRA', no: 15, nama: 'Ust. M Bahrul Ulum', jtm: 11, walkel: '', paketSoal: 2.0, jamJaga: 0, malamPiket: 4, lembarKoreksi: 54, santriRapor: 0 },
   { id: 'bg-pa-16', kelompok: 'PUTRA', no: 16, nama: 'Ust. Abdurrokhim', jtm: 10, walkel: '', paketSoal: 3.0, jamJaga: 4, malamPiket: 0, lembarKoreksi: 86, santriRapor: 0 },
   { id: 'bg-pa-17', kelompok: 'PUTRA', no: 17, nama: 'Ust. Izzul Huda', jtm: 12, walkel: '', paketSoal: 2.0, jamJaga: 3, malamPiket: 0, lembarKoreksi: 76, santriRapor: 0 },
   { id: 'bg-pa-18', kelompok: 'PUTRA', no: 18, nama: 'Ust. Zainuddin', jtm: 10, walkel: '', paketSoal: 2.5, jamJaga: 3, malamPiket: 1, lembarKoreksi: 66, santriRapor: 0 },
@@ -1252,7 +1252,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
               <span className="font-bold">Bendahara Imtihan</span>
             </p>
             <div>
-              <p className="font-bold underline text-sm">M. Abdul Fataah</p>
+              <p className="font-bold underline text-sm">Ust. M. Abdul Fatah</p>
               <p className="text-[11px] text-slate-600 font-sans">NIP. 2020.08.045</p>
             </div>
           </div>
@@ -1741,7 +1741,7 @@ export const RABImtihanEditor: React.FC<RABImtihanEditorProps> = ({
                   Karangdadap, {new Date().getFullYear()}<br />
                   <span className="font-bold">Bendahara Imtihan</span>
                 </p>
-                <p className="font-bold underline">M. Abdul Fataah</p>
+                <p className="font-bold underline">Ust. M. Abdul Fatah</p>
               </div>
             </div>
           </div>

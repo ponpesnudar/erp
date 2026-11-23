@@ -1,3 +1,14 @@
+import {
+  AYAT_KURSI_COMPLETE,
+  HIZIB_LENGKAP_GROUP,
+  KITAB_DALAILUL_KHOIROT_GROUP,
+  KITAB_HAIKAL_NURONI_GROUP,
+  MANAQIB_NURUL_BURHANI_GROUP,
+  RATIB_LENGKAP_GROUP,
+  SYAIR_PESANTREN_LENGKAP,
+  TAHLIL_SYAFII_LENGKAP,
+} from './khazanahKitabLengkap.ts';
+
 export interface BacaanDetail {
   id: string;
   judul: string;
@@ -53,11 +64,9 @@ export const WIRID_DOA_GROUPS: WiridDoaGroup[] = [
         arti: 'Maha Suci Allah, segala puji bagi Allah, Allah Maha Besar.',
       },
       {
+        ...AYAT_KURSI_COMPLETE,
         id: 'w-5',
-        judul: 'Ayat Kursi',
-        arab: 'اَللّٰهُ لَا إِلٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّوْمُ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ...',
-        latin: 'Allāhu lā ilāha illā huwal-ḥayyul-qayyūm, lā ta’khużuhū sinatuw wa lā naum...',
-        arti: 'Allah, tidak ada Tuhan selain Dia. Yang Mahahidup, Yang terus-menerus mengurus (makhluk-Nya), tidak mengantuk dan tidak tidur.',
+        judul: 'Ayat Kursi Lengkap (QS. Al-Baqarah: 255)',
       },
       {
         id: 'w-6',
@@ -105,10 +114,11 @@ export const WIRID_DOA_GROUPS: WiridDoaGroup[] = [
     items: [
       {
         id: 'ah-1',
-        judul: 'Nadhom Asmaul Husna Lengkap',
-        arab: 'يَا اَللهُ يَا رَحْمٰنُ يَا رَحِيْمُ يَا مَلِكُ يَا قُدُّوْسُ يَا سَلَامُ يَا مُؤْمِنُ يَا مُهَيْمِنُ',
-        latin: 'Yā Allāh, Yā Raḥmān, Yā Raḥīm, Yā Malik, Yā Quddūs, Yā Salām, Yā Mu’min, Yā Muhaimin...',
-        arti: 'Wahai Allah Yang Maha Pengasih, Maha Penyayang, Maha Merajai, Maha Suci, Maha Pemberi Keselamatan, Maha Mengaruniakan Keamanan, Maha Memelihara.',
+        judul: 'Nadhom Asmaul Husna Pembuka & Penutup',
+        arab: 'يَا اَللهُ يَا رَحْمٰنُ يَا رَحِيْمُ يَا مَلِكُ يَا قُدُّوْسُ يَا سَلَامُ يَا مُؤْمِنُ يَا مُهَيْمِنُ يَا عَزِيْزُ يَا جَبَّارُ يَا مُتَكَبِّرُ يَا خَالِقُ يَا بَارِئُ يَا مُصَوِّرُ يَا غَفَّارُ يَا قَهَّارُ يَا وَهَّابُ يَا رَزَّاقُ يَا فَتَّاحُ يَا عَلِيْمُ',
+        latin:
+          'Yā Allāh, Yā Raḥmān, Yā Raḥīm, Yā Malik, Yā Quddūs, Yā Salām, Yā Mu’min, Yā Muhaimin, Yā ‘Azīz, Yā Jabbār, Yā Mutakabbir, Yā Khāliq, Yā Bāri’, Yā Muṣawwir, Yā Ghaffār, Yā Qahhār, Yā Wahhāb, Yā Razzāq, Yā Fattāḥ, Yā ‘Alīm.',
+        arti: 'Wahai Allah Yang Maha Pengasih, Maha Penyayang, Maha Merajai, Maha Suci, Maha Pemberi Keselamatan, Maha Mengaruniakan Keamanan, Maha Memelihara, Maha Perkasa, Maha Berkehendak, Maha Pemilik Kebesaran, Maha Pencipta, Maha Mengadakan, Maha Membentuk Rupa, Maha Pengampun, Maha Menundukkan, Maha Pemberi Karunia, Maha Pemberi Rezeki, Maha Pembuka Rahmat, lagi Maha Mengetahui.',
       },
     ],
   },
@@ -127,73 +137,11 @@ export const WIRID_DOA_GROUPS: WiridDoaGroup[] = [
       },
     ],
   },
-  {
-    no: 5,
-    tab: 'wirid',
-    judul: 'Ratib',
-    jumlahBacaan: 6,
-    items: [
-      {
-        id: 'rt-1',
-        judul: 'Ratib Al-Haddad',
-        arab: 'بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ ۞ الْفَاتِحَةُ إِلَى حَضْرَةِ سَيِّدِنَا مُحَمَّدٍ صَلَّى اللهُ عَلَيْهِ وَسَلَّمَ',
-        latin: 'Ratib Al-Haddad disusun oleh Al-Habib Abdullah bin Alawi Al-Haddad dibaca setiap bakda Maghrib / Subuh.',
-        arti: 'Aurad penjagaan diri, keluarga, dan pesantren dari berbagai marabahaya.',
-      },
-      {
-        id: 'rt-2',
-        judul: 'Ratib Al-Athas',
-        arab: 'أَعُوْذُ بِاللهِ السَّمِيْعِ الْعَلِيْمِ مِنَ الشَّيْطَانِ الرَّجِيْمِ (٣×)',
-        latin: "A'ūżu billāhis-samī'il-'alīm minasy-syaiṭānir-rajīm (3x)",
-        arti: 'Aku berlindung kepada Allah Yang Maha Mendengar lagi Maha Mengetahui dari godaan setan yang terkutuk.',
-      },
-    ],
-  },
-  {
-    no: 6,
-    tab: 'wirid',
-    judul: 'Hizib',
-    jumlahBacaan: 9,
-    items: [
-      {
-        id: 'hz-1',
-        judul: 'Hizib Nashor & Hizib Bahr',
-        arab: 'اَللّٰهُمَّ بِسَطْوَةِ جَبَرُوْتِ قَهْرِكَ وَبِسُرْعَةِ إِغَاثَةِ نَصْرِكَ',
-        latin: 'Allāhumma bisaṭwati jabarūti qahrika wa bisur‘ati ighāṡati naṣrika...',
-        arti: 'Ya Allah, dengan keperkasaan kekuasaan-Mu dan kecepatan pertolongan-Mu...',
-      },
-    ],
-  },
-  {
-    no: 7,
-    tab: 'wirid',
-    judul: 'Dalailul Khairat',
-    jumlahBacaan: 13,
-    items: [
-      {
-        id: 'dk-1',
-        judul: 'Hizib Hari Senin – Ahad (Imam Al-Jazuli)',
-        arab: 'اَللّٰهُمَّ صَلِّ عَلٰى مُحَمَّدٍ وَعَلٰى آلِ مُحَمَّدٍ كَمَا صَلَّيْتَ عَلٰى إِبْرَاهِيْمَ',
-        latin: 'Kumpulan shalawat Imam Muhammad bin Sulaiman Al-Jazuli.',
-        arti: 'Wirid shalawat harian santri ahli tirakat.',
-      },
-    ],
-  },
-  {
-    no: 8,
-    tab: 'wirid',
-    judul: 'Manaqib Syekh Abdul Qadir',
-    jumlahBacaan: 9,
-    items: [
-      {
-        id: 'mn-1',
-        judul: 'Tawassul & Manaqib Sulthanul Auliya',
-        arab: 'عِبَادَ اللهِ رِجَالَ اللهِ أَغِيْثُوْنَا لِأَجْلِ اللهِ',
-        latin: "‘Ibādallāh rijālallāh aghīṡūnā li’ajlillāh",
-        arti: 'Wahai hamba-hamba Allah, para kekasih Allah, tolonglah kami karena Allah.',
-      },
-    ],
-  },
+  RATIB_LENGKAP_GROUP,
+  HIZIB_LENGKAP_GROUP,
+  KITAB_DALAILUL_KHOIROT_GROUP,
+  MANAQIB_NURUL_BURHANI_GROUP,
+  KITAB_HAIKAL_NURONI_GROUP,
   // DOA 1..9 (Persis Urutan & Label Screenshot)
   {
     no: 1,
@@ -225,10 +173,10 @@ export const WIRID_DOA_GROUPS: WiridDoaGroup[] = [
     items: [
       {
         id: 'dr-1',
-        judul: 'Doa Memohon Rezeki Halal & Berkah (Shalat Dhuha)',
-        arab: 'اَللّٰهُمَّ إِنَّ الضُّحَاءَ ضُحَاؤُكَ وَالْبَهَاءَ بَهَاؤُكَ... وَإِنْ كَانَ فِي السَّمَاءِ فَأَنْزِلْهُ',
-        latin: 'Allāhumma innaḍ-ḍuḥā’a ḍuḥā’uka wal-bahā’a bahā’uka... in kāna rizqī fis-samā’i fa anzilhu',
-        arti: 'Ya Allah, sesungguhnya waktu dhuha itu dhuha-Mu... jika rezekiku berada di langit maka turunkanlah.',
+        judul: 'Doa Memohon Rezeki Halal & Berkah (Shalat Dhuha Lengkap)',
+        arab: 'اَللّٰهُمَّ إِنَّ الضُّحَاءَ ضُحَاؤُكَ وَالْبَهَاءَ بَهَاؤُكَ وَالْجَمَالَ جَمَالُكَ وَالْقُوَّةَ قُوَّتُكَ وَالْقُدْرَةَ قُدْرَتُكَ وَالْعِصْمَةَ عِصْمَتُكَ. اَللّٰهُمَّ إِنْ كَانَ رِزْقِي فِي السَّمَاءِ فَأَنْزِلْهُ وَإِنْ كَانَ فِي الْأَرْضِ فَأَخْرِجْهُ وَإِنْ كَانَ مُعْسِرًا فَيَسِّرْهُ وَإِنْ كَانَ حَرَامًا فَطَهِّرْهُ وَإِنْ كَانَ بَعِيْدًا فَقَرِّبْهُ بِحَقِّ ضُحَائِكَ وَبَهَائِكَ وَجَمَالِكَ وَقُوَّتِكَ وَقُدْرَتِكَ آتِنِي مَا آتَيْتَ عِبَادَكَ الصَّالِحِيْنَ',
+        latin: 'Allāhumma innaḍ-ḍuḥā’a ḍuḥā’uka wal-bahā’a bahā’uka wal-jamāla jamāluka wal-quwwata quwwatuka wal-qudrata qudratuka wal-‘iṣmata ‘iṣmatuk. Allāhumma in kāna rizqī fis-samā’i fa anzilhu, wa in kāna fil-arḍi fa akhrijhu, wa in kāna mu‘siran fayassirhu, wa in kāna ḥarāman faṭahhirhu, wa in kāna ba‘īdan faqarribhu, biḥaqqi ḍuḥā’ika wa bahā’ika wa jamālika wa quwwatika wa qudratika ātinī mā ātaita ‘ibādakaṣ-ṣāliḥīn.',
+        arti: 'Ya Allah, sesungguhnya waktu dhuha itu dhuha-Mu, keagungan itu keagungan-Mu, keindahan itu keindahan-Mu, kekuatan itu kekuatan-Mu, kekuasaan itu kekuasaan-Mu, dan penjagaan itu penjagaan-Mu. Ya Allah, jika rezekiku berada di langit maka turunkanlah, jika di bumi maka keluarkanlah, jika sukar maka mudahkanlah, jika haram maka sucikanlah, dan jika jauh maka dekatkanlah dengan hak dhuha, keagungan, keindahan, kekuatan, dan kekuasaan-Mu; anugerahkan kepadaku sebagaimana yang Engkau berikan kepada hamba-hamba-Mu yang shalih.',
       },
     ],
   },
@@ -339,50 +287,7 @@ export const WIRID_DOA_GROUPS: WiridDoaGroup[] = [
   },
 ];
 
-export const TAHLIL_VERSES: BacaanDetail[] = [
-  {
-    id: 'th-1',
-    judul: 'Hadiah Fatihah Pertama (Untuk Nabi Muhammad ﷺ)',
-    arab: 'إِلَى حَضْرَةِ النَّبِيِّ الْمُصْطَفَى سَيِّدِنَا مُحَمَّدٍ صَلَّى اللهُ عَلَيْهِ وَسَلَّمَ وَآلِهِ وَأَزْوَاجِهِ وَأَوْلَادِهِ وَذُرِّيَّاتِهِ الْفَاتِحَةُ',
-    latin: 'Ila ḥadlratin-nabiyyil-musthafâ sayyidinâ Muḥammadin shallallahu ‘alaihi wa sallama wa âlihi wa azwâjihi wa awlâdihi wa dzurriyyâtihi al-fâtiḥah',
-    arti: 'Kepada yang terhormat Nabi Muhammad ﷺ, segenap keluarga, istri-istrinya, anak-anaknya, dan keturunannya. Bacaan Al-Fatihah ini kami tujukan kepada Allah dan pahalanya untuk mereka semua. Al-Fatihah...',
-  },
-  {
-    id: 'th-2',
-    judul: 'Hadiah Fatihah Kedua (Para Nabi, Ulama, Syekh Abdul Qadir & Muassis NU)',
-    arab: 'ثُمَّ إِلَى حَضْرَةِ إِخْوَانِهِ مِنَ الْأَنْبِيَاءِ وَالْمُرْسَلِيْنَ وَالْأَوْلِيَاءِ وَالشُّهَدَاءِ وَالصَّالِحِيْنَ وَالصَّحَابَةِ وَالتَّابِعِيْنَ وَالْعُلَمَاءِ الْعَامِلِيْنَ وَالْمُصَنِّفِيْنَ الْمُخْلِصِيْنَ وَجَمِيْعِ الْمَلَائِكَةِ الْمُقَرَّبِيْنَ، خُصُوْصًا إِلَى سَيِّدِنَا الشَّيْخِ عَبْدِ الْقَادِرِ الْجَيْلَانِي وَخُصُوْصًا إِلَى مُؤَسِّسِي جَمْعِيَّةِ نَهْضَةِ الْعُلَمَاءِ الْفَاتِحَةُ',
-    latin: 'Tsumma ila ḥadlrati ikhwânihi minal-anbiyâ’i wal-mursalîn... khushûshan ila sayyidinâs-Syaikh ‘Abdil Qâdir al-Jîlânî wa ilâ mu’assisî Jam‘iyyati Nahdlatil-‘Ulamâ’ al-fâtiḥah',
-    arti: 'Kemudian kepada arwah para nabi, rasul, wali, syuhada, shalihin, sahabat, tabi’in, ulama yang mengamalkan ilmunya, khususnya Syekh Abdul Qadir Al-Jailani serta para pendiri Nahdlatul Ulama. Al-Fatihah...',
-  },
-  {
-    id: 'th-3',
-    judul: 'Surat Al-Ikhlas (3x), Al-Falaq (1x), An-Nas (1x)',
-    arab: 'قُلْ هُوَ اللهُ أَحَدٌ ۞ اَللهُ الصَّمَدُ ۞ لَمْ يَلِدْ وَلَمْ يُوْلَدْ ۞ وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ (٣×)',
-    latin: 'Lā ilāha illallāhu wallāhu akbar — membaca Surat Al-Ikhlas 3x, Al-Falaq 1x, An-Nas 1x dan Al-Fatihah.',
-    arti: 'Membaca Mu’awwidzatain dan Al-Ikhlas diiringi takbir tahlil.',
-  },
-  {
-    id: 'th-4',
-    judul: 'Awal Surat Al-Baqarah (Ayat 1–5) & Ayat Kursi',
-    arab: 'الٓمّٓ ۞ ذٰلِكَ الْكِتٰبُ لَا رَيْبَ فِيْهِ هُدًى لِّلْمُتَّقِيْنَ... وَاَللّٰهُ لَا إِلٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّوْمُ',
-    latin: 'Alif Lām Mīm, Żālikal-kitābu lā raiba fīh... Ayat Kursi & Lillāhi mā fis-samāwāti wa mā fil-arḍ...',
-    arti: 'Alif Lam Mim. Kitab (Al-Qur’an) ini tidak ada keraguan padanya, petunjuk bagi mereka yang bertakwa...',
-  },
-  {
-    id: 'th-5',
-    judul: 'Istighfar & Afdhaludz Dzikri (Tahlil 33x / 100x)',
-    arab: 'أَسْتَغْفِرُ اللهَ الْعَظِيْمَ (٣×) ۞ أَفْضَلُ الذِّكْرِ فَاعْلَمْ أَنَّهُ لَا إِلٰهَ إِلَّا اللهُ، حَيٌّ مَوْجُوْدٌ',
-    latin: 'Astaghfirullāhal-‘aẓīm (3x) — Lā ilāha illallāh (33x) — Muḥammadur rasūlullāh ṣallallāhu ‘alaihi wa sallam',
-    arti: 'Dzikir utama tahlil mengakui keesaan Allah SWT.',
-  },
-  {
-    id: 'th-6',
-    judul: 'Doa Tahlil & Doa Arwah',
-    arab: 'اَللّٰهُمَّ تَقَبَّلْ وَأَوْصِلْ ثَوَابَ مَا قَرَأْنَاهُ مِنَ الْقُرْآنِ الْعَظِيْمِ وَمَا هَلَّلْنَا وَمَا سَبَّحْنَا هَدِيَّةً وَاصِلَةً إِلٰى أَرْوَاحِ أَهْلِ الْقُبُوْرِ',
-    latin: 'Allāhumma taqabbal wa auṣil ṡawāba mā qara’nāhu... ila arwāḥi ahlil-qubūr',
-    arti: 'Ya Allah, terimalah dan sampaikanlah pahala bacaan Al-Qur’an, tahlil, tasbih, istighfar dan shalawat ini kepada arwah kedua orang tua kami, guru-guru kami, dan kaum muslimin wal muslimat.',
-  },
-];
+export const TAHLIL_VERSES: BacaanDetail[] = TAHLIL_SYAFII_LENGKAP;
 
 export interface QasidahItem {
   no: number;
@@ -392,11 +297,11 @@ export interface QasidahItem {
   baits: { arab: string; latin: string; arti: string }[];
 }
 
-export const MAULID_QASIDAH_LIST: QasidahItem[] = [
+const MAULID_KLASIK_TAMBAHAN: QasidahItem[] = [
   {
-    no: 1,
+    no: 10,
     judul: 'Adlaita',
-    subKategori: 'Pujian Nabi',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'أَضْلَيْتَ',
     baits: [
       {
@@ -407,9 +312,9 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 2,
+    no: 11,
     judul: 'Alhamdu Lillah',
-    subKategori: 'Pembuka Majelis',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'اَلْحَمْدُ لِلّٰهِ',
     baits: [
       {
@@ -420,40 +325,40 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 19,
+    no: 12,
     judul: 'Jaddal Husain',
-    subKategori: 'Ahlul Bait, Sahabat & Pujian Nabi',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'جَدَّ الْحُسَيْنِ',
     baits: [
       {
-        arab: 'جَدَّ الْحُسَيْنِ يَا نُوْرَ الْعَيْنِ ۞ كُنْ لِي شَفِيْعًا يَايَا ضِيَاءَ الْمُقْلَتَيْنِ',
-        latin: 'jaddal-ḥusaini yâ nûral-‘ain ۞ kun lî syafî‘an yâyâ dliyâ’al-muqlatain',
+        arab: 'جَدَّ الْحُسَيْنِ يَا نُوْرَ الْعَيْنِ ۞ كُنْ لِي شَفِيْعًا يَا ضِيَاءَ الْمُقْلَتَيْنِ',
+        latin: 'Jaddal-ḥusaini yā nūral-‘ain ۞ kun lī syafī‘an yā ḍiyā’al-muqlatain',
         arti: 'Wahai kakek Al-Husain, wahai cahaya mata, jadilah pemberi syafaatku — wahai cahaya dua pandangan.',
       },
       {
-        arab: 'يَا إِمَامَ الْأَنْبِيَاءِ ۞ يَا فَخْرَ الْأَمَاجِدْ\nإِنِّي بِالْآمَالِ دَاخِلْ حِمَاكْ ۞ أَرْجُوْ رِضَاكْ يَا إِمَامَ الْقِبْلَتَيْنِ\nأَنْتَ أَقَمْتَ الْعَدَالَةَ وَالْقَضِيَّةْ ۞ وَاللهُ صَلَّى عَلَيْكْ',
-        latin: 'yâ imâmal-anbiyâ’i ۞ yâ fakhral-amâjid\ninnî bil-âmâli dâkhil ḥimâk ۞ arjû ridlâk yâ imâmal-qiblatain\nanta aqamtal-‘adâlah wal-qadliyyah ۞ wallâhu shallâ ‘alaik',
+        arab: 'يَا إِمَامَ الْأَنْبِيَاءِ ۞ يَا فَخْرَ الْأَمَاجِدِ\nإِنِّي بِالْآمَالِ دَاخِلُ حِمَاكَ ۞ أَرْجُو رِضَاكَ يَا إِمَامَ الْقِبْلَتَيْنِ\nأَنْتَ أَقَمْتَ الْعَدَالَةَ وَالْقَضِيَّةَ ۞ وَاللهُ صَلَّى عَلَيْكَ',
+        latin: 'Yā imāmal-anbiyā’i ۞ yā fakhral-amājid\nInnī bil-āmāli dākhil ḥimāk ۞ arjū riḍāk yā imāmal-qiblatain\nAnta aqamtal-‘adālah wal-qaḍiyyah ۞ wallāhu ṣallā ‘alaik',
         arti: 'Wahai imam para nabi, wahai kebanggaan para orang mulia. Sesungguhnya aku dengan penuh harapan memasuki naunganmu.',
       },
     ],
   },
   {
-    no: 29,
+    no: 13,
     judul: "Syahrur Rabi'",
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'شَهْرُ الرَّبِيْعِ',
     baits: [
       {
-        arab: 'شَهْرُ الرَّبِيْعِ الَّذِيْ أَنْرْتَ أُفْقَ الدُّنَا ۞ بِمَوْلِدِ الْمُصْطَفٰى هَادِي الْوَرٰى أَجْمَعَا',
+        arab: 'شَهْرُ الرَّبِيْعِ الَّذِيْ أَنَرْتَ أُفْقَ الدُّنَا ۞ بِمَوْلِدِ الْمُصْطَفٰى هَادِي الْوَرٰى أَجْمَعَا',
         latin: 'Syahrur-rabī‘illażī anarta ufqad-dunā ۞ bimaulidil-muṣṭafā hādil-warā ajma‘ā',
         arti: 'Bulan Rabiul Awal yang menerangi ufuk semesta dengan kelahiran Al-Musthafa penunjuk umat manusia.',
       },
     ],
   },
   {
-    no: 30,
+    no: 14,
     judul: 'Tarahhabna',
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'تَرَحَّبْنَا',
     baits: [
       {
@@ -464,9 +369,9 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 31,
+    no: 15,
     judul: "Thala'al Badru Kun Syafi'an ya Habibi",
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'طَلَعَ الْبَدْرُ',
     baits: [
       {
@@ -477,9 +382,9 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 32,
+    no: 16,
     judul: "Thala'al Badru Marhaban ya Musthafana",
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'مَرْحَبًا يَا مُصْطَفَانَا',
     baits: [
       {
@@ -490,9 +395,9 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 33,
+    no: 17,
     judul: "Thala'al Badru Syarraftal Madinah",
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'شَرَّفْتَ الْمَدِيْنَةَ',
     baits: [
       {
@@ -503,9 +408,9 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 34,
+    no: 18,
     judul: 'Wulidal Habibu fa Marhaba',
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'وُلِدَ الْحَبِيْبُ',
     baits: [
       {
@@ -516,9 +421,9 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 35,
+    no: 19,
     judul: 'Wulidal Habibu wa Khadduhu Mutawarridu',
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'وُلِدَ الْحَبِيْبُ وَخَدُّهُ مُتَوَرِّدُ',
     baits: [
       {
@@ -529,35 +434,35 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 36,
+    no: 20,
     judul: 'Wulidal Musyarraf',
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'وُلِدَ الْمُشَرَّفُ',
     baits: [
       {
-        arab: 'وُلِدَ الْمُشَرَّفُ فِي رَبِيْعٍ الْأَوَّلِ ۞ فَالْكَوْنُ أَشْرَقَ بِالْبَهَاءِ الْأَكْمَلِ',
+        arab: 'وُلِدَ الْمُشَرَّفُ فِي رَبِيْعِ الْأَوَّلِ ۞ فَالْكَوْنُ أَشْرَقَ بِالْبَهَاءِ الْأَكْمَلِ',
         latin: 'Wulidal-musyarrafu fī rabī‘il-awwalī ۞ fal-kaunu asyraqa bil-bahā’il-akmal',
         arti: 'Telah lahir sosok yang dimuliakan pada bulan Rabiul Awal, maka semesta bersinar indah.',
       },
     ],
   },
   {
-    no: 37,
+    no: 21,
     judul: 'Ya Habibal Qalbi',
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'يَا حَبِيْبَ الْقَلْبِ',
     baits: [
       {
-        arab: 'يَا حَبِيْبَ الْقَلْبِ يَا خَيْرَ الْبَرَايَا ۞ يَالِى جِئْتَ بِالْحَقِّ رَسُوْلَ الْهِدَايَةْ',
-        latin: 'Yā ḥabībal-qalbi yā khairal-barāyā ۞ yā lī ji’ta bil-ḥaqqi rasūlal-hidāyah',
+        arab: 'يَا حَبِيْبَ الْقَلْبِ يَا خَيْرَ الْبَرَايَا ۞ يَا مَنْ جِئْتَ بِالْحَقِّ رَسُوْلَ الْهِدَايَةِ',
+        latin: 'Yā ḥabībal-qalbi yā khairal-barāyā ۞ yā man ji’ta bil-ḥaqqi rasūlal-hidāyah',
         arti: 'Wahai kekasih hati, wahai sebaik-baik manusia, engkau datang membawa kebenaran dan petunjuk.',
       },
     ],
   },
   {
-    no: 38,
+    no: 22,
     judul: 'Ya Hanana',
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'يَا هَنَانَا',
     baits: [
       {
@@ -568,9 +473,9 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 39,
+    no: 23,
     judul: 'Ya Khaira Maulud',
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'يَا خَيْرَ مَوْلُوْدٍ',
     baits: [
       {
@@ -581,9 +486,9 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 40,
+    no: 24,
     judul: "Ya Nabi Salam 'Alaika",
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'يَا نَبِي سَلَامٌ عَلَيْكَ',
     baits: [
       {
@@ -594,9 +499,9 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
     ],
   },
   {
-    no: 41,
+    no: 25,
     judul: "Ya Rasulullah Salamun 'Alaik",
-    subKategori: 'Maulid & Mahallul Qiyam',
+    subKategori: 'Maulid & Pujian Nabi',
     arabTitle: 'يَا رَسُوْلَ اللهِ سَلَامٌ عَلَيْكَ',
     baits: [
       {
@@ -606,6 +511,11 @@ export const MAULID_QASIDAH_LIST: QasidahItem[] = [
       },
     ],
   },
+];
+
+export const MAULID_QASIDAH_LIST: QasidahItem[] = [
+  ...SYAIR_PESANTREN_LENGKAP,
+  ...MAULID_KLASIK_TAMBAHAN,
 ];
 
 export const TUTORIAL_IBADAH_GROUPS = [

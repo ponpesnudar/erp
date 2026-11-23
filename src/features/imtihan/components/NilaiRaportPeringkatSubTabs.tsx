@@ -102,7 +102,7 @@ export const SubTabInputNilaiSpreadsheet: React.FC = () => {
         .toUpperCase()
         .includes(kls.toUpperCase())
     );
-    return matched?.nama || 'Ust. Abdur Rahman';
+    return matched?.nama || 'Ust. Abdurrohman';
   };
 
   const [waliKelas, setWaliKelas] = useState<string>(() =>
@@ -1255,7 +1255,12 @@ export const SubTabRaportSantri: React.FC = () => {
     printOrientation,
   } = useAppStore();
 
-  const { currentUser } = useAuth();
+  const { currentUser, effectiveRole, can } = useAuth();
+  const isWaliReadOnly =
+    effectiveRole === 'wali_santri' ||
+    (!can('imtihan_nilai_raport', 'tulis') &&
+      !can('imtihan_nilai_raport', 'ubah') &&
+      !can('imtihan_nilai_raport', 'setujui'));
   const uniqueClasses = useMemo(
     () => sortClassesCanonical(Array.from(new Set(santriList.map((s) => s.kelas)))),
     [santriList]
@@ -1280,6 +1285,15 @@ export const SubTabRaportSantri: React.FC = () => {
   const isDrawingRef = useRef(false);
 
   useEffect(() => {
+    if (effectiveRole === 'wali_santri') {
+      setPrintMode('single');
+      const anak = santriList.find((s) => s.id === currentUser.santriAnakId);
+      if (anak) {
+        setSelectedKelas(anak.kelas);
+        setSelectedSantriId(anak.id);
+      }
+      return;
+    }
     const matchedUserUstadz = ustadzList.find(
       (u) => u.nama.toLowerCase() === currentUser.nama.toLowerCase()
     );
@@ -1288,7 +1302,16 @@ export const SubTabRaportSantri: React.FC = () => {
     if (detectedClass) {
       setSelectedKelas(detectedClass);
     }
-  }, [currentUser.id, currentUser.nama, currentUser.peranLabel, ustadzList, uniqueClasses]);
+  }, [
+    effectiveRole,
+    currentUser.id,
+    currentUser.nama,
+    currentUser.peranLabel,
+    currentUser.santriAnakId,
+    santriList,
+    ustadzList,
+    uniqueClasses,
+  ]);
 
   useEffect(() => {
     const matched = ustadzList.find((u) =>
@@ -1488,17 +1511,19 @@ export const SubTabRaportSantri: React.FC = () => {
             </select>
           </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Mode Cetak</label>
-            <select
-              value={printMode}
-              onChange={(e) => setPrintMode(e.target.value as 'single' | 'kelas')}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 font-bold text-emerald-900"
-            >
-              <option value="single">Per 1 Santri</option>
-              <option value="kelas">1 Kelas Sekaligus (PDF Batch)</option>
-            </select>
-          </div>
+          {!isWaliReadOnly && (
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Mode Cetak</label>
+              <select
+                value={printMode}
+                onChange={(e) => setPrintMode(e.target.value as 'single' | 'kelas')}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 font-bold text-emerald-900"
+              >
+                <option value="single">Per 1 Santri</option>
+                <option value="kelas">1 Kelas Sekaligus (PDF Batch)</option>
+              </select>
+            </div>
+          )}
 
           {printMode === 'single' && (
             <div>
@@ -1519,12 +1544,18 @@ export const SubTabRaportSantri: React.FC = () => {
 
           <div>
             <label className="block font-bold text-slate-700 mb-1">Wali Kelas</label>
-            <input
-              type="text"
-              value={waliKelas}
-              onChange={(e) => setWaliKelas(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 font-semibold"
-            />
+            {isWaliReadOnly ? (
+              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-700">
+                {waliKelas}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={waliKelas}
+                onChange={(e) => setWaliKelas(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 font-semibold"
+              />
+            )}
           </div>
 
           <div>
@@ -1545,16 +1576,24 @@ export const SubTabRaportSantri: React.FC = () => {
 
           <div>
             <label className="block font-bold text-slate-700 mb-1">Tahun Ajaran</label>
-            <input
-              type="text"
-              value={tahunAjaran}
-              onChange={(e) => setTahunAjaran(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 font-bold tabular-nums"
-            />
+            {isWaliReadOnly ? (
+              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-bold tabular-nums text-slate-700">
+                {tahunAjaran}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={tahunAjaran}
+                onChange={(e) => setTahunAjaran(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 font-bold tabular-nums"
+              />
+            )}
           </div>
         </div>
 
-        {/* Auto-Transparent & Background Removal Options Header */}
+        {/* Auto-Transparent & Background Removal Options Header (Staff only) */}
+        {!isWaliReadOnly && (
+          <>
         <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex items-center gap-2 font-bold text-emerald-900 cursor-pointer">
@@ -1866,6 +1905,8 @@ export const SubTabRaportSantri: React.FC = () => {
               className="border border-slate-300 rounded-xl bg-white cursor-crosshair w-full max-w-md"
             />
           </div>
+        )}
+          </>
         )}
       </div>
 

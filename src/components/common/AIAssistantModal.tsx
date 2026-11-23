@@ -1,27 +1,39 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, X, Sparkles, AlertCircle, RefreshCw, MessageSquare } from 'lucide-react';
+import {
+  Bot,
+  Send,
+  X,
+  Sparkles,
+  AlertCircle,
+  RefreshCw,
+  GripHorizontal,
+} from 'lucide-react';
 import { askPondokAssistant } from '../../lib/gemini.ts';
 
 interface Message {
   sender: 'ai' | 'user';
   text: string;
   time: string;
+  isError?: boolean;
 }
 
 interface AIAssistantModalProps {
   mode: 'landing_public' | 'erp_internal';
   activeModule?: string;
   userRole?: string;
+  openSignal?: number;
 }
 
 export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
   mode,
   activeModule,
   userRole,
+  openSignal = 0,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       sender: 'ai',
@@ -33,7 +45,36 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
     },
   ]);
 
+  // Draggable floating bubble coordinates (anchored relative to bottom-right offsets)
+  const [bubbleOffset, setBubbleOffset] = useState<{ right: number; bottom: number }>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return { right: 14, bottom: 72 };
+    }
+    return { right: 24, bottom: 24 };
+  });
+  const dragStateRef = useRef<{
+    dragging: boolean;
+    moved: boolean;
+    startX: number;
+    startY: number;
+    origRight: number;
+    origBottom: number;
+  }>({
+    dragging: false,
+    moved: false,
+    startX: 0,
+    startY: 0,
+    origRight: 24,
+    origBottom: 24,
+  });
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (openSignal > 0) {
+      setIsOpen(true);
+    }
+  }, [openSignal]);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,9 +82,69 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
     }
   }, [messages, isOpen]);
 
+  useEffect(() => {
+    const clampOffsets = () => {
+      if (typeof window === 'undefined') return;
+      const minBottom = window.innerWidth < 768 && mode === 'erp_internal' ? 68 : 16;
+      setBubbleOffset((prev) => ({
+        right: Math.max(8, Math.min(window.innerWidth - 150, prev.right)),
+        bottom: Math.max(minBottom, Math.min(window.innerHeight - 64, prev.bottom)),
+      }));
+    };
+    window.addEventListener('resize', clampOffsets);
+    return () => window.removeEventListener('resize', clampOffsets);
+  }, [mode]);
+
+  const handleBubblePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    dragStateRef.current = {
+      dragging: true,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
+      origRight: bubbleOffset.right,
+      origBottom: bubbleOffset.bottom,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleBubblePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const st = dragStateRef.current;
+    if (!st.dragging) return;
+    const dx = e.clientX - st.startX;
+    const dy = e.clientY - st.startY;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      st.moved = true;
+    }
+    if (!st.moved) return;
+    const maxRight = Math.max(24, window.innerWidth - 155);
+    const maxBottom = Math.max(24, window.innerHeight - 64);
+    const nextRight = Math.max(8, Math.min(maxRight, st.origRight - dx));
+    const nextBottom = Math.max(12, Math.min(maxBottom, st.origBottom - dy));
+    setBubbleOffset({ right: nextRight, bottom: nextBottom });
+  };
+
+  const handleBubblePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const st = dragStateRef.current;
+    if (!st.dragging) return;
+    st.dragging = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore if already released
+    }
+    if (!st.moved) {
+      setIsOpen(true);
+    }
+  };
+
   const handleSend = async (customPrompt?: string) => {
-    const textToSend = customPrompt || input.trim();
+    const textToSend = (customPrompt ?? input).trim();
     if (!textToSend || loading) return;
+
+    const historySnapshot = messages
+      .filter((m) => !m.isError)
+      .slice(-8)
+      .map((m) => ({ sender: m.sender, text: m.text }));
 
     const userMsg: Message = {
       sender: 'user',
@@ -53,23 +154,36 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
 
     setMessages((prev) => [...prev, userMsg]);
     if (!customPrompt) setInput('');
+    setLastFailedPrompt(null);
     setLoading(true);
 
     try {
-      const reply = await askPondokAssistant(textToSend, mode, activeModule, userRole);
+      const reply = await askPondokAssistant(
+        textToSend,
+        mode,
+        activeModule,
+        userRole,
+        historySnapshot
+      );
       const aiMsg: Message = {
         sender: 'ai',
         text: reply,
         time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch {
+    } catch (err) {
+      const errMessage =
+        err instanceof Error
+          ? err.message
+          : 'Layanan Asisten AI sedang tidak dapat dijangkau.';
+      setLastFailedPrompt(textToSend);
       setMessages((prev) => [
         ...prev,
         {
           sender: 'ai',
-          text: 'Maaf, terjadi kendala saat memproses jawaban. Silakan hubungi admin di sekretariat.',
-          time: 'Baru saja',
+          text: `Maaf, Asisten AI belum dapat memproses pertanyaan saat ini: ${errMessage}`,
+          time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          isError: true,
         },
       ]);
     } finally {
@@ -87,55 +201,71 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
           'Apa saja jadwal kegiatan harian santri?',
         ]
       : [
+          'Di mana manajemen data login & password guru?',
           'Bagaimana alur persetujuan naskah soal imtihan?',
-          'Bagaimana aturan nilai dan predikat raport madin?',
-          'Berapa total pemasukan dan pengeluaran RAB Imtihan?',
+          'Bagaimana cara mengelola absensi & shift satpam?',
           'Bagaimana cara kerja denah ujian bebas contek?',
         ];
 
   return (
     <>
-      {/* Floating Trigger Button */}
+      {/* Draggable Floating Trigger Button (Clear of mobile footbar) */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
-          className={`no-print ai-assistant-bubble fixed z-40 flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-semibold text-white shadow-xl transition-all hover:scale-105 ${
+          type="button"
+          onPointerDown={handleBubblePointerDown}
+          onPointerMove={handleBubblePointerMove}
+          onPointerUp={handleBubblePointerUp}
+          onPointerCancel={handleBubblePointerUp}
+          style={{
+            right: `${bubbleOffset.right}px`,
+            bottom: `${bubbleOffset.bottom}px`,
+            touchAction: 'none',
+          }}
+          className={`no-print ai-assistant-bubble fixed z-40 flex items-center gap-1.5 rounded-full px-3.5 py-2.5 text-xs font-semibold text-white shadow-xl cursor-grab active:cursor-grabbing select-none transition-shadow ${
             mode === 'landing_public'
-              ? 'bottom-6 right-6 bg-emerald-700 hover:bg-emerald-800 ring-4 ring-emerald-500/20'
-              : 'bottom-6 right-6 bg-emerald-800 hover:bg-emerald-900 ring-2 ring-emerald-600/30'
+              ? 'bg-emerald-700 hover:bg-emerald-800 ring-4 ring-emerald-500/20'
+              : 'bg-emerald-800 hover:bg-emerald-900 ring-2 ring-emerald-600/30'
           }`}
-          title="Tanya Asisten AI Darussalam"
+          title="Tanya Asisten AI Darussalam (Geser untuk memindah posisi)"
         >
+          <GripHorizontal className="w-3.5 h-3.5 text-emerald-200/80 shrink-0" />
           <div className="relative">
             <Bot className="w-4 h-4 text-emerald-200" />
             <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-ping" />
           </div>
-          <span>{mode === 'landing_public' ? 'Tanya Seputar Pondok' : 'Bantuan AI ERP'}</span>
+          <span className="whitespace-nowrap">
+            {mode === 'landing_public' ? 'Tanya Pondok' : 'Asisten AI'}
+          </span>
         </button>
       )}
 
       {/* Slide-out / Floating Chat Window */}
       {isOpen && (
-        <div className="no-print ai-assistant-bubble fixed bottom-6 right-6 z-50 flex h-[520px] w-96 max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="no-print ai-assistant-bubble fixed bottom-20 md:bottom-6 right-3 sm:right-6 z-50 flex h-[500px] max-h-[calc(100vh-6rem)] w-96 max-w-[calc(100vw-1.5rem)] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
           {/* Header */}
           <div className="flex items-center justify-between bg-emerald-800 px-4 py-3 text-white">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-emerald-900/60 border border-emerald-600/50 flex items-center justify-center">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-emerald-900/60 border border-emerald-600/50 flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4 text-emerald-300" />
               </div>
-              <div>
-                <h3 className="text-xs font-bold leading-tight flex items-center gap-1.5">
-                  Asisten Virtual NU Darussalam
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+              <div className="min-w-0">
+                <h3 className="text-xs font-bold leading-tight flex items-center gap-1.5 truncate">
+                  <span>Asisten Virtual NU Darussalam</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse shrink-0" />
                 </h3>
-                <p className="text-[10px] text-emerald-200">
-                  {mode === 'landing_public' ? 'Layanan Informasi Publik Calon Santri' : `Modul: ${activeModule || 'ERP'}`}
+                <p className="text-[10px] text-emerald-200 truncate">
+                  {mode === 'landing_public'
+                    ? 'Layanan Informasi Publik Calon Santri'
+                    : `Modul: ${activeModule || 'ERP'}`}
                 </p>
               </div>
             </div>
             <button
+              type="button"
               onClick={() => setIsOpen(false)}
-              className="rounded-lg p-1 text-emerald-200 hover:bg-emerald-700 hover:text-white transition"
+              className="rounded-lg p-1 text-emerald-200 hover:bg-emerald-700 hover:text-white transition shrink-0"
+              aria-label="Tutup Asisten AI"
             >
               <X className="w-4 h-4" />
             </button>
@@ -157,9 +287,11 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
                 className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed whitespace-pre-line ${
                     m.sender === 'user'
                       ? 'bg-emerald-800 text-white rounded-br-xs'
+                      : m.isError
+                      ? 'bg-rose-50 text-rose-800 border border-rose-200 rounded-bl-xs'
                       : 'bg-white text-slate-800 border border-slate-200/80 shadow-2xs rounded-bl-xs'
                   }`}
                 >
@@ -168,6 +300,16 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
                 <span className="mt-1 text-[9px] text-slate-400 px-1">{m.time}</span>
               </div>
             ))}
+            {lastFailedPrompt && !loading && (
+              <button
+                type="button"
+                onClick={() => handleSend(lastFailedPrompt)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Coba Kirim Ulang</span>
+              </button>
+            )}
             {loading && (
               <div className="flex items-center gap-2 text-xs text-slate-500 bg-white border border-slate-200 rounded-xl px-3 py-2 w-fit shadow-2xs">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />
@@ -182,6 +324,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
             {quickChips.map((chip, i) => (
               <button
                 key={i}
+                type="button"
                 onClick={() => handleSend(chip)}
                 disabled={loading}
                 className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50/70 px-2.5 py-1 text-[10px] font-medium text-emerald-800 hover:bg-emerald-100 transition-colors disabled:opacity-50"
@@ -206,12 +349,13 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ketik pertanyaan Anda di sini..."
               disabled={loading}
-              className="flex-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden disabled:bg-slate-50"
+              className="flex-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden disabled:bg-slate-50"
             />
             <button
               type="submit"
               disabled={!input.trim() || loading}
               className="rounded-xl bg-emerald-800 p-2 text-white hover:bg-emerald-900 disabled:opacity-50 transition"
+              aria-label="Kirim pertanyaan"
             >
               <Send className="w-3.5 h-3.5" />
             </button>

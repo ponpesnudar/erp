@@ -54,7 +54,7 @@ export const BKModule: React.FC = () => {
   const [kategori, setKategori] = useState<'Ringan' | 'Sedang' | 'Berat'>('Ringan');
   const [poin, setPoin] = useState(5);
   const [takzir, setTakzir] = useState('');
-  const [saksi] = useState('Ust. Bahrul Ulum');
+  const [saksi] = useState('Ust. M Bahrul Ulum');
   const [toast, setToast] = useState('');
 
   // Tamu Form
@@ -62,14 +62,14 @@ export const BKModule: React.FC = () => {
   const [tamuAsal, setTamuAsal] = useState('');
   const [tamuSantri, setTamuSantri] = useState('');
   const [tamuPerlu, setTamuPerlu] = useState('');
-  const [tamuPetugas, setTamuPetugas] = useState('Pak Slamet');
+  const [tamuPetugas, setTamuPetugas] = useState('Pak Riyadi');
 
   // Jadwal Keamanan Form
   const [jkHari, setJkHari] = useState('Jum\'at');
   const [jkShift, setJkShift] = useState<JadwalKeamananItem['shift']>('Malam (22.00 - 04.00)');
   const [jkPos, setJkPos] = useState('Pos Gerbang Utama');
   const [jkPetugas, setJkPetugas] = useState('');
-  const [jkKoord, setJkKoord] = useState('Ust. Bahrul Ulum');
+  const [jkKoord, setJkKoord] = useState('Ust. M Bahrul Ulum');
 
   // Titipan Wali Form
   const [twSantriId, setTwSantriId] = useState(santriList[0]?.id || 's-001');
@@ -77,7 +77,7 @@ export const BKModule: React.FC = () => {
   const [twJenis, setTwJenis] = useState('');
   const [twNominal, setTwNominal] = useState(0);
   const [twFotoUrl, setTwFotoUrl] = useState('');
-  const [twPetugas, setTwPetugas] = useState('Pak Slamet');
+  const [twPetugas, setTwPetugas] = useState('Pak Riyadi');
 
   const notify = (msg: string) => {
     setToast(msg);

@@ -1042,7 +1042,40 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
             : 'w-full'
         }`}
       >
-        <div className="space-y-5 pb-20 md:pb-6">
+        {/* Mobile Top Sub-Nav Strip (hanya tampil di HP agar tidak menumpuk dengan footbar utama ERP) */}
+        {!compactPhoneFrame && (
+          <div className="grid grid-cols-5 gap-1 rounded-2xl bg-white p-1.5 border border-slate-200 shadow-2xs mb-4 md:hidden no-print">
+            {(
+              [
+                { id: 'beranda', label: 'Beranda', icon: Home },
+                { id: 'absensi', label: 'Absensi', icon: Clock },
+                { id: 'kalender', label: 'Kalender', icon: CalendarIcon },
+                { id: 'kotak_masuk', label: 'Kotak Masuk', icon: Inbox },
+                { id: 'profil', label: 'Profil', icon: User },
+              ] as const
+            ).map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-[10px] font-bold transition ${
+                    isActive
+                      ? 'bg-emerald-800 text-white shadow-2xs'
+                      : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 mb-0.5" />
+                  <span className="truncate max-w-full">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="space-y-5 pb-4 md:pb-6">
           {/* ============== TAB 1: BERANDA MOBILE ============== */}
           {activeTab === 'beranda' && (
             <div className={compactPhoneFrame ? 'space-y-4' : 'grid grid-cols-1 lg:grid-cols-12 gap-6 items-start'}>
@@ -2082,7 +2115,7 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                         ? 'Dewan Masyayikh'
                         : effectiveRole === 'kepala_madin'
                         ? 'KH. Amin Maizun (Pengasuh)'
-                        : "Ustadz Syarif Hidayatullah (Kepala Majlis Ma'arif)"}
+                        : "Ust. H Zaenal Arifin (Kepala Majlis Ma'arif)"}
                     </strong>
                   </div>
                   <div className="py-3.5 flex items-center justify-between gap-4">
@@ -2168,8 +2201,12 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
             </div>
           )}
 
-          {/* ============== EMERALD BOTTOM PILL NAVIGATION BAR ============== */}
-          <div className="sticky bottom-3 z-20 mx-auto max-w-md rounded-3xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg p-1.5 grid grid-cols-5 gap-1 no-print">
+          {/* ============== EMERALD BOTTOM PILL NAVIGATION BAR (Desktop / Frame Preview only — HP pakai nav atas + 1 footbar ERP) ============== */}
+          <div
+            className={`${
+              compactPhoneFrame ? 'grid' : 'hidden md:grid'
+            } sticky bottom-3 z-20 mx-auto max-w-md rounded-3xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg p-1.5 grid-cols-5 gap-1 no-print`}
+          >
             {(
               [
                 { id: 'beranda', label: 'Beranda', icon: Home },
@@ -2369,7 +2406,7 @@ export const AbsensiMobileAppView: React.FC<AbsensiMobileAppViewProps> = ({
                   type="text"
                   value={izinBadalNama}
                   onChange={(e) => setIzinBadalNama(e.target.value)}
-                  placeholder="Mis: Ustadz Abdur Rahman"
+                  placeholder="Mis: Ust. Abdurrohman"
                   className="w-full rounded-xl border border-slate-300 p-2"
                 />
               </div>

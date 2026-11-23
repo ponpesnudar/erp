@@ -14,6 +14,7 @@ import {
   Unlock,
 } from 'lucide-react';
 import { useAppStore } from '../../../lib/store.ts';
+import { useAuth } from '../../../lib/auth.ts';
 import { DAFTAR_KELAS_DINIYAH, MAPEL_PER_TINGKAT } from '../../../data/seed/pondokData.ts';
 import { triggerReliablePrint } from '../../../lib/printHelper.ts';
 import { PrintOrientationControl } from '../../../components/common/PrintOrientationControl.tsx';
@@ -33,6 +34,9 @@ export const KoreksianKitabSubTab: React.FC = () => {
     generateExamSeating,
   } = useAppStore();
 
+  const { effectiveRole, can } = useAuth();
+  const isReadOnly = effectiveRole === 'wali_santri' || !can('imtihan_nilai_raport', 'tulis');
+
   const uniqueClasses = useMemo(() => {
     const orderMap = new Map<string, number>(DAFTAR_KELAS_DINIYAH.map((c, i) => [c, i]));
     return Array.from(new Set(santriList.map((s) => s.kelas))).sort((a, b) => {
@@ -45,7 +49,7 @@ export const KoreksianKitabSubTab: React.FC = () => {
   const [selectedKelas, setSelectedKelas] = useState<string>(uniqueClasses[0] || '2 A PUTRA');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'semua' | 'lengkap' | 'belum'>('semua');
-  const [verifikator, setVerifikator] = useState<string>(currentUser.nama || 'Ust. Abdur Rahman');
+  const [verifikator, setVerifikator] = useState<string>(currentUser.nama || 'Ust. Abdurrohman');
   const [editingNoteTarget, setEditingNoteTarget] = useState<{
     santriId: string;
     santriNama: string;
@@ -139,6 +143,7 @@ export const KoreksianKitabSubTab: React.FC = () => {
   const totalChecksPossible = evaluatedRows.length * requiredKitabs.length;
 
   const handleBulkClass = (sudahLengkap: boolean) => {
+    if (isReadOnly) return;
     bulkSetKoreksianKitab({
       santriIds: kelasSantri.map((s) => s.id),
       kelas: selectedKelas,
@@ -154,6 +159,7 @@ export const KoreksianKitabSubTab: React.FC = () => {
   };
 
   const handleBulkRow = (santriId: string, santriNama: string, sudahLengkap: boolean) => {
+    if (isReadOnly) return;
     bulkSetKoreksianKitab({
       santriIds: [santriId],
       kelas: selectedKelas,
@@ -165,6 +171,7 @@ export const KoreksianKitabSubTab: React.FC = () => {
   };
 
   const handleSyncExamEligibility = () => {
+    if (isReadOnly) return;
     const incompleteIds = evaluatedRows.filter((r) => !r.isAllVerified).map((r) => r.santri.id);
     const completeIds = evaluatedRows.filter((r) => r.isAllVerified).map((r) => r.santri.id);
     if (incompleteIds.length > 0) setPesertaSusulanBatch(incompleteIds, true);
@@ -202,35 +209,41 @@ export const KoreksianKitabSubTab: React.FC = () => {
               <span>Koreksian Kitab &amp; Makna Pegon Pra-Imtihan</span>
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Pengecekan kelengkapan kitab wajib setiap kelas sebelum pelaksanaan Imtihan. Klik kotak kitab untuk memberi tanda centang hijau terverifikasi.
+              {isReadOnly
+                ? 'Mode Lihat Saja: Menampilkan rekap status kelengkapan kitab wajib pra-imtihan santri.'
+                : 'Pengecekan kelengkapan kitab wajib setiap kelas sebelum pelaksanaan Imtihan. Klik kotak kitab untuk memberi tanda centang hijau terverifikasi.'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <PrintOrientationControl recommended="landscape" />
-            <button
-              type="button"
-              onClick={() => handleBulkClass(true)}
-              className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
-            >
-              <CheckCheck className="w-3.5 h-3.5" />
-              <span>Centang Lengkap 1 Kelas</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleBulkClass(false)}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 whitespace-nowrap"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSyncExamEligibility}
-              className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
-              <span>Terapkan Syarat Kitab ke Denah &amp; Kartu</span>
-            </button>
+            {!isReadOnly && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleBulkClass(true)}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  <span>Centang Lengkap 1 Kelas</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBulkClass(false)}
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 whitespace-nowrap"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSyncExamEligibility}
+                  className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Terapkan Syarat Kitab ke Denah &amp; Kartu</span>
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={handlePrint}
@@ -274,12 +287,18 @@ export const KoreksianKitabSubTab: React.FC = () => {
 
           <div>
             <label className="block font-bold text-slate-700 mb-1">Ustadz Korektor / Wali Kelas</label>
-            <input
-              type="text"
-              value={verifikator}
-              onChange={(e) => setVerifikator(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 font-semibold"
-            />
+            {isReadOnly ? (
+              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-700">
+                {verifikator}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={verifikator}
+                onChange={(e) => setVerifikator(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 font-semibold"
+              />
+            )}
           </div>
 
           <div>
@@ -332,7 +351,7 @@ export const KoreksianKitabSubTab: React.FC = () => {
           </div>
         </div>
 
-        {unsyncedIncompleteCount > 0 && (
+        {!isReadOnly && unsyncedIncompleteCount > 0 && (
           <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 font-semibold">
               <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0" />
@@ -406,7 +425,9 @@ export const KoreksianKitabSubTab: React.FC = () => {
                 ))}
                 <th className="border border-emerald-700 py-2 px-2 w-24">STATUS KITAB</th>
                 <th className="border border-emerald-700 py-2 px-2 w-28">IZIN UJIAN</th>
-                <th className="border border-emerald-700 py-2 px-2 w-32 no-print">AKSI CEPAT</th>
+                {!isReadOnly && (
+                  <th className="border border-emerald-700 py-2 px-2 w-32 no-print">AKSI CEPAT</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -428,51 +449,82 @@ export const KoreksianKitabSubTab: React.FC = () => {
                       key={kitab.kode}
                       className="border border-slate-300 py-1.5 px-1 text-center align-middle"
                     >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          toggleKoreksianKitab({
-                            santriId: santri.id,
-                            kelas: selectedKelas,
-                            kitabKode: kitab.kode,
-                            mapelNama: kitab.mapelNama,
-                            kitabNama: kitab.kitabNama,
-                            verifikator,
-                          })
-                        }
-                        title={
-                          sudahLengkap
-                            ? `Terverifikasi lengkap (${rec?.tanggalCek || 'Hari ini'}). Klik untuk ubah.`
-                            : `Klik untuk menandai ${kitab.kitabNama} lengkap`
-                        }
-                        className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border transition print:border-0 print:bg-transparent ${
-                          sudahLengkap
-                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
-                            : 'bg-slate-50 text-slate-400 border-slate-300 hover:border-emerald-500 hover:text-emerald-700'
-                        }`}
-                      >
-                        {sudahLengkap ? (
-                          <Check className="w-4 h-4 stroke-[2.8] print:text-emerald-800" />
-                        ) : (
-                          <span className="text-[10px] font-bold">–</span>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditingNoteTarget({
-                            santriId: santri.id,
-                            santriNama: santri.nama,
-                            kitabKode: kitab.kode,
-                            mapelNama: kitab.mapelNama,
-                            kitabNama: kitab.kitabNama,
-                            value: rec?.catatan || '',
-                          })
-                        }
-                        className="block mx-auto mt-0.5 text-[9px] text-slate-500 hover:text-emerald-800 underline no-print"
-                      >
-                        {rec?.catatan ? 'Catatan*' : 'Catat'}
-                      </button>
+                      {isReadOnly ? (
+                        <div
+                          title={
+                            sudahLengkap
+                              ? `Terverifikasi lengkap (${rec?.tanggalCek || 'Sudah dicek'})`
+                              : `${kitab.kitabNama}: Belum lengkap`
+                          }
+                          className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border print:border-0 print:bg-transparent ${
+                            sudahLengkap
+                              ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                              : 'bg-slate-50 text-slate-400 border-slate-200'
+                          }`}
+                        >
+                          {sudahLengkap ? (
+                            <Check className="w-4 h-4 stroke-[2.8] print:text-emerald-800" />
+                          ) : (
+                            <span className="text-[10px] font-bold">–</span>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              toggleKoreksianKitab({
+                                santriId: santri.id,
+                                kelas: selectedKelas,
+                                kitabKode: kitab.kode,
+                                mapelNama: kitab.mapelNama,
+                                kitabNama: kitab.kitabNama,
+                                verifikator,
+                              })
+                            }
+                            title={
+                              sudahLengkap
+                                ? `Terverifikasi lengkap (${rec?.tanggalCek || 'Hari ini'}). Klik untuk ubah.`
+                                : `Klik untuk menandai ${kitab.kitabNama} lengkap`
+                            }
+                            className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border transition print:border-0 print:bg-transparent ${
+                              sudahLengkap
+                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                                : 'bg-slate-50 text-slate-400 border-slate-300 hover:border-emerald-500 hover:text-emerald-700'
+                            }`}
+                          >
+                            {sudahLengkap ? (
+                              <Check className="w-4 h-4 stroke-[2.8] print:text-emerald-800" />
+                            ) : (
+                              <span className="text-[10px] font-bold">–</span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditingNoteTarget({
+                                santriId: santri.id,
+                                santriNama: santri.nama,
+                                kitabKode: kitab.kode,
+                                mapelNama: kitab.mapelNama,
+                                kitabNama: kitab.kitabNama,
+                                value: rec?.catatan || '',
+                              })
+                            }
+                            className="block mx-auto mt-0.5 text-[9px] text-slate-500 hover:text-emerald-800 underline no-print"
+                          >
+                            {rec?.catatan ? 'Catatan*' : 'Catat'}
+                          </button>
+                        </>
+                      )}
+                      {isReadOnly && rec?.catatan && (
+                        <span
+                          title={rec.catatan}
+                          className="block mx-auto mt-0.5 text-[9px] text-amber-700 font-semibold no-print"
+                        >
+                          Catatan
+                        </span>
+                      )}
                     </td>
                   ))}
                   <td className="border border-slate-300 py-1.5 px-2 text-center">
@@ -506,45 +558,47 @@ export const KoreksianKitabSubTab: React.FC = () => {
                       </span>
                     )}
                   </td>
-                  <td className="border border-slate-300 py-1.5 px-1.5 text-center no-print">
-                    <div className="flex items-center justify-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleBulkRow(santri.id, santri.nama, !isAllVerified)}
-                        className={`px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition ${
-                          isAllVerified
-                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                            : 'bg-emerald-800 hover:bg-emerald-900 text-white'
-                        }`}
-                      >
-                        {isAllVerified ? 'Reset' : 'Lengkap ✓'}
-                      </button>
-                      <button
-                        type="button"
-                        title={
-                          isHeld
-                            ? 'Izinkan mengikuti Imtihan kembali'
-                            : 'Tahan dari jadwal Imtihan sementara (Susulan)'
-                        }
-                        onClick={() => {
-                          togglePesertaSusulan(santri.id);
-                          generateExamSeating();
-                          notify(
+                  {!isReadOnly && (
+                    <td className="border border-slate-300 py-1.5 px-1.5 text-center no-print">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleBulkRow(santri.id, santri.nama, !isAllVerified)}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition ${
+                            isAllVerified
+                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                              : 'bg-emerald-800 hover:bg-emerald-900 text-white'
+                          }`}
+                        >
+                          {isAllVerified ? 'Reset' : 'Lengkap ✓'}
+                        </button>
+                        <button
+                          type="button"
+                          title={
                             isHeld
-                              ? `${santri.nama} diizinkan kembali mengikuti ujian & denah diperbarui.`
-                              : `${santri.nama} ditahan sementara (Susulan) & dikeluarkan dari denah ujian.`
-                          );
-                        }}
-                        className={`p-1 rounded-lg border transition ${
-                          isHeld
-                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
-                            : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
-                        }`}
-                      >
-                        {isHeld ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </td>
+                              ? 'Izinkan mengikuti Imtihan kembali'
+                              : 'Tahan dari jadwal Imtihan sementara (Susulan)'
+                          }
+                          onClick={() => {
+                            togglePesertaSusulan(santri.id);
+                            generateExamSeating();
+                            notify(
+                              isHeld
+                                ? `${santri.nama} diizinkan kembali mengikuti ujian & denah diperbarui.`
+                                : `${santri.nama} ditahan sementara (Susulan) & dikeluarkan dari denah ujian.`
+                            );
+                          }}
+                          className={`p-1 rounded-lg border transition ${
+                            isHeld
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+                              : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                          }`}
+                        >
+                          {isHeld ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -46,7 +46,6 @@ import {
 } from 'recharts';
 import { useAppStore } from '../../lib/store.ts';
 import { useAuth } from '../../lib/auth.ts';
-import { PWAInstallButton } from '../../components/pwa/PWAInstallButton.tsx';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import { RekapAbsensiSpreadsheet } from '../sdm/RekapAbsensiSpreadsheet.tsx';
@@ -159,7 +158,6 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
     [satpamList]
   );
   const [compactPhoneFrame, setCompactPhoneFrame] = useState(false);
-  const [showHpInstallModal, setShowHpInstallModal] = useState(false);
 
   // Personil Satpam Selector (defaults to logged-in Satpam if matched)
   const initialSatpamId = useMemo(() => {
@@ -981,7 +979,7 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
     doc.setTextColor(15, 23, 42);
     doc.setFont('times', 'bold');
     doc.setFontSize(9);
-    doc.text('KH. Amin Maizun / Ust. Bahrul Ulum', 24, sigY + 23.5);
+    doc.text('KH. Amin Maizun / Ust. M Bahrul Ulum', 24, sigY + 23.5);
     doc.text(formatNamaWithGelar(currentUser.nama), 232, sigY + 23.5);
 
     doc.save(`Rekap-Absensi-Satpam-Bulanan-${rekapBulan}.pdf`);
@@ -990,40 +988,6 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
 
   return (
     <div className="space-y-5">
-      {/* Top Banner: Download Mobile App (PWA) for Satpam HP */}
-      <div className="rounded-3xl bg-linear-to-r from-emerald-950 via-emerald-900 to-teal-900 p-5 text-white shadow-lg border border-emerald-800/60">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold text-amber-300 border border-white/15">
-              <Shield className="w-3.5 h-3.5" />
-              <span>Absensi Mobile Satpam Keamanan · {satpamNamesSummary}</span>
-            </div>
-            <h3 className="text-base sm:text-lg font-extrabold tracking-tight">
-              Pasang Aplikasi Absensi Satpam Langsung di HP Android &amp; iPhone
-            </h3>
-            <p className="text-xs text-emerald-100/90 max-w-2xl leading-relaxed">
-              Sistem absensi Satpam ini persis dengan aplikasi Absensi Guru (Swafoto Kamera + GPS Pos + Rekapan PDF + Absen Pengajuan). Login cepat di HP dengan username{' '}
-              <code className="bg-black/30 px-1.5 py-0.5 rounded font-mono text-amber-300">riyadi</code>,{' '}
-              <code className="bg-black/30 px-1.5 py-0.5 rounded font-mono text-amber-300">suwarno</code>, atau{' '}
-              <code className="bg-black/30 px-1.5 py-0.5 rounded font-mono text-amber-300">sopoyono</code> (sandi:{' '}
-              <code className="bg-black/30 px-1.5 py-0.5 rounded font-mono text-emerald-200">darussalam2026</code>).
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <PWAInstallButton variant="button" />
-            <button
-              type="button"
-              onClick={() => setShowHpInstallModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold shadow-xs transition"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Cara Unduh di HP Satpam</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Mode Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="inline-flex rounded-2xl bg-slate-100 p-1 border border-slate-200">
@@ -2640,59 +2604,6 @@ export const SatpamAbsensiSubTab: React.FC<SatpamAbsensiSubTabProps> = ({
                 Kirim Pengajuan ke Koordinator Keamanan
               </button>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== MODAL CARA UNDUH DI HP SATPAM ==================== */}
-      {showHpInstallModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                <Smartphone className="w-4 h-4 text-emerald-700" />
-                <span>Panduan Pasang Aplikasi Absensi di HP Satpam</span>
-              </h4>
-              <button
-                type="button"
-                onClick={() => setShowHpInstallModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-3 text-xs text-slate-700">
-              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
-                <p className="font-extrabold text-emerald-900">1. HP Android (Google Chrome):</p>
-                <p>Buka link aplikasi ERP di Chrome → ketuk titik tiga di pojok kanan atas → pilih <strong>"Install Aplikasi" / "Tambahkan ke Layar Utama"</strong>. Ikon shortcut <strong>Absensi Satpam</strong> langsung muncul seperti aplikasi Play Store.</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 space-y-1">
-                <p className="font-extrabold text-sky-900">2. HP iPhone (Safari):</p>
-                <p>Buka di Safari → tekan tombol <strong>Bagikan (<Share2 className="inline w-3 h-3" />)</strong> di bawah layar → pilih <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong>.</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 space-y-1">
-                <p className="font-extrabold text-amber-900">3. Akun Login Regu Satpam:</p>
-                <ul className="list-disc pl-4 space-y-0.5">
-                  {satpamList.map((sat) => {
-                    const u = userAccounts.find((acc) => acc.id === sat.userId);
-                    return (
-                      <li key={sat.id}>
-                        <strong>{sat.nama}</strong>: username{' '}
-                        <code className="font-mono font-bold">{u?.username || sat.id}</code>
-                      </li>
-                    );
-                  })}
-                  <li>Sandi awal semua akun: <code className="font-mono font-bold">darussalam2026</code></li>
-                </ul>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowHpInstallModal(false)}
-              className="w-full py-2.5 rounded-xl bg-emerald-800 text-white text-xs font-bold"
-            >
-              Mengerti &amp; Tutup
-            </button>
           </div>
         </div>
       )}

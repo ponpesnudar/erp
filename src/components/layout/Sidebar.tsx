@@ -15,8 +15,10 @@ import {
   ChevronRight,
   School,
   UserCheck,
+  LayoutGrid,
+  X,
 } from 'lucide-react';
-import { useAuth } from '../../lib/auth.ts';
+import { useAuth, canAccessErpTab } from '../../lib/auth.ts';
 import { useAppStore } from '../../lib/store.ts';
 
 export interface NavItem {
@@ -33,6 +35,7 @@ interface SidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   mobileOpen: boolean;
+  onOpenMobile: () => void;
   onCloseMobile: () => void;
 }
 
@@ -42,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   onToggleCollapse,
   mobileOpen,
+  onOpenMobile,
   onCloseMobile,
 }) => {
   const { can, effectiveRole, currentUser } = useAuth();
@@ -63,19 +67,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'panduan', label: 'Buku Panduan', icon: HelpCircle },
   ];
 
-  // Filter items based on user role authorization
-  const visibleItems = allNavItems.filter((item) => {
-    if (item.id === 'beranda' || item.id === 'panduan') return true;
-    if (item.id === 'munaqosyah') {
-      return ['admin_sistem', 'pengasuh', 'kepala_madin', 'ketua_imtihan', 'guru_pengampu', 'sekretaris'].includes(
-        effectiveRole
-      );
-    }
-    if (item.id === 'sdm_absensi') return !['wali_santri', 'kasir_kantin'].includes(effectiveRole);
-    if (item.id === 'akses') return effectiveRole === 'admin_sistem';
-    if (item.fiturId) return can(item.fiturId, 'baca');
-    return true;
-  });
+  // Filter items based on unified role authorization (unchecked in Hak Akses Role = locked)
+  const visibleItems = allNavItems.filter((item) =>
+    canAccessErpTab(item.id, effectiveRole, can)
+  );
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-[#07432A] text-white">
@@ -99,11 +94,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Desktop Collapse Toggle */}
         <button
+          type="button"
           onClick={onToggleCollapse}
           className="hidden md:flex p-1.5 rounded-lg bg-emerald-800/60 hover:bg-emerald-700 text-emerald-200 hover:text-white transition"
           title={collapsed ? 'Perluas Menu (>)' : 'Ciutkan Menu (<)'}
         >
           {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+        </button>
+
+        {/* Mobile Drawer Close Button */}
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          className="md:hidden p-1.5 rounded-lg bg-emerald-800/70 hover:bg-emerald-700 text-emerald-100 transition"
+          aria-label="Tutup Menu"
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
 
@@ -187,18 +193,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden print:hidden no-print">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={onCloseMobile} />
-          <div className="relative w-72 max-w-[80vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+          <div className="relative w-72 max-w-[82vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
             {sidebarContent}
           </div>
         </div>
       )}
 
-      {/* Mobile Bottom Navigation (5 Primary Tabs — includes Absen Guru for Asatidz/Staff) */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 h-14 bg-white border-t border-slate-200 md:hidden print:hidden flex items-center justify-around px-2 shadow-lg no-print">
+      {/* Mobile Bottom Navigation (5 Slots — hanya modul yang diberi izin akses) */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 h-16 bg-white/98 backdrop-blur-md border-t border-slate-200 md:hidden print:hidden grid grid-cols-5 items-center px-1 shadow-lg no-print">
         <button
           type="button"
           onClick={() => onSelectTab('beranda')}
-          className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
+          className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
             activeTab === 'beranda' ? 'text-emerald-800' : 'text-slate-500'
           }`}
         >
@@ -206,60 +212,118 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span>Beranda</span>
         </button>
 
-        {!['wali_santri', 'kasir_kantin'].includes(effectiveRole) ? (
+        {canAccessErpTab('sdm_absensi', effectiveRole, can) ? (
           <button
             type="button"
             onClick={() => onSelectTab('sdm_absensi')}
-            className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
               activeTab === 'sdm_absensi' ? 'text-emerald-800' : 'text-slate-500'
             }`}
           >
             <UserCheck className="w-4 h-4 mb-0.5" />
             <span>Absen</span>
           </button>
-        ) : (
+        ) : canAccessErpTab('psb', effectiveRole, can) ? (
           <button
             type="button"
             onClick={() => onSelectTab('psb')}
-            className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
               activeTab === 'psb' ? 'text-emerald-800' : 'text-slate-500'
             }`}
           >
             <UserPlus className="w-4 h-4 mb-0.5" />
             <span>PSB</span>
           </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSelectTab('panduan')}
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
+              activeTab === 'panduan' ? 'text-emerald-800' : 'text-slate-500'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 mb-0.5" />
+            <span>Panduan</span>
+          </button>
         )}
 
+        {/* CENTER SLOT: Prominent MENU Drawer Trigger */}
         <button
           type="button"
-          onClick={() => onSelectTab('imtihan')}
-          className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
-            activeTab === 'imtihan' ? 'text-emerald-800' : 'text-slate-500'
-          }`}
+          onClick={mobileOpen ? onCloseMobile : onOpenMobile}
+          className="flex flex-col items-center justify-center -mt-3 py-1 text-[10px] font-extrabold text-emerald-900"
+          aria-label="Buka Daftar Semua Menu ERP"
         >
-          <FileCheck className="w-4 h-4 mb-0.5" />
-          <span>Imtihan</span>
+          <span
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-md border-2 border-white transition ${
+              mobileOpen
+                ? 'bg-amber-400 text-slate-950'
+                : 'bg-emerald-800 text-white active:scale-95'
+            }`}
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
+          </span>
+          <span className="mt-0.5 leading-none">Menu</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => onSelectTab('transaksi')}
-          className={`flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold ${
-            activeTab === 'transaksi' ? 'text-emerald-800' : 'text-slate-500'
-          }`}
-        >
-          <CreditCard className="w-4 h-4 mb-0.5" />
-          <span>Kantin</span>
-        </button>
+        {canAccessErpTab('imtihan', effectiveRole, can) ? (
+          <button
+            type="button"
+            onClick={() => onSelectTab('imtihan')}
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
+              activeTab === 'imtihan' ? 'text-emerald-800' : 'text-slate-500'
+            }`}
+          >
+            <FileCheck className="w-4 h-4 mb-0.5" />
+            <span>Imtihan</span>
+          </button>
+        ) : canAccessErpTab('maarifan', effectiveRole, can) ? (
+          <button
+            type="button"
+            onClick={() => onSelectTab('maarifan')}
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
+              activeTab === 'maarifan' ? 'text-emerald-800' : 'text-slate-500'
+            }`}
+          >
+            <BookOpen className="w-4 h-4 mb-0.5" />
+            <span>Diniyah</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSelectTab('panduan')}
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
+              activeTab === 'panduan' ? 'text-emerald-800' : 'text-slate-500'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 mb-0.5" />
+            <span>Panduan</span>
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="flex flex-col items-center justify-center w-14 py-1 text-[10px] font-bold text-slate-500"
-        >
-          <BookOpen className="w-4 h-4 mb-0.5" />
-          <span>Menu</span>
-        </button>
+        {canAccessErpTab('transaksi', effectiveRole, can) ? (
+          <button
+            type="button"
+            onClick={() => onSelectTab('transaksi')}
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
+              activeTab === 'transaksi' ? 'text-emerald-800' : 'text-slate-500'
+            }`}
+          >
+            <CreditCard className="w-4 h-4 mb-0.5" />
+            <span>Kantin</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSelectTab('panduan')}
+            className={`flex flex-col items-center justify-center py-1 text-[10px] font-bold ${
+              activeTab === 'panduan' ? 'text-emerald-800' : 'text-slate-500'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 mb-0.5" />
+            <span>Panduan</span>
+          </button>
+        )}
       </div>
     </>
   );

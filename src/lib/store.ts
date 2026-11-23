@@ -748,13 +748,16 @@ const DEFAULT_ROLE_PERMS: Record<string, Record<string, string[]>> = {
     imtihan_kartu: ['baca', 'cetak', 'ekspor'],
     imtihan_nilai_raport: ['baca', 'tulis', 'ubah', 'setujui', 'cetak'],
     imtihan_rab: ['baca', 'tulis', 'ubah', 'setujui', 'cetak', 'posting'],
-    maarifan_absensi: ['baca', 'tulis', 'ubah', 'setujui', 'cetak'],
+    maarifan_absensi: ['baca', 'tulis', 'ubah', 'hapus', 'setujui', 'cetak'],
     sekretaris_persuratan: ['baca', 'tulis', 'ubah', 'hapus', 'cetak'],
     bendahara_keuangan: ['baca', 'tulis', 'ubah', 'setujui', 'posting', 'cetak', 'ekspor'],
     transaksi_kartu_pos: ['baca', 'tulis', 'ubah', 'posting', 'cetak'],
     psb_verifikasi: ['baca', 'tulis', 'setujui', 'konfigurasi'],
     bk_pelanggaran: ['baca', 'tulis', 'ubah', 'setujui'],
     sdm_absensi_monitoring: ['baca', 'tulis', 'ubah', 'setujui', 'cetak', 'ekspor'],
+    sdm_absensi_mobile: ['baca', 'tulis', 'cetak'],
+    munaqosyah_majlis: ['baca', 'tulis', 'setujui', 'cetak'],
+    kemahadiyahan_organisasi: ['baca', 'tulis', 'ubah', 'setujui'],
   },
   pengasuh: {
     imtihan_soal: ['baca', 'setujui', 'cetak'],
@@ -769,6 +772,9 @@ const DEFAULT_ROLE_PERMS: Record<string, Record<string, string[]>> = {
     psb_verifikasi: ['baca', 'setujui'],
     bk_pelanggaran: ['baca', 'setujui'],
     sdm_absensi_monitoring: ['baca', 'setujui', 'cetak', 'ekspor'],
+    sdm_absensi_mobile: ['baca', 'tulis', 'cetak'],
+    munaqosyah_majlis: ['baca', 'setujui', 'cetak'],
+    kemahadiyahan_organisasi: ['baca', 'setujui'],
   },
   ketua_imtihan: {
     imtihan_soal: ['baca', 'tulis', 'ubah', 'setujui', 'cetak'],
@@ -777,41 +783,53 @@ const DEFAULT_ROLE_PERMS: Record<string, Record<string, string[]>> = {
     imtihan_nilai_raport: ['baca', 'tulis', 'ubah', 'setujui', 'cetak'],
     imtihan_rab: ['baca', 'tulis', 'ubah', 'cetak'],
     maarifan_absensi: ['baca'],
+    sdm_absensi_mobile: ['baca', 'tulis', 'cetak'],
+    munaqosyah_majlis: ['baca', 'tulis', 'setujui', 'cetak'],
   },
   bendahara: {
     bendahara_keuangan: ['baca', 'tulis', 'ubah', 'setujui', 'posting', 'cetak', 'ekspor'],
     imtihan_rab: ['baca', 'tulis', 'ubah', 'setujui', 'cetak', 'posting'],
     transaksi_kartu_pos: ['baca', 'tulis', 'posting', 'cetak'],
+    sdm_absensi_mobile: ['baca', 'tulis', 'cetak'],
   },
   guru_pengampu: {
     imtihan_soal: ['baca', 'tulis', 'ubah'],
     imtihan_nilai_raport: ['baca', 'tulis'],
     maarifan_absensi: ['baca', 'tulis'],
+    sdm_absensi_mobile: ['baca', 'tulis', 'cetak'],
+    munaqosyah_majlis: ['baca'],
   },
   kepala_madin: {
-    maarifan_absensi: ['baca', 'tulis', 'ubah', 'setujui', 'cetak'],
+    maarifan_absensi: ['baca', 'tulis', 'ubah', 'hapus', 'setujui', 'cetak'],
     imtihan_nilai_raport: ['baca', 'cetak'],
     imtihan_soal: ['baca', 'cetak'],
     sdm_absensi_monitoring: ['baca', 'tulis', 'ubah', 'setujui', 'cetak', 'ekspor'],
+    sdm_absensi_mobile: ['baca', 'tulis', 'cetak'],
+    munaqosyah_majlis: ['baca', 'tulis', 'setujui', 'cetak'],
   },
   sekretaris: {
     sekretaris_persuratan: ['baca', 'tulis', 'ubah', 'hapus', 'cetak'],
     psb_verifikasi: ['baca', 'tulis'],
     sdm_absensi_monitoring: ['baca', 'tulis', 'ubah', 'setujui', 'cetak', 'ekspor'],
+    sdm_absensi_mobile: ['baca', 'tulis', 'cetak'],
+    munaqosyah_majlis: ['baca', 'cetak'],
   },
   kemahadiyahan: {
     bk_pelanggaran: ['baca', 'tulis'],
     maarifan_absensi: ['baca'],
+    kemahadiyahan_organisasi: ['baca', 'tulis', 'ubah', 'setujui'],
+    sdm_absensi_mobile: ['baca', 'tulis', 'cetak'],
   },
   bk_keamanan: {
     bk_pelanggaran: ['baca', 'tulis', 'ubah', 'setujui'],
+    sdm_absensi_mobile: ['baca', 'tulis', 'cetak'],
   },
   kasir_kantin: {
     transaksi_kartu_pos: ['baca', 'tulis', 'posting', 'cetak'],
   },
   wali_santri: {
     imtihan_nilai_raport: ['baca'],
-    transaksi_kartu_pos: ['baca', 'tulis'],
+    transaksi_kartu_pos: ['baca'],
   },
 };
 
@@ -949,7 +967,7 @@ export const useAppStore = create<AppState>()(
           id: 'log-2',
           waktu: '2026-11-09 09:30',
           userId: 'u-bendahara',
-          userName: 'M. Abdul Fataah',
+          userName: 'Ust. M. Abdul Fatah',
           peran: 'Bendahara',
           modul: 'Bendahara',
           aksi: 'Input RAB Imtihan',
@@ -962,7 +980,7 @@ export const useAppStore = create<AppState>()(
           id: 'km-1',
           modul: 'Imtihan',
           judul: 'Persetujuan Naskah Soal Fiqih 2 MDS',
-          pengirim: 'Ust. Abdur Rahman',
+          pengirim: 'Ust. Abdurrohman',
           waktu: '10 menit yang lalu',
           status: 'Menunggu',
           linkTab: 'imtihan',
@@ -992,7 +1010,7 @@ export const useAppStore = create<AppState>()(
           id: 'km-4',
           modul: 'Sekretaris',
           judul: 'Permohonan Tanda Tangan Surat Pemberitahuan Imtihan',
-          pengirim: 'Ust. Ahmad Mujiburrohman',
+          pengirim: 'Ust. M Nur Arif Hakam',
           waktu: '2 jam yang lalu',
           status: 'Menunggu',
           linkTab: 'sekretaris',
@@ -1005,10 +1023,10 @@ export const useAppStore = create<AppState>()(
           id: 'abs-1',
           tanggal: '2026-11-09',
           kelas: '2 A PUTRA',
-          guruNama: 'Ust. Abdur Rahman',
+          guruNama: 'Ust. Abdurrohman',
           mapel: 'Fiqih',
           waktuSimpan: '2026-11-09 07:15',
-          tersimpanOleh: 'Ust. Abdur Rahman',
+          tersimpanOleh: 'Ust. Abdurrohman',
           kehadiran: {
             's-001': 'H',
             's-002': 'H',
@@ -1026,7 +1044,7 @@ export const useAppStore = create<AppState>()(
           mapelArab: 'الفقه',
           kelas: '2 A PUTRA',
           guruId: 'u-guru',
-          guruNama: 'Ust. Abdur Rahman',
+          guruNama: 'Ust. Abdurrohman',
           guruNamaArab: 'عبد الرحمن',
           semester: 'Gasal',
           tahunAjaran: '2026/2027',
@@ -1118,7 +1136,7 @@ export const useAppStore = create<AppState>()(
           alpa: 0,
           semester: '1',
           tahunAjaran: '2026/2027',
-          waliKelas: 'Ust. Abdur Rahman',
+          waliKelas: 'Ust. Abdurrohman',
           hafalanNadhom: 'Imrithi Bait 1-100 Lulus Mutqin',
           catatanWaliKelas: 'Santri sangat rajin dan aktif dalam muthalaah kitab kuning.',
         },
@@ -1140,23 +1158,23 @@ export const useAppStore = create<AppState>()(
           alpa: 0,
           semester: '1',
           tahunAjaran: '2026/2027',
-          waliKelas: 'Ust. Abdur Rahman',
+          waliKelas: 'Ust. Abdurrohman',
           hafalanNadhom: 'Imrithi Bait 1-120 Mutqin',
           catatanWaliKelas: 'Kemampuan qiraatul kutub sangat baik.',
         },
       ],
 
       koreksianKitabList: [
-        { id: 's-001__AKH', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'AKH', mapelNama: 'Akhlak', kitabNama: "Washoya Al-Aba' lil Abna'", sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman', catatan: 'Makna pegon & catatan lengkap' },
-        { id: 's-001__FQH', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'FQH', mapelNama: 'Fiqih', kitabNama: 'Matan Taqrib', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman', catatan: 'Lengkap' },
-        { id: 's-001__NHW', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'NHW', mapelNama: 'Nahwu', kitabNama: 'Matan Al-Ajurumiyyah', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
-        { id: 's-001__SHR', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'SHR', mapelNama: 'Shorof', kitabNama: 'Amtsilah Tashrifiyyah Lughowi', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
-        { id: 's-001__THD', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'THD', mapelNama: 'Tauhid', kitabNama: 'Aqidatul Islamiyyah', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
-        { id: 's-001__HDS', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'HDS', mapelNama: 'Hadits', kitabNama: 'Arbain Nawawi', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
-        { id: 's-001__TRK', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'TRK', mapelNama: 'Tarikh', kitabNama: 'Khulasoh Nurul Yaqin Juz 1', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
-        { id: 's-002__AKH', santriId: 's-002', kelas: '2 A PUTRA', kitabKode: 'AKH', mapelNama: 'Akhlak', kitabNama: "Washoya Al-Aba' lil Abna'", sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
-        { id: 's-002__FQH', santriId: 's-002', kelas: '2 A PUTRA', kitabKode: 'FQH', mapelNama: 'Fiqih', kitabNama: 'Matan Taqrib', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman' },
-        { id: 's-002__NHW', santriId: 's-002', kelas: '2 A PUTRA', kitabKode: 'NHW', mapelNama: 'Nahwu', kitabNama: 'Matan Al-Ajurumiyyah', sudahLengkap: false, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdur Rahman', catatan: 'Kurang bab Manshubatil Asma' },
+        { id: 's-001__AKH', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'AKH', mapelNama: 'Akhlak', kitabNama: "Washoya Al-Aba' lil Abna'", sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman', catatan: 'Makna pegon & catatan lengkap' },
+        { id: 's-001__FQH', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'FQH', mapelNama: 'Fiqih', kitabNama: 'Matan Taqrib', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman', catatan: 'Lengkap' },
+        { id: 's-001__NHW', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'NHW', mapelNama: 'Nahwu', kitabNama: 'Matan Al-Ajurumiyyah', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman' },
+        { id: 's-001__SHR', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'SHR', mapelNama: 'Shorof', kitabNama: 'Amtsilah Tashrifiyyah Lughowi', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman' },
+        { id: 's-001__THD', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'THD', mapelNama: 'Tauhid', kitabNama: 'Aqidatul Islamiyyah', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman' },
+        { id: 's-001__HDS', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'HDS', mapelNama: 'Hadits', kitabNama: 'Arbain Nawawi', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman' },
+        { id: 's-001__TRK', santriId: 's-001', kelas: '2 A PUTRA', kitabKode: 'TRK', mapelNama: 'Tarikh', kitabNama: 'Khulasoh Nurul Yaqin Juz 1', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman' },
+        { id: 's-002__AKH', santriId: 's-002', kelas: '2 A PUTRA', kitabKode: 'AKH', mapelNama: 'Akhlak', kitabNama: "Washoya Al-Aba' lil Abna'", sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman' },
+        { id: 's-002__FQH', santriId: 's-002', kelas: '2 A PUTRA', kitabKode: 'FQH', mapelNama: 'Fiqih', kitabNama: 'Matan Taqrib', sudahLengkap: true, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman' },
+        { id: 's-002__NHW', santriId: 's-002', kelas: '2 A PUTRA', kitabKode: 'NHW', mapelNama: 'Nahwu', kitabNama: 'Matan Al-Ajurumiyyah', sudahLengkap: false, tanggalCek: '2026-11-18', verifikator: 'Ust. Abdurrohman', catatan: 'Kurang bab Manshubatil Asma' },
       ],
 
       ruangUjianList: [],
@@ -1249,7 +1267,7 @@ export const useAppStore = create<AppState>()(
           kategori: 'Ringan',
           poin: 5,
           takzir: 'Membaca surat Yasin 3x di serambi masjid dan membersihkan halaman',
-          saksi: 'Ust. Bahrul Ulum',
+          saksi: 'Ust. M Bahrul Ulum',
           status: 'Selesai',
         },
       ],
@@ -1609,18 +1627,124 @@ export const useAppStore = create<AppState>()(
         get().addAuditLog('Sekretariat', 'Hapus Santri', `Menghapus data santri ID ${id} dari daftar aktif (arsip tanggungan Bendahara tetap aman).`);
       },
 
-      // Ustadz CRUD
+      // Ustadz CRUD — auto-sync ke Akun Login ERP, Bisyaroh Payroll, & Ketersediaan Jadwal
       addUstadz: (data) => {
         const newUst: UstadzRecord = { id: `ust-${Date.now()}`, ...data };
-        set((state) => ({ ustadzList: [newUst, ...state.ustadzList] }));
-        get().addAuditLog("Ma'arifan", 'Tambah Ustadz', `Menambahkan asatidz ${data.nama}.`);
+        const cleanSlug =
+          data.nama
+            .toLowerCase()
+            .replace(/^(kh\.|k\.|kyai|nyai\s+hj\.|nyai\.|usth\.|ustzh\.|ustd\.|ust\.|m\.|h\.|hj\.)\s*/gi, '')
+            .replace(/[^a-z0-9]/g, '') || newUst.id;
+        const waNormalized = (data.noHP || '').replace(/[^0-9]/g, '');
+
+        set((state) => {
+          const usedUsernames = new Set(state.userAccounts.map((u) => u.username.toLowerCase()));
+          let uniqueUsername = cleanSlug;
+          let counter = 2;
+          while (usedUsernames.has(uniqueUsername.toLowerCase())) {
+            uniqueUsername = `${cleanSlug}${counter}`;
+            counter += 1;
+          }
+
+          const hasExistingAcc = state.userAccounts.some(
+            (acc) =>
+              acc.ustadzId === newUst.id ||
+              acc.nama.trim().toLowerCase() === newUst.nama.trim().toLowerCase()
+          );
+
+          const autoAccount: UserAccount | null = hasExistingAcc
+            ? null
+            : {
+                id: `u-${newUst.id}`,
+                username: uniqueUsername,
+                nama: newUst.nama,
+                email: `${uniqueUsername}@darussalam.id`,
+                noWa: waNormalized,
+                password: 'darussalam2026',
+                ustadzId: newUst.id,
+                peran: 'guru_pengampu',
+                peranLabel: newUst.jabatanUtama || 'Guru Madrasah Diniyah',
+                avatar:
+                  newUst.gender === 'P'
+                    ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80'
+                    : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+                rolesAvailable: ['guru_pengampu'],
+                keterangan: `Akun pengajar otomatis: ${newUst.jabatanUtama}`,
+              };
+
+          const autoPayroll: UstadzPayrollItem = {
+            ustadzId: newUst.id,
+            ustadzNama: newUst.nama,
+            jabatan: newUst.jabatanUtama,
+            domisili:
+              newUst.alamat.toLowerCase().includes('karangdadap') &&
+              newUst.statusKepegawaian === 'Khidmah'
+                ? 'Mukim'
+                : 'Laju',
+            gajiPokok: 400000,
+            tunjanganTransportasi: newUst.alamat.toLowerCase().includes('karangdadap') ? 100000 : 200000,
+            tunjanganMasaKerja: 50000,
+            tunjanganKomunikasi: 50000,
+            tunjanganJabatan: 100000,
+            bisyarohTakhasus: 0,
+            jtmDiniyah: 6,
+            jumlahHadir: 0,
+            statusBayar: 'Siap',
+          };
+
+          const autoAvail: GuruAvailabilityRule = {
+            ustadzId: newUst.id,
+            ustadzNama: newUst.nama,
+            jam1Tersedia: true,
+            jam2Tersedia: true,
+            jam3Tersedia: true,
+            alasanRequest: newUst.gender === 'P' ? 'Siap mengajar Madrasah Diniyah Putri' : 'Siap semua jam diniyah',
+          };
+
+          return {
+            ustadzList: [newUst, ...state.ustadzList],
+            userAccounts: autoAccount ? [...state.userAccounts, autoAccount] : state.userAccounts,
+            ustadzPayroll: [autoPayroll, ...state.ustadzPayroll],
+            guruAvailability: [...state.guruAvailability, autoAvail],
+          };
+        });
+        get().addAuditLog("Ma'arifan", 'Tambah Ustadz', `Menambahkan asatidz ${data.nama} beserta akun login ERP otomatis.`);
       },
 
       updateUstadz: (id, data) => {
-        set((state) => ({
-          ustadzList: state.ustadzList.map((u) => (u.id === id ? { ...u, ...data } : u)),
-        }));
-        get().addAuditLog("Ma'arifan", 'Update Ustadz', `Memperbarui profil kepegawaian ustadz ID ${id}.`);
+        set((state) => {
+          const prevUst = state.ustadzList.find((u) => u.id === id);
+          const nextNama = data.nama ?? prevUst?.nama;
+          const nextJabatan = data.jabatanUtama ?? prevUst?.jabatanUtama;
+          const nextWa = data.noHP !== undefined ? data.noHP.replace(/[^0-9]/g, '') : undefined;
+
+          return {
+            ustadzList: state.ustadzList.map((u) => (u.id === id ? { ...u, ...data } : u)),
+            userAccounts: state.userAccounts.map((acc) => {
+              const isMatch =
+                acc.ustadzId === id ||
+                (prevUst && acc.nama.trim().toLowerCase() === prevUst.nama.trim().toLowerCase());
+              if (!isMatch) return acc;
+              return {
+                ...acc,
+                ustadzId: acc.ustadzId || id,
+                ...(nextNama ? { nama: nextNama } : {}),
+                ...(nextWa !== undefined && nextWa ? { noWa: nextWa } : {}),
+                ...(nextJabatan && acc.peran === 'guru_pengampu' ? { peranLabel: nextJabatan } : {}),
+              };
+            }),
+            ustadzPayroll: state.ustadzPayroll.map((p) =>
+              p.ustadzId === id
+                ? {
+                    ...p,
+                    ...(nextNama ? { ustadzNama: nextNama } : {}),
+                    ...(nextJabatan ? { jabatan: nextJabatan } : {}),
+                  }
+                : p
+            ),
+          };
+        });
+        get().addAuditLog("Ma'arifan", 'Update Ustadz', `Memperbarui profil kepegawaian & sinkron akun ustadz ID ${id}.`);
       },
 
       deleteUstadz: (id) => {
@@ -4001,10 +4125,74 @@ export const useAppStore = create<AppState>()(
         const persisted = (persistedState || {}) as Partial<AppState>;
         const merged: AppState = { ...currentState, ...persisted };
 
-        // Always keep core & newly seeded individual accounts up to date by ID
-        const existingAccountIds = new Set((persisted.userAccounts || []).map((u) => u.id));
-        const missingAccounts = SEED_USERS.filter((u) => !existingAccountIds.has(u.id));
-        merged.userAccounts = [...(persisted.userAccounts || SEED_USERS), ...missingAccounts];
+        // Remove obsolete placeholder teachers & accounts, upgrade spellings, and sync Struktur Kepengurusan
+        const REMOVED_USTADZ_IDS = new Set(['ust-2', 'ust-5', 'ust-8', 'ust-9']);
+        const REMOVED_ACCOUNT_IDS = new Set(['u-ust-2', 'u-ust-5', 'u-ust-8', 'u-ust-9']);
+        const REMOVED_TEACHER_NAMES = new Set([
+          'ust. syarif hidayatullah',
+          'ustadz syarif hidayatullah',
+          'ust. ahmad mujiburrohman',
+          'usth. siti maryam',
+          'ust. abdul fattah',
+          'ust. fathoni',
+          'ustadzah dewi masitoh',
+          'ustadzah nurul aini',
+        ]);
+        const SPELLING_UPGRADE_MAP: Record<string, string> = {
+          'ust. abdur rahman': 'Ust. Abdurrohman',
+          'ustadz abdur rahman': 'Ust. Abdurrohman',
+          'm. abdul fataah': 'Ust. M. Abdul Fatah',
+          'ust. m. abdul fataah': 'Ust. M. Abdul Fatah',
+          'ust. haris maulana': 'Ust. Kharis Maulana',
+          'ust. bahrul ulum': 'Ust. M Bahrul Ulum',
+        };
+        const STRUKTUR_UPGRADE_MAP: Record<string, string> = {
+          ...SPELLING_UPGRADE_MAP,
+          'ust. syarif hidayatullah': 'Ust. H Zaenal Arifin',
+          'ustadz syarif hidayatullah': 'Ust. H Zaenal Arifin',
+          'ust. ahmad mujiburrohman': 'Ust. M Nur Arif Hakam',
+          'usth. siti maryam': 'Usth. Nella Aprilia',
+          'ust. abdul fattah': 'Kyai Abdul Haq',
+          'ust. fathoni': 'Ust. Nurdiyansyah',
+        };
+        const CORE_ACCOUNT_SYNC_IDS = new Set(['u-madin', 'u-sekretaris', 'u-guru', 'u-bendahara', 'u-bk']);
+
+        // Filter & upgrade persisted userAccounts before syncing
+        const rawAccounts = (persisted.userAccounts || SEED_USERS).filter((acc) => {
+          const normAccName = (acc.nama || '').trim().toLowerCase();
+          if (REMOVED_ACCOUNT_IDS.has(acc.id)) return false;
+          if (acc.ustadzId && REMOVED_USTADZ_IDS.has(acc.ustadzId)) return false;
+          if (REMOVED_TEACHER_NAMES.has(normAccName)) return false;
+          return true;
+        }).map((acc) => {
+          if (CORE_ACCOUNT_SYNC_IDS.has(acc.id)) {
+            const seedCore = SEED_USERS.find((s) => s.id === acc.id);
+            if (seedCore) {
+              return {
+                ...acc,
+                username: seedCore.username,
+                nama: seedCore.nama,
+                email: seedCore.email,
+                noWa: seedCore.noWa,
+                ustadzId: seedCore.ustadzId,
+                peran: seedCore.peran,
+                peranLabel: seedCore.peranLabel,
+                rolesAvailable: seedCore.rolesAvailable,
+                keterangan: seedCore.keterangan,
+              };
+            }
+          }
+          const upgradedName = SPELLING_UPGRADE_MAP[(acc.nama || '').trim().toLowerCase()];
+          return upgradedName ? { ...acc, nama: upgradedName } : acc;
+        });
+
+        // Always keep core & newly seeded individual accounts up to date by ID and deduplicated
+        const seedAccountIds = new Set(rawAccounts.map((u) => u.id));
+        const seedAccountNames = new Set(rawAccounts.map((u) => (u.nama || '').trim().toLowerCase()));
+        const missingAccounts = SEED_USERS.filter(
+          (u) => !seedAccountIds.has(u.id) && !seedAccountNames.has(u.nama.trim().toLowerCase())
+        );
+        merged.userAccounts = [...rawAccounts, ...missingAccounts];
 
         // Ensure new sdm_absensi_monitoring permissions and fiturWewenang stay synced for existing localStorage users
         const existingFiturIds = new Set((merged.fiturWewenang || []).map((f) => f.id));
@@ -4012,38 +4200,153 @@ export const useAppStore = create<AppState>()(
         if (missingFiturs.length > 0) {
           merged.fiturWewenang = [...(merged.fiturWewenang || []), ...missingFiturs];
         }
-        const mergedPerms = { ...(merged.rolePermissions || DEFAULT_ROLE_PERMS) };
-        (['admin_sistem', 'pengasuh', 'kepala_madin', 'sekretaris'] as const).forEach((roleKey) => {
+        // Backfill missing fitur permissions per role ONLY when key was previously undefined
+        // (so intentional admin revocation to [] is preserved!)
+        const mergedPerms: Record<string, Record<string, string[]>> = {
+          ...(merged.rolePermissions || DEFAULT_ROLE_PERMS),
+        };
+        Object.keys(DEFAULT_ROLE_PERMS).forEach((roleKey) => {
           const baseRolePerms = DEFAULT_ROLE_PERMS[roleKey] || {};
-          const savedRolePerms = mergedPerms[roleKey] || {};
-          if (!savedRolePerms.sdm_absensi_monitoring && baseRolePerms.sdm_absensi_monitoring) {
-            mergedPerms[roleKey] = {
-              ...savedRolePerms,
-              sdm_absensi_monitoring: baseRolePerms.sdm_absensi_monitoring,
-            };
-          }
+          const savedRolePerms = { ...(mergedPerms[roleKey] || {}) };
+          Object.entries(baseRolePerms).forEach(([fiturId, defaultActions]) => {
+            if (savedRolePerms[fiturId] === undefined) {
+              savedRolePerms[fiturId] = [...defaultActions];
+            }
+          });
+          mergedPerms[roleKey] = savedRolePerms;
         });
+        // Ensure kepala_madin has 'hapus' on maarifan_absensi and wali_santri POS defaults to read-only ('baca')
+        if (
+          Array.isArray(mergedPerms.kepala_madin?.maarifan_absensi) &&
+          mergedPerms.kepala_madin.maarifan_absensi.includes('ubah') &&
+          !mergedPerms.kepala_madin.maarifan_absensi.includes('hapus')
+        ) {
+          mergedPerms.kepala_madin.maarifan_absensi = [
+            ...mergedPerms.kepala_madin.maarifan_absensi,
+            'hapus',
+          ];
+        }
+        if (
+          Array.isArray(mergedPerms.wali_santri?.transaksi_kartu_pos) &&
+          mergedPerms.wali_santri.transaksi_kartu_pos.includes('tulis')
+        ) {
+          mergedPerms.wali_santri.transaksi_kartu_pos = ['baca'];
+        }
         merged.rolePermissions = mergedPerms;
 
-        // Cleanly merge newly seeded asatidz (ust-16..ust-32), payroll, and availability when operational records exist
+        // Cleanly merge newly seeded asatidz without duplicating entries added earlier by user (check ID & normalized name)
         const hasOperationalSantri = (persisted.santriList?.length ?? 1) > 0;
         if (hasOperationalSantri) {
-          const existingUstIds = new Set((persisted.ustadzList || []).map((u) => u.id));
-          const missingUst = SEED_USTADZ_LIST.filter((u) => !existingUstIds.has(u.id));
-          merged.ustadzList = [...(persisted.ustadzList || SEED_USTADZ_LIST), ...missingUst];
+          const cleanedUstList = (persisted.ustadzList || SEED_USTADZ_LIST)
+            .filter((u) => !REMOVED_USTADZ_IDS.has(u.id) && !REMOVED_TEACHER_NAMES.has(u.nama.trim().toLowerCase()))
+            .map((u) => {
+              const upgradedName = SPELLING_UPGRADE_MAP[u.nama.trim().toLowerCase()];
+              return upgradedName ? { ...u, nama: upgradedName } : u;
+            });
+          const dedupedUstList: typeof cleanedUstList = [];
+          const seenUstIds = new Set<string>();
+          const seenUstNames = new Set<string>();
+          cleanedUstList.forEach((u) => {
+            const norm = u.nama.trim().toLowerCase();
+            if (seenUstIds.has(u.id) || seenUstNames.has(norm)) return;
+            seenUstIds.add(u.id);
+            seenUstNames.add(norm);
+            dedupedUstList.push(u);
+          });
+          const missingUst = SEED_USTADZ_LIST.filter(
+            (u) => !seenUstIds.has(u.id) && !seenUstNames.has(u.nama.trim().toLowerCase())
+          );
+          merged.ustadzList = [...dedupedUstList, ...missingUst];
 
-          const existingPayIds = new Set((persisted.ustadzPayroll || []).map((p) => p.ustadzId));
+          const cleanedPay = (persisted.ustadzPayroll || SEED_USTADZ_PAYROLL).filter(
+            (p) => !REMOVED_USTADZ_IDS.has(p.ustadzId)
+          );
+          const existingPayIds = new Set(cleanedPay.map((p) => p.ustadzId));
           const missingPay = SEED_USTADZ_PAYROLL.filter((p) => !existingPayIds.has(p.ustadzId));
-          merged.ustadzPayroll = [...(persisted.ustadzPayroll || SEED_USTADZ_PAYROLL), ...missingPay];
+          merged.ustadzPayroll = [...cleanedPay, ...missingPay];
 
-          const existingAvailIds = new Set((persisted.guruAvailability || []).map((g) => g.ustadzId));
+          const cleanedAvail = (persisted.guruAvailability || SEED_GURU_AVAILABILITY).filter(
+            (g) => !REMOVED_USTADZ_IDS.has(g.ustadzId)
+          );
+          const existingAvailIds = new Set(cleanedAvail.map((g) => g.ustadzId));
           const missingAvail = SEED_GURU_AVAILABILITY.filter((g) => !existingAvailIds.has(g.ustadzId));
-          merged.guruAvailability = [...(persisted.guruAvailability || SEED_GURU_AVAILABILITY), ...missingAvail];
+          merged.guruAvailability = [...cleanedAvail, ...missingAvail];
         }
+
+        // Migrate Struktur Kepengurusan (Bagan Organisasi & Pengurus Struktur) when holding removed dummy names
+        if (Array.isArray(merged.baganOrganisasi)) {
+          merged.baganOrganisasi = merged.baganOrganisasi.map((node) => {
+            const upgraded = STRUKTUR_UPGRADE_MAP[(node.pemangku || '').trim().toLowerCase()];
+            return upgraded ? { ...node, pemangku: upgraded } : node;
+          });
+        }
+        if (Array.isArray(merged.pengurusStruktur)) {
+          merged.pengurusStruktur = merged.pengurusStruktur.map((row) => {
+            const upgraded = STRUKTUR_UPGRADE_MAP[(row.nama || '').trim().toLowerCase()];
+            return upgraded ? { ...row, nama: upgraded } : row;
+          });
+        }
+        if (Array.isArray(merged.jadwalKeamanan)) {
+          merged.jadwalKeamanan = merged.jadwalKeamanan.map((jk) => {
+            const upgradedKoord = STRUKTUR_UPGRADE_MAP[(jk.koordinator || '').trim().toLowerCase()];
+            const nextPetugas = jk.petugas === 'Pak Slamet' ? 'Pak Riyadi' : jk.petugas;
+            return {
+              ...jk,
+              koordinator: upgradedKoord || jk.koordinator,
+              petugas: nextPetugas,
+            };
+          });
+        }
+
         if (!Array.isArray(persisted.munaqosyahRecords) || persisted.munaqosyahRecords.length === 0) {
           merged.munaqosyahRecords = SEED_MUNAQOSYAH_RECORDS;
         }
         merged.isDemoMode = false;
+
+        // Auto-sync missing user accounts for all ustadzList (including newly seeded & user-added ustadz)
+        const accList = [...(merged.userAccounts || SEED_USERS)];
+        const accIds = new Set(accList.map((a) => a.id));
+        const accUsernames = new Set(accList.map((a) => a.username.toLowerCase()));
+        const accUstadzIds = new Set(accList.map((a) => a.ustadzId).filter(Boolean));
+        const accNames = new Set(accList.map((a) => a.nama.trim().toLowerCase()));
+
+        (merged.ustadzList || []).forEach((ust) => {
+          const normName = ust.nama.trim().toLowerCase();
+          if (accUstadzIds.has(ust.id) || accNames.has(normName)) return;
+          const baseSlug =
+            ust.nama
+              .toLowerCase()
+              .replace(/^(kh\.|k\.|kyai|nyai\s+hj\.|nyai\.|usth\.|ustzh\.|ustd\.|ust\.|m\.|h\.|hj\.)\s*/gi, '')
+              .replace(/[^a-z0-9]/g, '') || ust.id;
+          let uname = baseSlug;
+          let c = 2;
+          while (accUsernames.has(uname.toLowerCase())) {
+            uname = `${baseSlug}${c}`;
+            c += 1;
+          }
+          accIds.add(`u-${ust.id}`);
+          accUsernames.add(uname.toLowerCase());
+          accUstadzIds.add(ust.id);
+          accNames.add(normName);
+          accList.push({
+            id: `u-${ust.id}`,
+            username: uname,
+            nama: ust.nama,
+            email: `${uname}@darussalam.id`,
+            noWa: (ust.noHP || '').replace(/[^0-9]/g, ''),
+            password: 'darussalam2026',
+            ustadzId: ust.id,
+            peran: 'guru_pengampu',
+            peranLabel: ust.jabatanUtama || 'Guru Madrasah Diniyah',
+            avatar:
+              ust.gender === 'P'
+                ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80'
+                : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+            rolesAvailable: ['guru_pengampu'],
+            keterangan: `Akun pengajar individu: ${ust.jabatanUtama}`,
+          });
+        });
+        merged.userAccounts = accList;
 
         // Ensure administrator account (admin / admin) is always available and migrated from legacy seed password
         const seedAdmin = SEED_USERS.find((u) => u.id === 'u-admin' || u.username === 'admin');
@@ -4094,6 +4397,7 @@ export const useAppStore = create<AppState>()(
           statistik: {
             ...DEFAULT_LANDING_CONFIG.statistik,
             ...(persisted.landingConfig?.statistik || {}),
+            asatidz: (merged.ustadzList || []).length || DEFAULT_LANDING_CONFIG.statistik.asatidz,
           },
           kontak: {
             ...DEFAULT_LANDING_CONFIG.kontak,

@@ -32,11 +32,18 @@ export const TransaksiModule: React.FC = () => {
     toggleStatusKartu,
   } = useAppStore();
 
-  const { effectiveRole } = useAuth();
+  const { effectiveRole, can } = useAuth();
+  const isWaliReadOnly = effectiveRole === 'wali_santri' || !can('transaksi_kartu_pos', 'tulis');
 
   const [activeTab, setActiveTab] = useState<'pos_kantin' | 'wali_portal' | 'laundry' | 'rekap_kas'>(
     effectiveRole === 'wali_santri' ? 'wali_portal' : 'pos_kantin'
   );
+
+  React.useEffect(() => {
+    if (effectiveRole === 'wali_santri' && activeTab !== 'wali_portal') {
+      setActiveTab('wali_portal');
+    }
+  }, [effectiveRole, activeTab]);
 
   // POS State
   const [tapCardNis, setTapCardNis] = useState<string>('24.1001');
@@ -127,45 +134,51 @@ export const TransaksiModule: React.FC = () => {
           </p>
         </div>
 
-        {/* Tab switch */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          <button
-            onClick={() => setActiveTab('pos_kantin')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              activeTab === 'pos_kantin' ? 'bg-emerald-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            Kasir Kantin (Touchscreen POS)
-          </button>
-          <button
-            onClick={() => setActiveTab('wali_portal')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              activeTab === 'wali_portal' ? 'bg-emerald-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            Portal Wali (Top Up & Limit)
-          </button>
-          <button
-            onClick={() => setActiveTab('laundry')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              activeTab === 'laundry' ? 'bg-emerald-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            Unit Laundry Pondok
-          </button>
-          <button
-            onClick={() => setActiveTab('rekap_kas')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              activeTab === 'rekap_kas' ? 'bg-emerald-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            Rekap Harian Transaksi
-          </button>
-        </div>
+        {/* Tab switch (wali_santri hanya melihat Portal Kartu & POS Santri) */}
+        {effectiveRole !== 'wali_santri' ? (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            <button
+              onClick={() => setActiveTab('pos_kantin')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                activeTab === 'pos_kantin' ? 'bg-emerald-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              Kasir Kantin (Touchscreen POS)
+            </button>
+            <button
+              onClick={() => setActiveTab('wali_portal')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                activeTab === 'wali_portal' ? 'bg-emerald-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              Portal Wali (Top Up & Limit)
+            </button>
+            <button
+              onClick={() => setActiveTab('laundry')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                activeTab === 'laundry' ? 'bg-emerald-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              Unit Laundry Pondok
+            </button>
+            <button
+              onClick={() => setActiveTab('rekap_kas')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                activeTab === 'rekap_kas' ? 'bg-emerald-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              Rekap Harian Transaksi
+            </button>
+          </div>
+        ) : (
+          <span className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold whitespace-nowrap">
+            Mode Lihat Saja · Informasi Kartu &amp; POS Santri
+          </span>
+        )}
       </div>
 
       {/* TAB 1: KASIR KANTIN TOUCHSCREEN POS */}
-      {activeTab === 'pos_kantin' && (
+      {effectiveRole !== 'wali_santri' && activeTab === 'pos_kantin' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left: Product Catalog (7 cols) */}
           <div className="lg:col-span-7 space-y-4">
@@ -395,103 +408,129 @@ export const TransaksiModule: React.FC = () => {
                 <span>
                   Batas Belanja Harian: <strong>Rp {childSantri.limitHarian.toLocaleString('id-ID')}</strong>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => toggleStatusKartu(childSantri.id)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                    childSantri.statusKartu === 'Aktif'
-                      ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                      : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                  }`}
-                >
-                  {childSantri.statusKartu === 'Aktif' ? (
-                    <>
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Kunci / Blokir Kartu</span>
-                    </>
-                  ) : (
-                    <>
-                      <Unlock className="w-3.5 h-3.5" />
-                      <span>Buka Blokir Kartu</span>
-                    </>
-                  )}
-                </button>
+                {isWaliReadOnly ? (
+                  <span
+                    className={`px-3 py-1 rounded-lg text-xs font-bold ${
+                      childSantri.statusKartu === 'Aktif'
+                        ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30'
+                        : 'bg-rose-500/30 text-rose-200 border border-rose-400/30'
+                    }`}
+                  >
+                    Status Kartu: {childSantri.statusKartu}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggleStatusKartu(childSantri.id)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                      childSantri.statusKartu === 'Aktif'
+                        ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                        : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                    }`}
+                  >
+                    {childSantri.statusKartu === 'Aktif' ? (
+                      <>
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Kunci / Blokir Kartu</span>
+                      </>
+                    ) : (
+                      <>
+                        <Unlock className="w-3.5 h-3.5" />
+                        <span>Buka Blokir Kartu</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Setting Batas Jajan Harian */}
-            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
-              <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                <Sliders className="w-4 h-4 text-emerald-700" />
-                <span>Atur Batas Belanja Harian (Maksimal Jajan per Hari)</span>
-              </h4>
-              <p className="text-[11px] text-slate-500">
-                Santri tidak dapat bertransaksi di kantin jika total jajan dalam 1 hari melebihi batas ini.
-              </p>
-              <div className="flex items-center gap-3">
-                {[15000, 20000, 25000, 35000, 50000].map((limitVal) => (
+            {isWaliReadOnly ? (
+              <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50/70 text-xs text-amber-950 flex items-start gap-2.5">
+                <Shield className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Mode Lihat Saja (Wali Santri)</p>
+                  <p className="text-[11px] text-amber-900/90 mt-0.5">
+                    Anda dapat memantau saldo kartu jajan, batas belanja harian, riwayat transaksi POS kantin, tagihan syahriyah, serta status paket titipan ananda. Pengisian saldo (Top Up) dan perubahan limit dilakukan melalui petugas Kasir Kantin / Bendahara Pondok.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Setting Batas Jajan Harian */}
+                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
+                  <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <Sliders className="w-4 h-4 text-emerald-700" />
+                    <span>Atur Batas Belanja Harian (Maksimal Jajan per Hari)</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Santri tidak dapat bertransaksi di kantin jika total jajan dalam 1 hari melebihi batas ini.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {[15000, 20000, 25000, 35000, 50000].map((limitVal) => (
+                      <button
+                        key={limitVal}
+                        type="button"
+                        onClick={() => updateLimitHarian(childSantri.id, limitVal)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                          childSantri.limitHarian === limitVal
+                            ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        Rp {limitVal.toLocaleString('id-ID')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Form Top Up Cepat */}
+                <form onSubmit={handleTopUpSubmit} className="space-y-4">
+                  <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <ArrowDownLeft className="w-4 h-4 text-emerald-700" />
+                    <span>Top Up Saldo Kartu Jajan Santri</span>
+                  </h4>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {[25000, 50000, 100000].map((nominal) => (
+                      <button
+                        key={nominal}
+                        type="button"
+                        onClick={() => setTopUpNominal(nominal)}
+                        className={`p-2.5 rounded-xl text-xs font-bold border transition ${
+                          topUpNominal === nominal
+                            ? 'bg-emerald-800 text-white border-emerald-800'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        Rp {nominal.toLocaleString('id-ID')}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Metode Pembayaran Transfer
+                    </label>
+                    <select
+                      value={topUpMetode}
+                      onChange={(e) => setTopUpMetode(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 p-2 text-xs"
+                    >
+                      <option value="QRIS Instan (GoPay/OVO/ShopeePay)">QRIS Instan (Scan Barcode)</option>
+                      <option value="Virtual Account BCA / BSI">Virtual Account BSI / BCA</option>
+                      <option value="Transfer Bank Syariah Indonesia (BSI)">Transfer Bank BSI</option>
+                    </select>
+                  </div>
+
                   <button
-                    key={limitVal}
-                    type="button"
-                    onClick={() => updateLimitHarian(childSantri.id, limitVal)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
-                      childSantri.limitHarian === limitVal
-                        ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
-                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                    }`}
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs shadow-md transition"
                   >
-                    Rp {limitVal.toLocaleString('id-ID')}
+                    Kirim Top Up Sekarang (Simulasi)
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Form Top Up Cepat */}
-            <form onSubmit={handleTopUpSubmit} className="space-y-4">
-              <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                <ArrowDownLeft className="w-4 h-4 text-emerald-700" />
-                <span>Top Up Saldo Kartu Jajan Santri</span>
-              </h4>
-
-              <div className="grid grid-cols-3 gap-2">
-                {[25000, 50000, 100000].map((nominal) => (
-                  <button
-                    key={nominal}
-                    type="button"
-                    onClick={() => setTopUpNominal(nominal)}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition ${
-                      topUpNominal === nominal
-                        ? 'bg-emerald-800 text-white border-emerald-800'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    Rp {nominal.toLocaleString('id-ID')}
-                  </button>
-                ))}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Metode Pembayaran Transfer
-                </label>
-                <select
-                  value={topUpMetode}
-                  onChange={(e) => setTopUpMetode(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-2 text-xs"
-                >
-                  <option value="QRIS Instan (GoPay/OVO/ShopeePay)">QRIS Instan (Scan Barcode)</option>
-                  <option value="Virtual Account BCA / BSI">Virtual Account BSI / BCA</option>
-                  <option value="Transfer Bank Syariah Indonesia (BSI)">Transfer Bank BSI</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs shadow-md transition"
-              >
-                Kirim Top Up Sekarang (Simulasi)
-              </button>
-            </form>
+                </form>
+              </>
+            )}
 
             {/* Tagihan Syahriyah Bulanan, Daftar Ulang & Agenda Kema'hadiyahan (Terhubung ke Bendahara) */}
             <div className="pt-5 border-t border-slate-200 space-y-3">
@@ -523,15 +562,17 @@ export const TransaksiModule: React.FC = () => {
                         <span className="text-xs font-extrabold tabular-nums text-rose-700">
                           Total Tanggungan: Rp {totalSisaChild.toLocaleString('id-ID')}
                         </span>
-                        <select
-                          value={waliBillMetode}
-                          onChange={(e) => setWaliBillMetode(e.target.value)}
-                          className="rounded-lg border border-slate-300 px-2.5 py-1 text-[11px] font-semibold bg-white"
-                        >
-                          <option value="Virtual Account BSI">VA BSI</option>
-                          <option value="QRIS Pondok">QRIS Pondok</option>
-                          <option value="Transfer Bank BRI">Transfer BRI</option>
-                        </select>
+                        {!isWaliReadOnly && (
+                          <select
+                            value={waliBillMetode}
+                            onChange={(e) => setWaliBillMetode(e.target.value)}
+                            className="rounded-lg border border-slate-300 px-2.5 py-1 text-[11px] font-semibold bg-white"
+                          >
+                            <option value="Virtual Account BSI">VA BSI</option>
+                            <option value="QRIS Pondok">QRIS Pondok</option>
+                            <option value="Transfer Bank BRI">Transfer BRI</option>
+                          </select>
+                        )}
                       </div>
                     </div>
 
@@ -584,24 +625,30 @@ export const TransaksiModule: React.FC = () => {
                                   </p>
                                 </div>
                                 {sisa > 0 ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      bayarTagihanSantri(
-                                        bill.id,
-                                        sisa,
-                                        waliBillMetode,
-                                        `Dibayar oleh Wali via Portal (${waliBillMetode})`
-                                      );
-                                      setWaliBillMessage(
-                                        `Pembayaran ${bill.judulTagihan} Rp ${sisa.toLocaleString('id-ID')} berhasil diposting ke Bendahara Pondok.`
-                                      );
-                                      setTimeout(() => setWaliBillMessage(''), 4500);
-                                    }}
-                                    className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold whitespace-nowrap"
-                                  >
-                                    Bayar Lunas
-                                  </button>
+                                  !isWaliReadOnly ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        bayarTagihanSantri(
+                                          bill.id,
+                                          sisa,
+                                          waliBillMetode,
+                                          `Dibayar oleh Wali via Portal (${waliBillMetode})`
+                                        );
+                                        setWaliBillMessage(
+                                          `Pembayaran ${bill.judulTagihan} Rp ${sisa.toLocaleString('id-ID')} berhasil diposting ke Bendahara Pondok.`
+                                        );
+                                        setTimeout(() => setWaliBillMessage(''), 4500);
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold whitespace-nowrap"
+                                    >
+                                      Bayar Lunas
+                                    </button>
+                                  ) : (
+                                    <span className="px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold whitespace-nowrap">
+                                      {bill.status}
+                                    </span>
+                                  )
                                 ) : (
                                   <span className="text-[11px] font-bold text-emerald-700">Lunas</span>
                                 )}
@@ -694,12 +741,71 @@ export const TransaksiModule: React.FC = () => {
                 );
               })()}
             </div>
+
+            {/* Riwayat Transaksi Kartu POS Ananda (Lihat Saja) */}
+            <div className="pt-5 border-t border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-emerald-700" />
+                  <span>Riwayat Transaksi Kartu POS ({childSantri.nama})</span>
+                </h4>
+                <span className="text-[11px] font-bold text-slate-500">
+                  {transaksiList.filter((t) => t.santriId === childSantri.id).length} Catatan
+                </span>
+              </div>
+              {(() => {
+                const childTrx = transaksiList.filter((t) => t.santriId === childSantri.id);
+                if (childTrx.length === 0) {
+                  return (
+                    <div className="p-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 text-center text-xs text-slate-500">
+                      Belum ada transaksi POS tercatat untuk {childSantri.nama}.
+                    </div>
+                  );
+                }
+                return (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 text-left">
+                          <th className="py-2 px-3">Waktu</th>
+                          <th className="py-2 px-3">Jenis</th>
+                          <th className="py-2 px-3">Keterangan</th>
+                          <th className="py-2 px-3 text-right">Nominal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-semibold">
+                        {childTrx.slice(0, 15).map((trx) => (
+                          <tr key={trx.id}>
+                            <td className="py-2 px-3 tabular-nums text-slate-400">{trx.waktu}</td>
+                            <td className="py-2 px-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  trx.tipe === 'Top Up'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {trx.tipe}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-slate-600">{trx.keterangan}</td>
+                            <td className="py-2 px-3 text-right tabular-nums text-slate-900">
+                              Rp {trx.nominal.toLocaleString('id-ID')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
       )}
 
       {/* TAB 3: LAUNDRY PONDOK (UNIT USAHA) */}
-      {activeTab === 'laundry' && (
+      {effectiveRole !== 'wali_santri' && activeTab === 'laundry' && (
         <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 max-w-3xl mx-auto">
           <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
             <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center">
@@ -723,7 +829,7 @@ export const TransaksiModule: React.FC = () => {
       )}
 
       {/* TAB 4: REKAP HARIAN TRANSAKSI KANTIN */}
-      {activeTab === 'rekap_kas' && (
+      {effectiveRole !== 'wali_santri' && activeTab === 'rekap_kas' && (
         <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>

@@ -40,23 +40,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
   const faqs = landingConfig.faqs;
 
   return (
-    <div className="min-h-screen bg-[#F6F3EA] text-slate-800 font-sans selection:bg-emerald-200">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F6F3EA] text-slate-800 font-sans selection:bg-emerald-200">
       {/* Top Navbar */}
       <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-emerald-900/10 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-3">
-          {/* Logo & Brand (Single-row clean lockup) */}
-          <div className="flex items-center gap-2.5 shrink-0">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between gap-2 sm:gap-3">
+          {/* Logo & Brand (Responsive lockup, never overflows 360px screens) */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             <img
               src="/assets/aistudio/preview__14__3b7f388f.webp"
               alt="Logo PP NU Darussalam"
-              className="w-10 h-10 object-contain shrink-0"
+              className="w-9 h-9 sm:w-10 sm:h-10 object-contain shrink-0"
             />
-            <div className="flex flex-col justify-center">
-              <span className="font-extrabold text-emerald-950 text-sm sm:text-base tracking-tight whitespace-nowrap leading-tight">
+            <div className="flex flex-col justify-center min-w-0">
+              <span className="font-extrabold text-emerald-950 text-xs sm:text-base tracking-tight truncate leading-tight">
                 PP NU Darussalam
               </span>
-              <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap leading-tight">
-                Karangdadap · Kab. Pekalongan
+              <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium truncate leading-tight">
+                Karangdadap · Pekalongan
               </span>
             </div>
           </div>
@@ -90,9 +90,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
             </a>
           </div>
 
-          {/* Action Buttons (Single-line height, never wrapping) */}
-          <div className="flex items-center gap-2 shrink-0">
-            <PWAInstallButton variant="header" />
+          {/* Action Buttons (Single-line height, fits cleanly on 360px+ mobile) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="hidden sm:block">
+              <PWAInstallButton variant="header" />
+            </div>
 
             <button
               type="button"
@@ -112,7 +114,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
 
             <button
               onClick={onGoToLogin}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl transition shadow-xs whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl transition shadow-xs whitespace-nowrap shrink-0"
             >
               <span>Masuk ERP</span>
               <ArrowRight className="w-3.5 h-3.5 shrink-0" />
@@ -121,7 +123,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
             {/* Mobile Menu Toggle Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="xl:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 border border-slate-200 transition shrink-0"
+              className="xl:hidden p-1.5 sm:p-2 rounded-xl text-slate-700 hover:bg-slate-100 border border-slate-200 transition shrink-0"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -203,20 +205,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28">
+      <section className="relative overflow-hidden pt-10 pb-16 lg:pt-20 lg:pb-28">
         {/* Subtle geometric orbs */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-emerald-200/40 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-amber-200/30 blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-72 sm:w-96 h-72 sm:h-96 rounded-full bg-emerald-200/40 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-72 sm:w-96 h-72 sm:h-96 rounded-full bg-amber-200/30 blur-3xl pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-xs font-bold shadow-2xs">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                <span>{landingConfig.tahunAjaranLabel}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            <div className="lg:col-span-7 space-y-6 min-w-0">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-xs font-bold shadow-2xs max-w-full">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span className="truncate">{landingConfig.tahunAjaranLabel}</span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-emerald-950 tracking-tight leading-tight">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-emerald-950 tracking-tight leading-tight break-words">
                 {landingConfig.heroJudul}
               </h1>
 
@@ -225,52 +227,52 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
               </p>
 
               {/* CTAs */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3 pt-2">
                 <button
                   onClick={onGoToPSB}
-                  className="px-6 py-3 rounded-xl bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-md hover:bg-emerald-900 transition flex items-center gap-2"
+                  className="px-5 sm:px-6 py-3 rounded-xl bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-md hover:bg-emerald-900 transition flex items-center justify-center gap-2"
                 >
-                  <GraduationCap className="w-4 h-4" />
+                  <GraduationCap className="w-4 h-4 shrink-0" />
                   <span>Daftar Santri Baru (PSB Online)</span>
                 </button>
                 <button
                   type="button"
                   onClick={onOpenKhazanahApp}
-                  className="px-5 py-3 rounded-xl bg-[#00897B] text-white text-xs sm:text-sm font-bold shadow-md hover:bg-[#007366] transition flex items-center gap-2"
+                  className="px-5 py-3 rounded-xl bg-[#00897B] text-white text-xs sm:text-sm font-bold shadow-md hover:bg-[#007366] transition flex items-center justify-center gap-2"
                 >
-                  <BookOpen className="w-4 h-4 text-amber-200" />
+                  <BookOpen className="w-4 h-4 text-amber-200 shrink-0" />
                   <span>Buka Aplikasi Ibadah &amp; Khazanah</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 shrink-0" />
                 </button>
                 <a
                   href="#biaya"
-                  className="px-5 py-3 rounded-xl bg-white text-emerald-900 border border-emerald-300 text-xs sm:text-sm font-bold shadow-xs hover:bg-emerald-50 transition flex items-center gap-2"
+                  className="px-5 py-3 rounded-xl bg-white text-emerald-900 border border-emerald-300 text-xs sm:text-sm font-bold shadow-xs hover:bg-emerald-50 transition flex items-center justify-center gap-2"
                 >
-                  <BookOpen className="w-4 h-4 text-emerald-700" />
+                  <BookOpen className="w-4 h-4 text-emerald-700 shrink-0" />
                   <span>Rincian Biaya & Perlengkapan</span>
                 </a>
               </div>
 
               {/* Badges */}
-              <div className="pt-4 flex flex-wrap gap-4 text-xs text-slate-600">
+              <div className="pt-4 flex flex-wrap gap-3 sm:gap-4 text-xs text-slate-600">
                 <span className="flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4 text-emerald-700" />
+                  <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
                   Asrama Putra & Putri Terpisah
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4 text-emerald-700" />
+                  <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
                   Laundry Dikelola Pondok
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4 text-emerald-700" />
+                  <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
                   Kantin Cashless Tap RFID
                 </span>
               </div>
             </div>
 
             {/* Right Card / Visual */}
-            <div className="lg:col-span-5">
-              <div className="relative rounded-3xl bg-gradient-to-br from-emerald-900 to-emerald-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-800">
+            <div className="lg:col-span-5 min-w-0">
+              <div className="relative rounded-3xl bg-gradient-to-br from-emerald-900 to-emerald-950 p-5 sm:p-8 text-white shadow-2xl border border-emerald-800">
                 <div className="flex items-center justify-between border-b border-emerald-800/80 pb-4">
                   <div className="flex items-center gap-3">
                     <img
@@ -436,9 +438,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGoToLogin, onGoToPSB
             </p>
           </div>
 
-          <div className="relative border-l-2 border-emerald-200 ml-4 md:ml-32 space-y-6">
+          <div className="relative border-l-2 border-emerald-200 ml-2 sm:ml-4 md:ml-32 space-y-5 sm:space-y-6">
             {landingConfig.kegiatanHarian.map((item, idx) => (
-              <div key={idx} className="relative pl-6 sm:pl-8 group">
+              <div key={idx} className="relative pl-5 sm:pl-8 group">
                 {/* Dot */}
                 <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-white border-4 border-emerald-700 group-hover:scale-125 transition" />
                 <div className="rounded-2xl bg-[#F6F3EA] p-4 sm:p-5 border border-emerald-900/10 shadow-2xs">

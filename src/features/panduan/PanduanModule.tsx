@@ -29,8 +29,8 @@ export const PanduanModule: React.FC = () => {
       title: 'Panduan Absensi Satpam HP (Pak Riyadi, Pak Suwarno, Pak Sopoyono)',
       icon: Shield,
       steps: [
-        'Pasang aplikasi ERP ke HP Android (Chrome > Install Aplikasi) atau iPhone (Safari > Tambah ke Layar Utama).',
-        'Login menggunakan username pribadi masing-masing: riyadi, suwarno, atau sopoyono (sandi: darussalam2026).',
+        'Pasang aplikasi ERP ke HP Android (Chrome > Install Aplikasi) atau iPhone (Safari > Tambah ke Layar Utama) melalui kartu Pemasangan Aplikasi HP di menu Buku Panduan ini.',
+        'Login menggunakan username pribadi masing-masing (riyadi, suwarno, atau sopoyono) dan kata sandi resmi yang diberikan Admin di Hak Akses Role.',
         'Pilih shift jaga aktif (Pagi 07-15, Sore 15-23, Malam 23-07, atau Slot Kontrol Ronda Malam), lalu tekan "Cek In Swafoto + GPS".',
         'Gunakan tombol "Istirahat" untuk jeda sholat/makan, "Cek Out" saat selesai bertugas, atau "Absen Pengajuan / Tukar Shift" jika ada kendala sinyal GPS atau pergantian regu.',
         'Koordinator Keamanan / Pengasuh dapat memantau foto absensi, menyetujui pengajuan, serta mengunduh Rekap Mingguan dan Bulanan dalam format PDF.',
@@ -125,7 +125,43 @@ export const PanduanModule: React.FC = () => {
       {studioTab === 'ppt' && <PanduanPresentationStudio initialMode="ppt" />}
 
       {studioTab === 'buku' && (
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="space-y-6">
+        {/* Pusat Pemasangan Aplikasi Absensi Mobile di HP (PWA) */}
+        <div className="rounded-3xl bg-linear-to-r from-emerald-950 via-emerald-900 to-teal-900 p-5 sm:p-6 text-white shadow-lg border border-emerald-800/60">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold text-amber-300 border border-white/15">
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Aplikasi Mobile PWA · Android &amp; iPhone</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-extrabold tracking-tight">
+                Pasang Aplikasi Absensi Guru &amp; Satpam Langsung di HP
+              </h3>
+              <p className="text-xs text-emerald-100/90 leading-relaxed">
+                Instal aplikasi ERP langsung ke layar utama HP Android (Chrome) atau iPhone (Safari) untuk akses cepat Absensi Swafoto GPS Guru, Absensi Jaga Regu Satpam, Naskah Soal, &amp; Portal Wali Santri tanpa perlu Play Store.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                <div className="rounded-xl bg-white/10 border border-white/15 px-3 py-2">
+                  <p className="font-bold text-amber-300">Android (Google Chrome)</p>
+                  <p className="text-emerald-100 mt-0.5">Tekan tombol Pasang di samping atau menu titik tiga Chrome → Install Aplikasi.</p>
+                </div>
+                <div className="rounded-xl bg-white/10 border border-white/15 px-3 py-2">
+                  <p className="font-bold text-amber-300">iPhone / iPad (Safari)</p>
+                  <p className="text-emerald-100 mt-0.5">Buka di Safari → tekan ikon Bagikan (Share) → pilih Tambah ke Layar Utama.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-start lg:items-end gap-2 shrink-0">
+              <PWAInstallButton variant="button" />
+              <span className="text-[10px] text-emerald-200/80">
+                Pengelolaan akun &amp; kata sandi login terpusat di menu Hak Akses Role.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (8 cols): Step-by-Step Guides */}
         <div className="lg:col-span-8 space-y-4">
           <div className="rounded-2xl bg-white p-4 border border-slate-200 shadow-2xs">
@@ -265,6 +301,7 @@ export const PanduanModule: React.FC = () => {
               <PWAInstallButton variant="button" />
             </div>
           </div>
+        </div>
         </div>
       </div>
       )}

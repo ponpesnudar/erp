@@ -29,7 +29,7 @@ import {
   Legend,
 } from 'recharts';
 import { useAppStore } from '../../lib/store.ts';
-import { useAuth } from '../../lib/auth.ts';
+import { useAuth, canAccessErpTab } from '../../lib/auth.ts';
 import { GlobalDashboard } from './GlobalDashboard.tsx';
 
 interface PortalBerandaProps {
@@ -47,7 +47,7 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
     currentTahunAjaran,
   } = useAppStore();
 
-  const { isFinancialPrivileged, can } = useAuth();
+  const { isFinancialPrivileged, can, effectiveRole } = useAuth();
   const [filterLogModul, setFilterLogModul] = useState<string>('Semua');
 
   // Chart data: Santri per kelas
@@ -103,7 +103,7 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
           <p className="text-xs text-emerald-100 leading-relaxed">
             Selamat datang di Sistem ERP Pondok Pesantren NU Darussalam Karangdadap, Pekalongan. Seluruh administrasi santri, imtihan, persuratan, dan keuangan terintegrasi real-time.
           </p>
-          {!['wali_santri', 'kasir_kantin'].includes(activeRole) && (
+          {canAccessErpTab('sdm_absensi', effectiveRole, can) && (
             <div className="pt-1 flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -164,7 +164,7 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
                   badge: 'Harian',
                   color: 'text-blue-700 bg-blue-50',
                 },
-                ...(!['wali_santri', 'kasir_kantin'].includes(activeRole)
+                ...(!['wali_santri', 'kasir_kantin'].includes(effectiveRole)
                   ? [
                       {
                         id: 'sdm_absensi',
@@ -228,19 +228,21 @@ export const PortalBeranda: React.FC<PortalBerandaProps> = ({ onNavigate }) => {
                   badge: 'Online',
                   color: 'text-cyan-700 bg-cyan-50',
                 },
-                ...(activeRole === 'admin_sistem'
+                ...((effectiveRole === 'admin_sistem')
                   ? [
                       {
                         id: 'akses',
                         title: 'Hak Akses Role',
-                        desc: 'Peta wewenang & kartu fitur chip aksi berwarna',
+                        desc: 'Peta wewenang, matriks izin & akun login guru',
                         icon: KeyRound,
                         badge: 'Admin',
                         color: 'text-slate-800 bg-slate-100',
                       },
                     ]
                   : []),
-              ].map((mod) => {
+              ]
+                .filter((mod) => canAccessErpTab(mod.id, effectiveRole, can))
+                .map((mod) => {
                 const Icon = mod.icon;
                 return (
                   <div

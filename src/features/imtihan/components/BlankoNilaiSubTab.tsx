@@ -30,7 +30,7 @@ export const BlankoNilaiSubTab: React.FC = () => {
   );
   const [cawu, setCawu] = useState<'1' | '2'>(imtihanMaster.cawu || '1');
   const [fillMode, setFillMode] = useState<'kosong' | 'terisi'>('kosong');
-  const [guruPengampu, setGuruPengampu] = useState<string>('Ust. Abdur Rahman');
+  const [guruPengampu, setGuruPengampu] = useState<string>('Ust. Abdurrohman');
   const sheetRef = useRef<HTMLDivElement | null>(null);
 
   const activeSubject =

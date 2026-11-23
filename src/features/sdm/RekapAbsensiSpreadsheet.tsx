@@ -588,7 +588,7 @@ export const RekapAbsensiSpreadsheet: React.FC<RekapAbsensiSpreadsheetProps> = (
     mode === 'guru'
       ? "Pengasuh / Kepala Majlis Ma'arif"
       : 'Pengasuh / Koordinator Keamanan';
-  const leftSignerName = mode === 'guru' ? 'KH. Amin Maizun' : 'KH. Amin Maizun / Ust. Bahrul Ulum';
+  const leftSignerName = mode === 'guru' ? 'KH. Amin Maizun' : 'KH. Amin Maizun / Ust. M Bahrul Ulum';
   const rightSignerTitle =
     mode === 'guru' ? 'Sekretariat & Admin SDM Pondok' : 'Koordinator Keamanan & SDM';
 

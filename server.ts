@@ -51,6 +51,46 @@ function toArabicNomor(n: number): string {
     .join('');
 }
 
+function formatGeminiErrorMessage(err: unknown): { status: number; message: string } {
+  const raw = err instanceof Error ? err.message : String(err || '');
+  const lower = raw.toLowerCase();
+
+  if (
+    lower.includes('403') ||
+    lower.includes('permission_denied') ||
+    lower.includes('access_token_scope_insufficient') ||
+    lower.includes('free tier') ||
+    lower.includes('billing')
+  ) {
+    return {
+      status: 403,
+      message:
+        'Akses Gemini AI ditolak (403 PERMISSION_DENIED). Pastikan GEMINI_API_KEY sudah dipilih/diisi dengan benar dan billing project AI Studio aktif melalui menu Settings > Secrets.',
+    };
+  }
+
+  if (lower.includes('api_key_invalid') || lower.includes('api key not valid') || lower.includes('401')) {
+    return {
+      status: 401,
+      message:
+        'Konfigurasi GEMINI_API_KEY pada server belum valid. Mohon periksa atau perbarui kunci API melalui Settings > Secrets.',
+    };
+  }
+
+  if (lower.includes('429') || lower.includes('resource_exhausted') || lower.includes('quota')) {
+    return {
+      status: 429,
+      message:
+        'Batas permintaan Asisten AI sementara penuh. Silakan tunggu beberapa detik lalu kirim ulang pertanyaan Anda.',
+    };
+  }
+
+  return {
+    status: 500,
+    message: 'Layanan Asisten AI sedang mengalami gangguan koneksi sementara. Silakan coba beberapa saat lagi.',
+  };
+}
+
 // Konversi Soal Bahasa Indonesia (Teks / Gambar) -> Arab Pegon Jawa / Bahasa Arab Berharokat
 app.post('/api/imtihan/convert-soal', async (req, res) => {
   try {
@@ -76,10 +116,10 @@ app.post('/api/imtihan/convert-soal', async (req, res) => {
       });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
       return res.status(503).json({
-        error: 'GEMINI_API_KEY belum dikonfigurasi pada server Secrets.',
+        error: 'GEMINI_API_KEY belum dikonfigurasi pada menu Settings > Secrets.',
       });
     }
 
@@ -132,7 +172,6 @@ Untuk setiap butir soal, keluarkan JSON terstruktur berisi array "items":
       model: 'gemini-4-hydrogen',
       contents: [{ role: 'user', parts }],
       config: {
-        temperature: 0.2,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -176,11 +215,140 @@ Untuk setiap butir soal, keluarkan JSON terstruktur berisi array "items":
     return res.json({ items });
   } catch (err) {
     console.error('Error /api/imtihan/convert-soal:', err);
-    return res.status(500).json({
-      error:
-        err instanceof Error
-          ? err.message
-          : 'Gagal mengonversi soal ke Arab/Pegon.',
+    const formatted = formatGeminiErrorMessage(err);
+    return res.status(formatted.status).json({
+      error: formatted.message,
+    });
+  }
+});
+
+// Asisten Virtual Resmi Pondok & ERP (Server-Side Proxy Gemini API)
+app.post('/api/assistant', async (req, res) => {
+  try {
+    const {
+      prompt = '',
+      contextMode = 'landing_public',
+      moduleContext = 'Beranda Portal',
+      userRole = 'Pengguna',
+      history = [],
+    } = req.body as {
+      prompt?: string;
+      contextMode?: 'landing_public' | 'erp_internal';
+      moduleContext?: string;
+      userRole?: string;
+      history?: Array<{ sender: 'ai' | 'user'; text: string }>;
+    };
+
+    const cleanPrompt = typeof prompt === 'string' ? prompt.trim() : '';
+    if (!cleanPrompt) {
+      return res.status(400).json({ error: 'Pertanyaan tidak boleh kosong.' });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+      return res.status(503).json({
+        error: 'GEMINI_API_KEY belum dikonfigurasi pada menu Settings > Secrets.',
+      });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+    });
+
+    const systemInstruction =
+      contextMode === 'landing_public'
+        ? `Anda adalah Asisten Virtual Resmi Publik Pondok Pesantren NU Darussalam Karangdadap, Kabupaten Pekalongan, Jawa Tengah (51173).
+Pengasuh Pondok: KH. Amin Maizun. Email resmi: nudarussalam21@gmail.com.
+Data Resmi Pondok:
+- Total Santri Mukim: 366 santri (putra & putri terpisah), Dewan Asatidz: 35+ ustadz/ustadzah alumni pesantren salaf, Madrasah Diniyah Salafiyah (Kelas 1 s.d. 6 MDS, 12+ ruang kelas).
+- Asrama: 9 kamar asrama putra dan 10 kamar asrama putri.
+- Fasilitas Utama: Unit Usaha Laundry Pondok (Rp 80.000/bulan, santri tidak mencuci sendiri), Kantin Higienis Non-Tunai / Cashless pakai Kartu Santri Digital RFID (wali bisa pantau & batasi jajan harian), air minum galon.
+- Rincian Biaya Santri Baru: Infaq Pendaftaran Rp 150.000, Daftar Ulang & MOSBA Rp 600.000, 2 Stel Seragam Rp 450.000, Paket Kitab Kuning & Buku Rp 350.000, Syahriyah Bulanan Rp 650.000/bulan (makan 3x, asrama, madrasah diniyah).
+- Alur PSB Online: Klik tombol "Daftar PSB" di halaman utama -> Isi Formulir Pendaftar Baru standar EMIS & unggah foto KK/KIP -> Konfirmasi pembayaran infaq pendaftaran -> Tes baca Al-Qur'an & penetapan kamar/NIS oleh panitia.
+- Jadwal Harian: Mulai 03.45 WIB (qiyamul lail & Subuh jamaah), pengajian kitab kuning bandongan pagi, sekolah formal, madrasah diniyah sore, Nastakmir 15 menit sebelum Maghrib, muhafazhah nadhom & musyawarah kitab malam, wajib tidur 22.00 WIB. Santri mukim reguler dilarang membawa smartphone.
+
+ATURAN KERAS:
+1. Jawablah pertanyaan calon santri dan wali santri secara ramah, santun khas pesantren ("Assalamu'alaikum", "Alhamdulillah", "Nggih"), akurat, dan langsung menjawab inti pertanyaan.
+2. DILARANG membocorkan data internal rahasia (password akun guru/admin, nilai santri perorangan, rincian kas internal, catatan takzir, atau data pribadi santri). Jika ditanya hal internal, tolak dengan sopan dan arahkan agar menghubungi Sekretariat atau login ke Portal ERP.`
+        : `Anda adalah Asisten Cerdas Operasional ERP Pondok Pesantren NU Darussalam Karangdadap, Pekalongan.
+Pengguna saat ini login dengan peran: "${userRole}" dan sedang membuka modul: "${moduleContext}".
+
+PETA FITUR & MODUL ERP AKURAT (gunakan panduan ini untuk menjawab tepat sasaran):
+1. Manajemen Data Login Guru / Ustadz (Username, Password, No. WA OTP):
+   - Dikelola terpusat pada satu tempat saja: modul "Hak Akses Role" (khusus Administrator Sistem) -> tab "Akun Guru & Staf". Di sana Admin dapat melihat daftar akun seluruh Dewan Asatidz (termasuk tombol Lihat/Sembunyikan Kata Sandi, Salin Kredensial, Reset Sandi, Edit No. WA OTP, dan Tambah/Hapus Akun).
+   - Setiap penambahan Ustadz baru di Ma'arifan Diniyah -> Dewan Asatidz otomatis membuatkan akun login ERP-nya di Hak Akses Role.
+2. Imtihan & Nilai:
+   - Pengajuan naskah soal -> Verifikasi Ketua Imtihan / Kepala Madin -> Cetak Kop Arab -> Acak Denah 7 Ruang Bebas Contek -> Kartu Peserta 2MD#079 -> Input Nilai & Cetak Raport Predikat Arab -> RAB Imtihan.
+   - Tersedia konversi teks/foto soal Bahasa Indonesia menjadi Arab Pegon atau Bahasa Arab berharokat di submenu Soal.
+3. Majlis Ilmiah, Perumusan Hadits & Munaqosyah 3D:
+   - Memuat 3 layanan: Simulasi Ruang Sidang Munaqosyah 3D, Forum Bahtsul Masail 4 Madzhab, serta Perumusan & Takhrij Hadits (51 Kitab Hadits Mu'tabarah).
+4. SDM, Absensi Guru & Satpam:
+   - Monitoring Guru real-time, Absensi Mobile Swafoto GPS & Absensi Pengajuan, Rekapitulasi Bulanan (gaya tabel resmi Putra/Putri/Diniyah), Monitoring & Manajemen Shift Satpam (Riyadi Suwarno, Sopoyono, dll.) beserta ekspor PDF. Login guru pengampu otomatis diarahkan langsung ke halaman Absensi Mobile.
+5. BK & Keamanan:
+   - Catatan poin takzir santri, buku tamu, serta antarmuka absensi mobile khusus Satpam (Riyadi Suwarno & Sopoyono).
+6. Sekretariat:
+   - Master Data 366 Santri, Persuratan Resmi, Manajemen Video Tutorial & Slide Presentasi (.pptx) beserta thumbnail kustom, serta editor konten Landing Page.
+7. Buku Panduan & Pemasangan Aplikasi HP (PWA):
+   - Berisi Video Tutorial semua modul, Slide PPT (.pptx), Panduan Pemasangan Aplikasi Absensi di HP Android & iPhone (PWA), dan ekspor database.
+8. Pendaftaran PSB:
+   - Formulir Pendaftar Baru EMIS (publik lewat halaman utama hanya bisa mengakses formulir daftar, tidak bisa masuk ke antrean admin), sedangkan antrean verifikasi & pengesahan menjadi Santri Aktif (penerbitan NIS & kamar) hanya ada di ERP untuk pengurus berwenang.
+
+Jawablah langsung pertanyaan pengguna dalam Bahasa Indonesia yang jelas, ringkas (maksimal 250 kata), terstruktur (poin bernomor bila perlu), dan relevan dengan modul yang sedang dibuka.`;
+
+    const rawHistory = Array.isArray(history)
+      ? history
+          .slice(-10)
+          .filter((h) => h && typeof h.text === 'string' && h.text.trim())
+          .map((h) => ({
+            role: h.sender === 'user' ? ('user' as const) : ('model' as const),
+            parts: [{ text: h.text.trim() }],
+          }))
+      : [];
+
+    const normalizedHistory: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+    for (const entry of rawHistory) {
+      if (normalizedHistory.length === 0 && entry.role === 'model') continue;
+      const prev = normalizedHistory[normalizedHistory.length - 1];
+      if (prev && prev.role === entry.role) {
+        prev.parts[0].text = `${prev.parts[0].text}\n${entry.parts[0].text}`;
+      } else {
+        normalizedHistory.push(entry);
+      }
+    }
+    if (
+      normalizedHistory.length > 0 &&
+      normalizedHistory[normalizedHistory.length - 1].role === 'user'
+    ) {
+      normalizedHistory.pop();
+    }
+
+    const contents = [
+      ...normalizedHistory,
+      { role: 'user' as const, parts: [{ text: cleanPrompt }] },
+    ];
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents,
+      config: {
+        systemInstruction,
+      },
+    });
+
+    const answer = response.text?.trim();
+    if (!answer) {
+      return res.status(502).json({
+        error: 'Asisten AI tidak mengembalikan teks jawaban. Silakan coba ulangi pertanyaan Anda.',
+      });
+    }
+
+    return res.json({ text: answer });
+  } catch (err) {
+    console.error('Error /api/assistant:', err);
+    const formatted = formatGeminiErrorMessage(err);
+    return res.status(formatted.status).json({
+      error: formatted.message,
     });
   }
 });
@@ -195,8 +363,8 @@ app.post('/api/bahtsul-masail', async (req, res) => {
       return res.status(400).json({ error: "Harap masukkan permasalahan (as'ilah) yang akan dibahas." });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
       return res.json({
         ...resolveLocalBahtsulMasail(cleanAsilah),
         fallbackSource: 'kitab_lbm_local',
@@ -216,7 +384,6 @@ Keluarkan JSON sesuai skema dengan rujukan kitab mu'tabarah asli (seperti Tuhfat
       model: 'gemini-4-hydrogen',
       contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       config: {
-        temperature: 0.25,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,

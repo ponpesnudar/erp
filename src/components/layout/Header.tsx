@@ -17,7 +17,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
-import { useAuth } from '../../lib/auth.ts';
+import { useAuth, canAccessErpTab } from '../../lib/auth.ts';
 import { PWAInstallButton } from '../pwa/PWAInstallButton.tsx';
 
 interface HeaderProps {
@@ -48,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
     switchRole,
   } = useAppStore();
 
-  const { effectiveRole } = useAuth();
+  const { effectiveRole, can } = useAuth();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -178,7 +178,9 @@ export const Header: React.FC<HeaderProps> = ({
                   <div
                     key={k.id}
                     onClick={() => {
-                      onSelectModule(k.linkTab);
+                      if (canAccessErpTab(k.linkTab, effectiveRole, can)) {
+                        onSelectModule(k.linkTab);
+                      }
                       setShowNotifications(false);
                     }}
                     className="p-2.5 rounded-xl border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/50 cursor-pointer transition text-left"
@@ -355,19 +357,20 @@ export const Header: React.FC<HeaderProps> = ({
               {[
                 { id: 'beranda', name: 'Beranda Portal', desc: 'KPI & Akses Cepat' },
                 { id: 'imtihan', name: 'Imtihan & Nilai', desc: 'Soal, Denah, Kartu, Raport, RAB' },
+                { id: 'munaqosyah', name: 'Majlis Ilmiah & Munaqosyah 3D', desc: 'Bahtsul Masail, Perumusan Hadits & Sidang 3D' },
                 { id: 'maarifan', name: "Ma'arifan Diniyah", desc: 'Absensi Guru & Santri, Kitab' },
-                ...( !['wali_santri', 'kasir_kantin'].includes(effectiveRole)
-                  ? [{ id: 'sdm_absensi', name: 'SDM & Absensi Guru', desc: 'Monitoring SDM & Absensi Mobile GPS' }]
-                  : [] ),
+                { id: 'sdm_absensi', name: 'SDM & Absensi Guru', desc: 'Monitoring SDM & Absensi Mobile GPS' },
                 { id: 'sekretaris', name: 'Sekretaris', desc: 'Surat Masuk/Keluar & Data Santri' },
                 { id: 'bendahara', name: 'Bendahara', desc: 'Arus Kas, Gaji, Rekap Anggaran' },
                 { id: 'kemahadiyahan', name: "Kema'hadiyahan", desc: 'Bagan Jabatan & Acara PHBI' },
-                { id: 'bk', name: 'BK & Keamanan', desc: 'Pelanggaran Santri & Buku Tamu' },
+                { id: 'bk', name: 'BK & Keamanan', desc: 'Pelanggaran Santri, Buku Tamu & Satpam' },
                 { id: 'transaksi', name: 'Transaksi & POS', desc: 'Kartu Jajan, Kantin & Laundry' },
                 { id: 'psb', name: 'Pendaftaran PSB', desc: 'Verifikasi & Jadikan Santri' },
-                { id: 'akses', name: 'Hak Akses Role', desc: 'Wewenang & Matriks Izin' },
-                { id: 'panduan', name: 'Buku Panduan', desc: 'Petunjuk Penggunaan & FAQ' },
-              ].map((m) => (
+                { id: 'akses', name: 'Hak Akses Role', desc: 'Wewenang, Matriks Izin & Akun Login' },
+                { id: 'panduan', name: 'Buku Panduan', desc: 'Video Tutorial, Slide PPT & PWA' },
+              ]
+                .filter((m) => canAccessErpTab(m.id, effectiveRole, can))
+                .map((m) => (
                 <button
                   key={m.id}
                   onClick={() => {

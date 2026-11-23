@@ -6,14 +6,35 @@ import {
   Upload,
   FileText,
   X,
+  ArrowLeft,
+  ShieldAlert,
 } from 'lucide-react';
 import { useAppStore, PSBApplicant } from '../../lib/store.ts';
 
-export const PSBModule: React.FC = () => {
+interface PSBModuleProps {
+  publicMode?: boolean;
+  onBackToLanding?: () => void;
+  onGoToLogin?: () => void;
+}
+
+export const PSBModule: React.FC<PSBModuleProps> = ({
+  publicMode = false,
+  onBackToLanding,
+  onGoToLogin,
+}) => {
   const { psbList, addPSBApplicant, verifyPSB, convertPSBToSantri, currentTahunAjaran } =
     useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'verifikasi' | 'form_baru'>('verifikasi');
+  const [activeTab, setActiveTab] = useState<'verifikasi' | 'form_baru'>(
+    publicMode ? 'form_baru' : 'verifikasi'
+  );
+  const [submittedReceipt, setSubmittedReceipt] = useState<{
+    nama: string;
+    jenjang: string;
+    wali: string;
+    hpWali: string;
+    tanggal: string;
+  } | null>(null);
 
   // Form New Applicant State (Basic + EMIS)
   const [formNama, setFormNama] = useState('');
@@ -40,7 +61,7 @@ export const PSBModule: React.FC = () => {
   const [dokumenKKUrl, setDokumenKKUrl] = useState('');
   const [dokumenKKName, setDokumenKKName] = useState('');
   const [dokumenKIPUrl, setDokumenKIPUrl] = useState('');
-  const [dokumenKIPName, setDokumenKIPName] = useState('');
+  const [dokumenKIPName, setFormDokumenKIPName] = useState('');
 
   // Convert to Santri Modal & Document Preview Modal
   const [convertingApp, setConvertingApp] = useState<PSBApplicant | null>(null);
@@ -63,7 +84,7 @@ export const PSBModule: React.FC = () => {
         setDokumenKKName(file.name);
       } else {
         setDokumenKIPUrl(result);
-        setDokumenKIPName(file.name);
+        setFormDokumenKIPName(file.name);
       }
     };
     reader.readAsDataURL(file);
@@ -100,20 +121,35 @@ export const PSBModule: React.FC = () => {
       berkasLengkap: Boolean(dokumenKKUrl || formNik),
     });
 
-    setCreatedNisToast(`Formulir EMIS pendaftaran atas nama ${formNama} berhasil didaftarkan.`);
-    setTimeout(() => setCreatedNisToast(''), 4000);
-    setActiveTab('verifikasi');
+    if (publicMode) {
+      setSubmittedReceipt({
+        nama: formNama.trim(),
+        jenjang: formPilihanJenjang,
+        wali: formNamaWali.trim(),
+        hpWali: formHpWali.trim() || '-',
+        tanggal: new Date().toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }),
+      });
+    } else {
+      setCreatedNisToast(`Formulir EMIS pendaftaran atas nama ${formNama} berhasil didaftarkan.`);
+      setTimeout(() => setCreatedNisToast(''), 4000);
+      setActiveTab('verifikasi');
+    }
     setFormNama('');
     setFormNik('');
     setFormNamaWali('');
+    setFormHpWali('');
     setDokumenKKUrl('');
     setDokumenKKName('');
     setDokumenKIPUrl('');
-    setDokumenKIPName('');
+    setFormDokumenKIPName('');
   };
 
   const handleConfirmConvert = () => {
-    if (!convertingApp) return;
+    if (publicMode || !convertingApp) return;
     const newNis = convertPSBToSantri(convertingApp.id, assignKelas, assignKamar);
     setCreatedNisToast(
       `Alhamdulillah! ${convertingApp.nama} resmi menjadi santri aktif dengan NIS: ${newNis} di kamar ${assignKamar}.`
@@ -122,42 +158,88 @@ export const PSBModule: React.FC = () => {
     setConvertingApp(null);
   };
 
+  const effectiveTab: 'verifikasi' | 'form_baru' = publicMode ? 'form_baru' : activeTab;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-3 no-print">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <UserPlus className="w-5 h-5 text-emerald-700" />
-            <span>Penerimaan Santri Baru (PSB Online · Format EMIS)</span>
-          </h2>
-          <p className="text-xs text-slate-500">
-            Pendaftaran biodata EMIS + unggah KK/KIP, verifikasi berkas, penetapan kamar, dan penerbitan NIS otomatis.
-          </p>
+      {publicMode && (
+        <div className="rounded-3xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white p-5 sm:p-6 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src="/assets/aistudio/preview__14__3b7f388f.webp"
+              alt="Logo PP NU Darussalam"
+              className="w-11 h-11 rounded-2xl bg-white/10 p-1.5 object-contain shrink-0"
+            />
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                Pendaftaran Santri Baru Online (T.A. {currentTahunAjaran})
+              </p>
+              <h1 className="text-base sm:text-xl font-extrabold text-white truncate">
+                PP NU Darussalam Karangdadap, Pekalongan
+              </h1>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {onBackToLanding && (
+              <button
+                type="button"
+                onClick={onBackToLanding}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Kembali ke Beranda</span>
+              </button>
+            )}
+            {onGoToLogin && (
+              <button
+                type="button"
+                onClick={onGoToLogin}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold transition"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Login Pengurus</span>
+              </button>
+            )}
+          </div>
         </div>
+      )}
 
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setActiveTab('verifikasi')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              activeTab === 'verifikasi'
-                ? 'bg-emerald-800 text-white'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            Antrean Verifikasi ({psbList.filter((p) => p.status === 'Menunggu Verifikasi').length})
-          </button>
-          <button
-            onClick={() => setActiveTab('form_baru')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              activeTab === 'form_baru'
-                ? 'bg-emerald-800 text-white'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            Formulir Pendaftar Baru
-          </button>
+      {!publicMode && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-3 no-print">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-emerald-700" />
+              <span>Penerimaan Santri Baru (PSB Online · Format EMIS)</span>
+            </h2>
+            <p className="text-xs text-slate-500">
+              Pendaftaran biodata EMIS + unggah KK/KIP, verifikasi berkas, penetapan kamar, dan penerbitan NIS otomatis.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setActiveTab('verifikasi')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                effectiveTab === 'verifikasi'
+                  ? 'bg-emerald-800 text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              Antrean Verifikasi ({psbList.filter((p) => p.status === 'Menunggu Verifikasi').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('form_baru')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                effectiveTab === 'form_baru'
+                  ? 'bg-emerald-800 text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              Formulir Pendaftar Baru
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {createdNisToast && (
         <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2">
@@ -166,8 +248,53 @@ export const PSBModule: React.FC = () => {
         </div>
       )}
 
-      {/* TAB: VERIFIKASI ANTREAN PSB */}
-      {activeTab === 'verifikasi' && (
+      {publicMode && submittedReceipt && (
+        <div className="rounded-3xl bg-white p-6 sm:p-8 border-2 border-emerald-500 shadow-lg space-y-4 max-w-2xl mx-auto text-center">
+          <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+              Pendaftaran Tersimpan di Sistem PSB
+            </span>
+            <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 pt-1">
+              Alhamdulillah! Formulir Pendaftaran Terkirim
+            </h3>
+            <p className="text-xs text-slate-600">
+              Data calon santri telah masuk ke antrean verifikasi panitia Sekretariat PP NU Darussalam.
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 text-left text-xs space-y-1.5 max-w-md mx-auto">
+            <p>Nama Calon Santri: <strong className="text-slate-900">{submittedReceipt.nama}</strong></p>
+            <p>Jenjang Diniyah: <strong>{submittedReceipt.jenjang}</strong></p>
+            <p>Nama Wali: <strong>{submittedReceipt.wali}</strong> ({submittedReceipt.hpWali})</p>
+            <p>Tanggal Pengajuan: <strong>{submittedReceipt.tanggal}</strong></p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setSubmittedReceipt(null)}
+              className="px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition"
+            >
+              Daftarkan Calon Santri Lainnya
+            </button>
+            {onBackToLanding && (
+              <button
+                type="button"
+                onClick={onBackToLanding}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition"
+              >
+                Kembali ke Beranda Pondok
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: VERIFIKASI ANTREAN PSB (STRICTLY INTERNAL ADMIN/PENGURUS ONLY) */}
+      {!publicMode && effectiveTab === 'verifikasi' && (
         <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <h3 className="font-bold text-sm text-slate-900">

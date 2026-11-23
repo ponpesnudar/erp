@@ -79,17 +79,27 @@ export const ImtihanModule: React.FC = () => {
     setPendingImtihanSubTab,
   } = useAppStore();
 
-  const { effectiveRole } = useAuth();
-  const [activeSubTab, setActiveSubTab] = useState<string>('dashboard');
+  const { effectiveRole, can } = useAuth();
+  const isWaliSantri = effectiveRole === 'wali_santri';
+  const [activeSubTab, setActiveSubTab] = useState<string>(
+    isWaliSantri ? 'raport_santri' : 'dashboard'
+  );
   const [dashboardViewMode, setDashboardViewMode] = useState<'neural' | 'flowchart'>('neural');
 
   // Deep-link handoff from Header or Beranda notifications
   useEffect(() => {
     if (pendingImtihanSubTab) {
-      setActiveSubTab(pendingImtihanSubTab);
+      if (
+        isWaliSantri &&
+        !['koreksian_kitab', 'raport_santri', 'peringkat_paralel'].includes(pendingImtihanSubTab)
+      ) {
+        setActiveSubTab('raport_santri');
+      } else {
+        setActiveSubTab(pendingImtihanSubTab);
+      }
       setPendingImtihanSubTab(null);
     }
-  }, [pendingImtihanSubTab, setPendingImtihanSubTab]);
+  }, [pendingImtihanSubTab, setPendingImtihanSubTab, isWaliSantri]);
 
   const sidangEval = useMemo(
     () =>
@@ -103,8 +113,8 @@ export const ImtihanModule: React.FC = () => {
     [santriList, nilaiList, absensiSessions, sidangKenaikanRecords, sidangKkm]
   );
 
-  // Sub-tabs list (16 dedicated sub-tabs)
-  const subTabs = [
+  // Sub-tabs list (wali_santri strictly only sees Koreksian Kitab, Raport Santri, Peringkat & Juara)
+  const allSubTabs = [
     { id: 'dashboard', label: 'Dashboard & Alur' },
     { id: 'koreksian_kitab', label: 'Koreksian Kitab' },
     { id: 'soal_guru', label: 'Naskah Soal Guru' },
@@ -122,6 +132,17 @@ export const ImtihanModule: React.FC = () => {
     { id: 'jadwal_mapel', label: 'Jadwal Mapel' },
     { id: 'jaga_piket', label: 'Jadwal Jaga & Piket' },
   ];
+
+  const WALI_ALLOWED_SUBTABS = ['koreksian_kitab', 'raport_santri', 'peringkat_paralel'];
+  const subTabs = isWaliSantri
+    ? allSubTabs.filter((t) => WALI_ALLOWED_SUBTABS.includes(t.id))
+    : allSubTabs;
+
+  useEffect(() => {
+    if (isWaliSantri && !WALI_ALLOWED_SUBTABS.includes(activeSubTab)) {
+      setActiveSubTab('raport_santri');
+    }
+  }, [isWaliSantri, activeSubTab]);
 
   // Initialize seating plan if empty
   useEffect(() => {
@@ -397,8 +418,17 @@ export const ImtihanModule: React.FC = () => {
         })}
       </div>
 
+      {isWaliSantri && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs font-semibold flex items-center gap-2 no-print">
+          <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0" />
+          <span>
+            <strong>Portal Wali Santri (Lihat Saja):</strong> Hak akses Wali Santri dibatasi hanya untuk melihat Koreksian Kitab, Raport Santri, dan Peringkat &amp; Juara.
+          </span>
+        </div>
+      )}
+
       {/* TAB 1: DASHBOARD & ALUR */}
-      {activeSubTab === 'dashboard' && (
+      {!isWaliSantri && activeSubTab === 'dashboard' && (
         <div className="space-y-6">
           {isSidangNotifyRole(effectiveRole) && sidangEval.pendingBelowKkmRows.length > 0 && (
             <div className="rounded-2xl bg-rose-50/90 border border-rose-200 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -535,7 +565,7 @@ export const ImtihanModule: React.FC = () => {
                   sub: imtihanMaster.waktuUjian,
                 },
                 { label: 'Ketua Imtihan', value: imtihanMaster.ketuaImtihanNama },
-                { label: 'Bendahara Imtihan', value: 'M. Abdul Fataah' },
+                { label: 'Bendahara Imtihan', value: 'Ust. M. Abdul Fatah' },
               ]}
             />
           )}
@@ -546,28 +576,28 @@ export const ImtihanModule: React.FC = () => {
       {activeSubTab === 'koreksian_kitab' && <KoreksianKitabSubTab />}
 
       {/* TAB 2B: INPUT NASKAH SOAL GURU */}
-      {activeSubTab === 'soal_guru' && <SubTabSoalGuru />}
+      {!isWaliSantri && activeSubTab === 'soal_guru' && <SubTabSoalGuru />}
 
       {/* TAB 3: REVIEW PANITIA IMTIHAN */}
-      {activeSubTab === 'review_panitia' && <SubTabReviewPanitia />}
+      {!isWaliSantri && activeSubTab === 'review_panitia' && <SubTabReviewPanitia />}
 
       {/* TAB 4: CETAK BLANKO SOAL RESMI */}
-      {activeSubTab === 'cetak_blanko' && <SubTabCetakBlankoSoal />}
+      {!isWaliSantri && activeSubTab === 'cetak_blanko' && <SubTabCetakBlankoSoal />}
 
       {/* TAB 4B: VISUALISASI DENAH GEDUNG & LANTAI 2D */}
-      {activeSubTab === 'denah_kampus_2d' && <DenahKampus2DSubTab />}
+      {!isWaliSantri && activeSubTab === 'denah_kampus_2d' && <DenahKampus2DSubTab />}
 
       {/* TAB 5: DENAH RUANGAN & TEMPAT DUDUK (3D + 2D + LABEL BANGKU + TEMPEL KACA) */}
-      {activeSubTab === 'denah_ujian' && <SubTabDenahUjian />}
+      {!isWaliSantri && activeSubTab === 'denah_ujian' && <SubTabDenahUjian />}
 
       {/* TAB 6: KARTU IMTIHAN RESMI */}
-      {activeSubTab === 'kartu_imtihan' && <KartuImtihanSubTab />}
+      {!isWaliSantri && activeSubTab === 'kartu_imtihan' && <KartuImtihanSubTab />}
 
       {/* TAB 6B: CETAK BLANKO NILAI SANTRI */}
-      {activeSubTab === 'blanko_nilai' && <BlankoNilaiSubTab />}
+      {!isWaliSantri && activeSubTab === 'blanko_nilai' && <BlankoNilaiSubTab />}
 
       {/* TAB 7: INPUT NILAI SPREADSHEET */}
-      {activeSubTab === 'input_nilai' && <SubTabInputNilaiSpreadsheet />}
+      {!isWaliSantri && activeSubTab === 'input_nilai' && <SubTabInputNilaiSpreadsheet />}
 
       {/* TAB 8: RAPORT SANTRI F4 */}
       {activeSubTab === 'raport_santri' && <SubTabRaportSantri />}
@@ -576,16 +606,16 @@ export const ImtihanModule: React.FC = () => {
       {activeSubTab === 'peringkat_paralel' && <SubTabPeringkatParalel />}
 
       {/* TAB 9B: SIDANG KENAIKAN KELAS */}
-      {activeSubTab === 'sidang_kenaikan' && <SidangKenaikanSubTab />}
+      {!isWaliSantri && activeSubTab === 'sidang_kenaikan' && <SidangKenaikanSubTab />}
 
       {/* TAB 10: RAB IMTIHAN */}
-      {activeSubTab === 'rab_imtihan' && <RABImtihanEditor />}
+      {!isWaliSantri && activeSubTab === 'rab_imtihan' && <RABImtihanEditor />}
 
       {/* TAB 11: JADWAL MAPEL IMTIHAN */}
-      {activeSubTab === 'jadwal_mapel' && <SubTabJadwalMapel />}
+      {!isWaliSantri && activeSubTab === 'jadwal_mapel' && <SubTabJadwalMapel />}
 
       {/* TAB 12: JADWAL JAGA & PIKET */}
-      {activeSubTab === 'jaga_piket' && <SubTabJagaPiket />}
+      {!isWaliSantri && activeSubTab === 'jaga_piket' && <SubTabJagaPiket />}
     </div>
   );
 };
@@ -2911,6 +2941,13 @@ const SubTabJadwalMapel: React.FC = () => {
     printOrientation,
   } = useAppStore();
 
+  const { effectiveRole, can } = useAuth();
+  const canEditJadwal =
+    effectiveRole === 'pengasuh' ||
+    effectiveRole === 'ketua_imtihan' ||
+    effectiveRole === 'kepala_madin' ||
+    can('imtihan_denah', 'ubah');
+
   const [editingItem, setEditingItem] = useState<JadwalMaarifanItem | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const jadwalSheetRef = useRef<HTMLDivElement | null>(null);
@@ -2937,6 +2974,7 @@ const SubTabJadwalMapel: React.FC = () => {
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditJadwal) return;
     if (editingItem) {
       updateJadwalMaarifan(editingItem.id, editingItem);
       setEditingItem(null);
@@ -2945,6 +2983,7 @@ const SubTabJadwalMapel: React.FC = () => {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditJadwal) return;
     addJadwalMaarifan(formState);
     setShowAdd(false);
   };
@@ -2952,6 +2991,7 @@ const SubTabJadwalMapel: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Master Pelaksanaan Imtihan */}
+      {canEditJadwal && (
       <div className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-3 no-print">
         <h3 className="font-bold text-xs uppercase tracking-wider text-emerald-900">
           Master Pelaksanaan Imtihan (Sinkron Kartu & Blanko)
@@ -2996,6 +3036,7 @@ const SubTabJadwalMapel: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Table */}
       <div ref={jadwalSheetRef} className="rounded-2xl bg-white p-5 border border-slate-200 shadow-2xs space-y-4 printable-area">
@@ -3016,14 +3057,16 @@ const SubTabJadwalMapel: React.FC = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2 no-print">
             <PrintOrientationControl recommended="landscape" />
-            <button
-              type="button"
-              onClick={() => setShowAdd(true)}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Baris</span>
-            </button>
+            {canEditJadwal && (
+              <button
+                type="button"
+                onClick={() => setShowAdd(true)}
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Baris</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() =>
@@ -3054,7 +3097,9 @@ const SubTabJadwalMapel: React.FC = () => {
                 <th className="py-2.5 px-2 border border-emerald-800">KELAS 4</th>
                 <th className="py-2.5 px-2 border border-emerald-800">KELAS 5</th>
                 <th className="py-2.5 px-2 border border-emerald-800">KELAS 6</th>
-                <th className="py-2.5 px-2 border border-emerald-800 no-print">AKSI</th>
+                {canEditJadwal && (
+                  <th className="py-2.5 px-2 border border-emerald-800 no-print">AKSI</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 font-semibold">
@@ -3088,26 +3133,28 @@ const SubTabJadwalMapel: React.FC = () => {
                   <td className={`${badgeColors[row.kategori]} border border-slate-300 p-2`}>
                     {row.kelas6}
                   </td>
-                  <td className="border border-slate-300 p-1.5 no-print">
-                    <div className="flex items-center justify-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setEditingItem(row)}
-                        className="p-1 text-emerald-700 hover:bg-emerald-50 rounded"
-                        title="Edit Baris"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteJadwalMaarifan(row.id)}
-                        className="p-1 text-rose-500 hover:bg-rose-50 rounded"
-                        title="Hapus Baris"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
+                  {canEditJadwal && (
+                    <td className="border border-slate-300 p-1.5 no-print">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditingItem(row)}
+                          className="p-1 text-emerald-700 hover:bg-emerald-50 rounded"
+                          title="Edit Baris"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteJadwalMaarifan(row.id)}
+                          className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                          title="Hapus Baris"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -3285,13 +3332,19 @@ const SubTabJadwalMapel: React.FC = () => {
 ========================================================================= */
 const SubTabJagaPiket: React.FC = () => {
   const { jagaPiketList, addJagaPiket, deleteJagaPiket, ustadzList, imtihanMaster, printOrientation } = useAppStore();
+  const { effectiveRole, can } = useAuth();
+  const canManagePiket =
+    effectiveRole === 'pengasuh' ||
+    effectiveRole === 'ketua_imtihan' ||
+    effectiveRole === 'kepala_madin' ||
+    can('imtihan_denah', 'ubah');
   const roomOptions = imtihanMaster.roomConfigs.map((r) => `${r.kode} (${r.lokasi})`);
 
   const [hariTanggal, setHariTanggal] = useState('Sabtu, 05 Des 2026');
   const [jam, setJam] = useState('18.30 - 21.00');
   const [tugas, setTugas] = useState<JagaPiketRecord['tugas']>('Pengawas Ruang');
   const [ruangAtauPos, setRuangAtauPos] = useState(roomOptions[0] || 'R1 (Aula Utama Lt. 1)');
-  const [petugasNama, setPetugasNama] = useState(ustadzList[0]?.nama || 'Ust. Abdur Rahman');
+  const [petugasNama, setPetugasNama] = useState(ustadzList[0]?.nama || 'Ust. Abdurrohman');
   const [toast, setToast] = useState('');
   const [conflictError, setConflictError] = useState('');
   const jagaSheetRef = useRef<HTMLDivElement | null>(null);
@@ -3389,6 +3442,7 @@ const SubTabJagaPiket: React.FC = () => {
           </div>
         )}
 
+        {canManagePiket && (
         <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-6 gap-2.5 items-end text-xs">
           <div>
             <label className="block font-bold text-slate-600 mb-1">Hari &amp; Tanggal</label>
@@ -3493,6 +3547,7 @@ const SubTabJagaPiket: React.FC = () => {
             + Tambah Jaga
           </button>
         </form>
+        )}
       </div>
 
       {/* Printable Schedule Table */}
@@ -3521,7 +3576,9 @@ const SubTabJagaPiket: React.FC = () => {
                 <th className="p-2.5 border border-slate-200 text-left">Tugas</th>
                 <th className="p-2.5 border border-slate-200 text-left">Ruang / Lokasi Pos</th>
                 <th className="p-2.5 border border-slate-200 text-left">Nama Petugas</th>
-                <th className="p-2.5 border border-slate-200 text-right no-print">Aksi</th>
+                {canManagePiket && (
+                  <th className="p-2.5 border border-slate-200 text-right no-print">Aksi</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -3550,15 +3607,17 @@ const SubTabJagaPiket: React.FC = () => {
                   <td className="p-2.5 border border-slate-200 font-bold text-emerald-900">
                     {jp.petugasNama}
                   </td>
-                  <td className="p-2.5 border border-slate-200 text-right no-print">
-                    <button
-                      type="button"
-                      onClick={() => deleteJagaPiket(jp.id)}
-                      className="p-1 text-rose-500 hover:bg-rose-50 rounded"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
+                  {canManagePiket && (
+                    <td className="p-2.5 border border-slate-200 text-right no-print">
+                      <button
+                        type="button"
+                        onClick={() => deleteJagaPiket(jp.id)}
+                        className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -69,7 +69,7 @@ export const DetailSantriForm: React.FC<DetailSantriFormProps> = ({
   const [aktivitasPendidikan, setAktivitasPendidikan] = useState(
     initialData.aktivitasPendidikan || 'Madrasah Diniyah Salafiyah (MDS) & Formal MTs/MA'
   );
-  const [waliKelas, setWaliKelas] = useState(initialData.waliKelas || 'Ust. Abdur Rahman');
+  const [waliKelas, setWaliKelas] = useState(initialData.waliKelas || 'Ust. Abdurrohman');
   const [isSantriNdalem, setIsSantriNdalem] = useState(Boolean(initialData.isSantriNdalem));
 
   const nikValid = /^\d{16}$/.test(nik.trim());

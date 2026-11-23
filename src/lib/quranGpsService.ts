@@ -21,7 +21,7 @@ export interface PrayerScheduleDay {
   hijriLabel: string;
   pasaranLabel: string;
   timings: Array<{
-    key: 'imsak' | 'subuh' | 'terbit' | 'dhuha' | 'zuhur' | 'ashar' | 'maghrib' | 'isya';
+    key: 'imsak' | 'subuh' | 'terbit' | 'dhuha' | 'zuhur' | 'ashar' | 'nastakmir' | 'maghrib' | 'isya';
     nama: string;
     waktu: string;
     arab: string;
@@ -278,6 +278,12 @@ function formatMinutesToHHMM(totalMinutes: number): string {
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
+function subtractMinutesHHMM(hhmm: string, deltaMinutes: number): string {
+  const [hh, mm] = hhmm.split(':').map(Number);
+  const total = (hh || 0) * 60 + (mm || 0) - deltaMinutes;
+  return formatMinutesToHHMM(total);
+}
+
 export function inferIndonesiaTimezoneOffsetHours(lng: number): number {
   if (lng >= 127) return 9; // WIT
   if (lng >= 115) return 8; // WITA
@@ -343,6 +349,7 @@ export function computeAstronomicalPrayerTimes(
   const asharMin = solarNoonMin + hourAngleMinutes(asrZenith) + ihtiyat;
 
   const maghribMin = solarNoonMin + hourAngleMinutes(90.833) + ihtiyat;
+  const nastakmirMin = maghribMin - 15;
   const isyaMin = solarNoonMin + hourAngleMinutes(90 + 18) + ihtiyat;
 
   const cal = getHijriAndPasaranForDate(date);
@@ -360,6 +367,7 @@ export function computeAstronomicalPrayerTimes(
       { key: 'dhuha', nama: 'Dhuha', waktu: formatMinutesToHHMM(dhuhaMin), arab: 'الضحى' },
       { key: 'zuhur', nama: 'Zuhur', waktu: formatMinutesToHHMM(zuhurMin), arab: 'الظهر' },
       { key: 'ashar', nama: 'Ashar', waktu: formatMinutesToHHMM(asharMin), arab: 'العصر' },
+      { key: 'nastakmir', nama: 'Nastakmir', waktu: formatMinutesToHHMM(nastakmirMin), arab: 'نستكمر' },
       { key: 'maghrib', nama: 'Maghrib', waktu: formatMinutesToHHMM(maghribMin), arab: 'المغرب' },
       { key: 'isya', nama: "Isya'", waktu: formatMinutesToHHMM(isyaMin), arab: 'العشاء' },
     ],
@@ -392,9 +400,10 @@ export async function fetchPrayerTimesForCoords(
       const t = json?.data?.timings;
       if (t?.Fajr && t?.Dhuhr && t?.Asr && t?.Maghrib && t?.Isha) {
         const cleanTime = (s?: string) => (s || '').slice(0, 5);
-        // Compute dhuha = sunrise + 23m
+        // Compute dhuha = sunrise + 23m & nastakmir = maghrib - 15m
         const sunriseParts = cleanTime(t.Sunrise || offline.timings[2].waktu).split(':').map(Number);
         const dhuhaMin = (sunriseParts[0] || 5) * 60 + (sunriseParts[1] || 20) + 23;
+        const maghribClean = cleanTime(t.Maghrib);
         return {
           ...offline,
           source: 'aladhan_kemenag',
@@ -405,7 +414,8 @@ export async function fetchPrayerTimesForCoords(
             { key: 'dhuha', nama: 'Dhuha', waktu: formatMinutesToHHMM(dhuhaMin), arab: 'الضحى' },
             { key: 'zuhur', nama: 'Zuhur', waktu: cleanTime(t.Dhuhr), arab: 'الظهر' },
             { key: 'ashar', nama: 'Ashar', waktu: cleanTime(t.Asr), arab: 'العصر' },
-            { key: 'maghrib', nama: 'Maghrib', waktu: cleanTime(t.Maghrib), arab: 'المغرب' },
+            { key: 'nastakmir', nama: 'Nastakmir', waktu: subtractMinutesHHMM(maghribClean, 15), arab: 'نستكمر' },
+            { key: 'maghrib', nama: 'Maghrib', waktu: maghribClean, arab: 'المغرب' },
             { key: 'isya', nama: "Isya'", waktu: cleanTime(t.Isha), arab: 'العشاء' },
           ],
         };
@@ -449,6 +459,7 @@ export async function fetchMonthlyPrayerSchedule(
             const sunrise = cleanTime(t.Sunrise) || offline.timings[2].waktu;
             const [sH, sM] = sunrise.split(':').map(Number);
             const dhuhaMin = (sH || 5) * 60 + (sM || 20) + 23;
+            const maghribClean = cleanTime(t.Maghrib);
             return {
               ...offline,
               source: 'aladhan_kemenag',
@@ -459,7 +470,8 @@ export async function fetchMonthlyPrayerSchedule(
                 { key: 'dhuha', nama: 'Dhuha', waktu: formatMinutesToHHMM(dhuhaMin), arab: 'الضحى' },
                 { key: 'zuhur', nama: 'Zuhur', waktu: cleanTime(t.Dhuhr), arab: 'الظهر' },
                 { key: 'ashar', nama: 'Ashar', waktu: cleanTime(t.Asr), arab: 'العصر' },
-                { key: 'maghrib', nama: 'Maghrib', waktu: cleanTime(t.Maghrib), arab: 'المغرب' },
+                { key: 'nastakmir', nama: 'Nastakmir', waktu: subtractMinutesHHMM(maghribClean, 15), arab: 'نستكمر' },
+                { key: 'maghrib', nama: 'Maghrib', waktu: maghribClean, arab: 'المغرب' },
                 { key: 'isya', nama: "Isya'", waktu: cleanTime(t.Isha), arab: 'العشاء' },
               ],
             };

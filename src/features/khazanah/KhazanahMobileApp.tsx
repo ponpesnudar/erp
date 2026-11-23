@@ -155,6 +155,8 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
 
   const [route, setRoute] = useState<KhazanahRoute>(initialRoute);
   const [quranInitialSurah, setQuranInitialSurah] = useState<number | undefined>(undefined);
+  const [wiridInitialGroup, setWiridInitialGroup] = useState<string | undefined>(undefined);
+  const [maulidInitialFilter, setMaulidInitialFilter] = useState<string | undefined>(undefined);
   const [homeSearch, setHomeSearch] = useState('');
   const [cariAyatQuery, setCariAyatQuery] = useState('');
   const [activeVideoModal, setActiveVideoModal] = useState<{
@@ -302,6 +304,64 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
     { id: 'qurban', label: 'Qurban', icon: <HeartHandshake className="w-5 h-5" /> },
   ];
 
+  const kitabDirectLinks: Array<{
+    label: string;
+    subtitle: string;
+    route: KhazanahRoute;
+    wiridGroup?: string;
+    maulidFilter?: string;
+    keywords: string;
+  }> = [
+    {
+      label: 'Manaqib Nurul Burhani',
+      subtitle: 'Tawassul, Manqobah 1–9 & Doa',
+      route: 'wirid',
+      wiridGroup: 'wirid-8',
+      keywords: 'manaqib nurul burhani syekh abdul qadir jailani',
+    },
+    {
+      label: 'Kitab Haikal Nuroni',
+      subtitle: 'Haikal 1–7 Lengkap & Doa',
+      route: 'wirid',
+      wiridGroup: 'wirid-9',
+      keywords: 'haikal nuroni tujuh haikal ayat kursi',
+    },
+    {
+      label: 'Dalailul Khoirot',
+      subtitle: 'Senin–Ahad & Doa Khatam',
+      route: 'wirid',
+      wiridGroup: 'wirid-7',
+      keywords: 'dalailul khoirot khairat jazuli',
+    },
+    {
+      label: 'Koleksi Hizib-Hizib',
+      subtitle: 'Nashor, Bahr, Nawawi, Autad, Sakron',
+      route: 'wirid',
+      wiridGroup: 'wirid-6',
+      keywords: 'hizib nashor bahr nawawi autad sakron ikhfa barqi fatihah',
+    },
+    {
+      label: 'Mahallul Qiyam Az-Zahir',
+      subtitle: 'Versi Majelis Az-Zahir Lengkap',
+      route: 'maulid',
+      maulidFilter: 'Mahallul Qiyam Az-Zahir',
+      keywords: 'mahallul qiyam az-zahir asyraqal marhaban maulid',
+    },
+    {
+      label: 'Syair & Qasidah Pesantren',
+      subtitle: 'Tanpo Waton, Al-I’tiraf, Burdah, Badar',
+      route: 'maulid',
+      maulidFilter: 'Syair & Qasidah',
+      keywords: 'syair qasidah tanpo waton itiraf burdah ya lal wathan badar asnawiyah tombo ati',
+    },
+    {
+      label: 'Tahlil Aswaja Madzhab Syafi’i',
+      subtitle: '19 Susunan Lengkap & Ayat Kursi',
+      route: 'tahlil',
+      keywords: 'tahlil syafii aswaja ayat kursi doa arwah',
+    },
+  ];
+
   const searchResults = useMemo(() => {
     const q = homeSearch.trim().toLowerCase();
     if (!q) return null;
@@ -311,13 +371,19 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
     const menus = [...homeCoreIcons.slice(0, 7), ...semuaMenuSecondaryIcons].filter((m) =>
       m.label.toLowerCase().includes(q)
     );
+    const kitabMatches = kitabDirectLinks.filter(
+      (k) =>
+        k.label.toLowerCase().includes(q) ||
+        k.subtitle.toLowerCase().includes(q) ||
+        k.keywords.includes(q)
+    );
     const cmsMatches = khazanahCms.filter(
       (c) =>
         c.judul.toLowerCase().includes(q) ||
         c.isiLengkap.toLowerCase().includes(q) ||
         c.kategori.toLowerCase().includes(q)
     );
-    return { surahs, menus, cmsMatches };
+    return { surahs, menus, kitabMatches, cmsMatches };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homeSearch, khazanahCms]);
 
@@ -426,6 +492,8 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
                     type="button"
                     onClick={() => {
                       if (item.id === 'quran') setQuranInitialSurah(undefined);
+                      if (item.id === 'wirid') setWiridInitialGroup(undefined);
+                      if (item.id === 'maulid') setMaulidInitialFilter(undefined);
                       setRoute(item.id);
                     }}
                     className="flex flex-col items-center gap-1.5 text-center group"
@@ -464,18 +532,40 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
                   <div className="mt-2 rounded-2xl border border-slate-200 bg-white shadow-lg p-3 space-y-2.5">
                     {searchResults.menus.length === 0 &&
                     searchResults.surahs.length === 0 &&
+                    searchResults.kitabMatches.length === 0 &&
                     searchResults.cmsMatches.length === 0 ? (
                       <p className="text-xs text-slate-400 text-center py-2">
                         Tidak ditemukan hasil untuk &ldquo;{homeSearch}&rdquo;
                       </p>
                     ) : (
                       <>
+                        {searchResults.kitabMatches.map((k) => (
+                          <button
+                            key={k.label}
+                            type="button"
+                            onClick={() => {
+                              setHomeSearch('');
+                              setWiridInitialGroup(k.wiridGroup);
+                              setMaulidInitialFilter(k.maulidFilter);
+                              setRoute(k.route);
+                            }}
+                            className="w-full flex items-center justify-between text-left px-2 py-1.5 rounded-lg hover:bg-[#E6F7F2] text-xs text-slate-800"
+                          >
+                            <div>
+                              <p className="font-extrabold text-[#00695C]">{k.label}</p>
+                              <p className="text-[10px] text-slate-500">{k.subtitle}</p>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-[#00897B] shrink-0" />
+                          </button>
+                        ))}
                         {searchResults.menus.map((m, idx) => (
                           <button
                             key={`${m.label}-${idx}`}
                             type="button"
                             onClick={() => {
                               setHomeSearch('');
+                              if (m.id === 'wirid') setWiridInitialGroup(undefined);
+                              if (m.id === 'maulid') setMaulidInitialFilter(undefined);
                               setRoute(m.id);
                             }}
                             className="w-full flex items-center justify-between text-left px-2 py-1.5 rounded-lg hover:bg-[#E6F7F2] text-xs font-bold text-slate-800"
@@ -569,6 +659,31 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
                   <p className="text-xs font-extrabold text-slate-900">Video &amp; Tutorial Ibadah</p>
                   <p className="text-[11px] text-slate-600">Wudhu, shalat &amp; manasik</p>
                 </button>
+              </div>
+
+              {/* Kitab & Amalan Pilihan Pesantren (Direct Readers) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-extrabold text-slate-900">Kitab &amp; Amalan Pesantren</h3>
+                  <span className="text-[10px] font-bold text-[#00897B]">Teks Lengkap</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {kitabDirectLinks.slice(0, 6).map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        setWiridInitialGroup(item.wiridGroup);
+                        setMaulidInitialFilter(item.maulidFilter);
+                        setRoute(item.route);
+                      }}
+                      className="p-2.5 rounded-xl border border-slate-200 bg-white hover:border-[#00897B] text-left transition shadow-2xs"
+                    >
+                      <p className="text-xs font-extrabold text-slate-900 line-clamp-1">{item.label}</p>
+                      <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{item.subtitle}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Kalam & Artikel Terbaru */}
@@ -668,7 +783,15 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
         {route === 'quran' && (
           <QuranMobileScreen onBack={() => setRoute('home')} initialSurahNomor={quranInitialSurah} />
         )}
-        {route === 'wirid' && <WiridDoaMobileScreen onBack={() => setRoute('home')} />}
+        {route === 'wirid' && (
+          <WiridDoaMobileScreen
+            onBack={() => {
+              setWiridInitialGroup(undefined);
+              setRoute('home');
+            }}
+            initialGroupKey={wiridInitialGroup}
+          />
+        )}
         {route === 'shalat' && (
           <JadwalShalatMobileScreen
             onBack={() => setRoute('home')}
@@ -686,7 +809,15 @@ export const KhazanahMobileApp: React.FC<KhazanahMobileAppProps> = ({
           />
         )}
         {route === 'tahlil' && <TahlilYasinMobileScreen onBack={() => setRoute('home')} />}
-        {route === 'maulid' && <MaulidMobileScreen onBack={() => setRoute('home')} />}
+        {route === 'maulid' && (
+          <MaulidMobileScreen
+            onBack={() => {
+              setMaulidInitialFilter(undefined);
+              setRoute('home');
+            }}
+            initialFilter={maulidInitialFilter}
+          />
+        )}
         {route === 'zakat' && <ZakatMobileScreen onBack={() => setRoute('home')} />}
         {route === 'waris' && <WarisMobileScreen onBack={() => setRoute('home')} />}
         {route === 'kalender' && <KalenderMobileScreen />}

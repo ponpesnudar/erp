@@ -1378,7 +1378,7 @@ export const LaporanKeuanganSubTab: React.FC = () => {
               <div>
                 <p className="mb-12 font-semibold text-slate-700">Bendahara Umum</p>
                 <p className="font-bold border-t border-slate-400 w-44 mx-auto pt-1 text-slate-900">
-                  M. Abdul Fataah
+                  Ust. M. Abdul Fatah
                 </p>
               </div>
             </div>

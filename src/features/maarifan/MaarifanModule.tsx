@@ -28,6 +28,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store.ts';
+import { useAuth } from '../../lib/auth.ts';
 import { triggerReliablePrint } from '../../lib/printHelper.ts';
 import { PrintOrientationControl } from '../../components/common/PrintOrientationControl.tsx';
 import { PrintKopPondok } from '../../components/common/PrintKopPondok.tsx';
@@ -56,6 +57,7 @@ interface MaarifanModuleProps {
 export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi }) => {
   const {
     currentUser,
+    userAccounts,
     santriList,
     ustadzList,
     addUstadz,
@@ -87,6 +89,13 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
     auditLogs,
     printOrientation,
   } = useAppStore();
+
+  const { effectiveRole, can } = useAuth();
+  const canManageMaarif =
+    effectiveRole === 'kepala_madin' ||
+    effectiveRole === 'pengasuh' ||
+    can('maarifan_absensi', 'ubah') ||
+    can('maarifan_absensi', 'hapus');
 
   const [activeTab, setActiveTab] = useState<
     'absensi' | 'rekap' | 'kurikulum' | 'kitab_pdf' | 'jadwal' | 'setting_guru' | 'kalender' | 'ustadz'
@@ -445,7 +454,7 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
 
   const handleSaveUstadzModal = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!detailUstadz) return;
+    if (!detailUstadz || !canManageMaarif) return;
     if (isCreatingUstadz) {
       const { id: _ignore, ...rest } = detailUstadz;
       addUstadz(rest);
@@ -603,6 +612,18 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
           ))}
         </div>
       </div>
+
+      {!canManageMaarif &&
+        ['kurikulum', 'kitab_pdf', 'jadwal', 'setting_guru', 'kalender', 'ustadz'].includes(
+          activeTab
+        ) && (
+          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-semibold flex items-center gap-2 no-print">
+            <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>
+              <strong>Mode Lihat Saja:</strong> Anda dapat melihat &amp; mencetak jadwal/kurikulum serta mengunduh kitab. Perubahan, unggah kitab PDF, dan hapus data hanya dapat dilakukan oleh <strong>Kepala Ma&apos;arif</strong>, Pengasuh, atau Admin.
+            </span>
+          </div>
+        )}
 
       {successToast && (
         <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2 no-print">
@@ -1346,7 +1367,9 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                   Matriks Kurikulum Resmi 22 Fan Madrasah Diniyah (T.A. 2026-2027)
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Klik kitab atau jam tatap muka (JTM) pada tiap kelas untuk menyesuaikan beban ajar (Total standar: 18 JTM/minggu per tingkat).
+                  {canManageMaarif
+                    ? 'Klik kitab atau jam tatap muka (JTM) pada tiap kelas untuk menyesuaikan beban ajar (Total standar: 18 JTM/minggu per tingkat).'
+                    : "Daftar resmi sebaran kitab & jam tatap muka per tingkat (Total standar: 18 JTM/minggu). Perubahan hanya dapat dilakukan oleh Kepala Ma'arif."}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 no-print">
@@ -1408,43 +1431,64 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                           return (
                             <React.Fragment key={kelasKey}>
                               <td className="p-1 border border-slate-200">
-                                <input
-                                  type="text"
-                                  dir="rtl"
-                                  value={cell.kitab}
-                                  placeholder="-"
-                                  onChange={(e) =>
-                                    updateKurikulumMatrixCell(
-                                      row.id,
-                                      kelasKey,
-                                      e.target.value,
-                                      cell.jtm
-                                    )
-                                  }
-                                  className="w-full text-right font-arabic text-xs bg-transparent px-1 py-0.5 rounded focus:bg-white focus:ring-1 focus:ring-emerald-600 outline-none"
-                                />
+                                {canManageMaarif ? (
+                                  <input
+                                    type="text"
+                                    dir="rtl"
+                                    value={cell.kitab}
+                                    placeholder="-"
+                                    onChange={(e) =>
+                                      updateKurikulumMatrixCell(
+                                        row.id,
+                                        kelasKey,
+                                        e.target.value,
+                                        cell.jtm
+                                      )
+                                    }
+                                    className="w-full text-right font-arabic text-xs bg-transparent px-1 py-0.5 rounded focus:bg-white focus:ring-1 focus:ring-emerald-600 outline-none"
+                                  />
+                                ) : (
+                                  <div
+                                    dir="rtl"
+                                    className="w-full text-right font-arabic text-xs px-1 py-0.5 text-slate-800"
+                                  >
+                                    {cell.kitab || '-'}
+                                  </div>
+                                )}
                               </td>
                               <td className="p-1 border border-slate-200 text-center">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={10}
-                                  value={cell.jtm || ''}
-                                  placeholder="0"
-                                  onChange={(e) =>
-                                    updateKurikulumMatrixCell(
-                                      row.id,
-                                      kelasKey,
-                                      cell.kitab,
-                                      Math.max(0, parseInt(e.target.value, 10) || 0)
-                                    )
-                                  }
-                                  className={`w-9 text-center tabular-nums font-bold rounded py-0.5 outline-none focus:ring-1 focus:ring-emerald-600 ${
-                                    cell.jtm > 0
-                                      ? 'bg-emerald-50 text-emerald-900'
-                                      : 'bg-transparent text-slate-300'
-                                  }`}
-                                />
+                                {canManageMaarif ? (
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={10}
+                                    value={cell.jtm || ''}
+                                    placeholder="0"
+                                    onChange={(e) =>
+                                      updateKurikulumMatrixCell(
+                                        row.id,
+                                        kelasKey,
+                                        cell.kitab,
+                                        Math.max(0, parseInt(e.target.value, 10) || 0)
+                                      )
+                                    }
+                                    className={`w-9 text-center tabular-nums font-bold rounded py-0.5 outline-none focus:ring-1 focus:ring-emerald-600 ${
+                                      cell.jtm > 0
+                                        ? 'bg-emerald-50 text-emerald-900'
+                                        : 'bg-transparent text-slate-300'
+                                    }`}
+                                  />
+                                ) : (
+                                  <span
+                                    className={`inline-block w-9 text-center tabular-nums font-bold rounded py-0.5 ${
+                                      cell.jtm > 0
+                                        ? 'bg-emerald-50 text-emerald-900'
+                                        : 'text-slate-300'
+                                    }`}
+                                  >
+                                    {cell.jtm || 0}
+                                  </span>
+                                )}
                               </td>
                             </React.Fragment>
                           );
@@ -1496,17 +1540,19 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                   Lengkap dengan KKM standar (65), target hafalan nadhom/matan, dan contoh makna Jawa.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAddKitab((v) => !v)}
-                className="px-3.5 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Tambah Kitab Kurikulum</span>
-              </button>
+              {canManageMaarif && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddKitab((v) => !v)}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tambah Kitab Kurikulum</span>
+                </button>
+              )}
             </div>
 
-            {showAddKitab && (
+            {canManageMaarif && showAddKitab && (
               <form
                 onSubmit={handleAddKitabSubmit}
                 className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs"
@@ -1601,7 +1647,7 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                     <th className="py-2.5 px-3 text-center">KKM</th>
                     <th className="py-2.5 px-3">Target Hafalan</th>
                     <th className="py-2.5 px-3 text-right">Makna Pegon Jawa</th>
-                    <th className="py-2.5 px-3 text-right">Hapus</th>
+                    {canManageMaarif && <th className="py-2.5 px-3 text-right">Hapus</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1622,15 +1668,17 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                       <td className="py-2.5 px-3 text-right font-arabic text-base text-slate-800" dir="rtl">
                         {k.maknaJawaContoh}
                       </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => deleteKurikulumKitab(k.id)}
-                          className="p-1 text-rose-500 hover:bg-rose-50 rounded"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
+                      {canManageMaarif && (
+                        <td className="py-2.5 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => deleteKurikulumKitab(k.id)}
+                            className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1735,17 +1783,19 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                     Arsip kitab digital untuk pegangan guru & santri kelas 1–6 MDS lengkap dengan makna Pegon Jawa.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddPdf((v) => !v)}
-                  className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Unggah Kitab PDF</span>
-                </button>
+                {canManageMaarif && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPdf((v) => !v)}
+                    className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Unggah Kitab PDF</span>
+                  </button>
+                )}
               </div>
 
-              {showAddPdf && (
+              {canManageMaarif && showAddPdf && (
                 <form
                   onSubmit={handleAddPdfSubmit}
                   className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs"
@@ -1928,14 +1978,16 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                           <p className="text-[11px] text-slate-500 italic">{item.catatan}</p>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => deleteKitabPdf(item.id)}
-                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg"
-                        title="Hapus Kitab"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {canManageMaarif && (
+                        <button
+                          type="button"
+                          onClick={() => deleteKitabPdf(item.id)}
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg"
+                          title="Hapus Kitab"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
@@ -1996,7 +2048,10 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                         {previewPdf.namaArab}
                       </p>
                       <p className="text-xs text-slate-700 max-w-md mx-auto">
-                        File katalog bawaan <strong>{previewPdf.fileName}</strong> ({previewPdf.ukuranFile}). Untuk membaca halaman PDF secara utuh di layar ini, unggah berkas PDF resmi kitab melalui tombol <strong>Unggah Kitab PDF</strong>.
+                        File katalog bawaan <strong>{previewPdf.fileName}</strong> ({previewPdf.ukuranFile}).{' '}
+                        {canManageMaarif
+                          ? 'Untuk membaca halaman PDF secara utuh di layar ini, unggah berkas PDF resmi kitab melalui tombol Unggah Kitab PDF.'
+                          : "Hubungi Kepala Ma'arif atau Admin untuk mengunggah berkas PDF resmi kitab ini."}
                       </p>
                       <button
                         type="button"
@@ -2063,7 +2118,7 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                   <th className="p-2 border border-emerald-800">Kelas 4</th>
                   <th className="p-2 border border-emerald-800">Kelas 5</th>
                   <th className="p-2 border border-emerald-800">Kelas 6</th>
-                  <th className="p-2 border border-emerald-800 no-print">Edit</th>
+                  {canManageMaarif && <th className="p-2 border border-emerald-800 no-print">Edit</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 font-semibold">
@@ -2081,22 +2136,24 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                     <td className="p-2 border border-slate-200">{j.kelas4}</td>
                     <td className="p-2 border border-slate-200">{j.kelas5}</td>
                     <td className="p-2 border border-slate-200">{j.kelas6}</td>
-                    <td className="p-2 border border-slate-200 no-print">
-                      <button
-                        type="button"
-                        onClick={() => setEditingJadwal(j)}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-100 text-emerald-800"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
+                    {canManageMaarif && (
+                      <td className="p-2 border border-slate-200 no-print">
+                        <button
+                          type="button"
+                          onClick={() => setEditingJadwal(j)}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-100 text-emerald-800"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {editingJadwal && (
+          {canManageMaarif && editingJadwal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
               <form
                 onSubmit={(e) => {
@@ -2362,7 +2419,8 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
             {/* SUB-VIEW 1: DASHBOARD & MATRIKS GLOBAL + QUICK PLOT */}
             {mengajarSubTab === 'dashboard' && (
               <div className="space-y-5">
-                {/* Multi-Day Quick Plot Form with Live Lock Labels */}
+                {/* Multi-Day Quick Plot Form with Live Lock Labels (Only Kepala Ma'arif / Pengasuh / Admin) */}
+                {canManageMaarif && (
                 <form
                   onSubmit={handleAddSlot}
                   className="rounded-3xl bg-white p-5 border border-slate-200 shadow-2xs space-y-3 text-xs no-print"
@@ -2523,6 +2581,7 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                     </div>
                   )}
                 </form>
+                )}
 
                 {/* Global Matrix Container (Printable F4) */}
                 <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-2xs space-y-4 printable-area">
@@ -2613,35 +2672,44 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                                                 {slot.ustadzNama}
                                               </p>
                                             </div>
-                                            <button
-                                              type="button"
-                                              onClick={() => deleteJadwalMengajarSlot(slot.id)}
-                                              className="text-rose-500 hover:text-rose-700 text-[11px] font-bold px-1 no-print shrink-0"
-                                              title="Hapus & buka kunci slot"
-                                            >
-                                              ×
-                                            </button>
-                                          </div>
+                                              {canManageMaarif && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => deleteJadwalMengajarSlot(slot.id)}
+                                                  className="text-rose-500 hover:text-rose-700 text-[11px] font-bold px-1 no-print shrink-0"
+                                                  title="Hapus & buka kunci slot"
+                                                >
+                                                  ×
+                                                </button>
+                                              )}
+                                            </div>
+                                          );
+                                        }
+                                        return canManageMaarif ? (
+                                          <button
+                                            key={jk}
+                                            type="button"
+                                            onClick={() => {
+                                              setSlotHariList([h]);
+                                              setSlotJamKe(jk);
+                                              setSlotKelas(kls);
+                                              const t = parseInt(kls.charAt(0), 10) || 1;
+                                              const firstM = MAPEL_PER_TINGKAT[t]?.[0]?.nama;
+                                              if (firstM) setSlotMapel(firstM);
+                                              setSlotError('');
+                                            }}
+                                            className="w-full text-left px-1.5 py-0.5 rounded border border-dashed border-slate-200 text-[10px] text-slate-400 hover:border-emerald-400 hover:text-emerald-800 hover:bg-emerald-50/40 transition no-print"
+                                          >
+                                            + Jam {jk}
+                                          </button>
+                                        ) : (
+                                          <span
+                                            key={jk}
+                                            className="block w-full text-left px-1.5 py-0.5 rounded border border-dashed border-slate-200/70 text-[10px] text-slate-300 no-print"
+                                          >
+                                            Jam {jk}: Kosong
+                                          </span>
                                         );
-                                      }
-                                      return (
-                                        <button
-                                          key={jk}
-                                          type="button"
-                                          onClick={() => {
-                                            setSlotHariList([h]);
-                                            setSlotJamKe(jk);
-                                            setSlotKelas(kls);
-                                            const t = parseInt(kls.charAt(0), 10) || 1;
-                                            const firstM = MAPEL_PER_TINGKAT[t]?.[0]?.nama;
-                                            if (firstM) setSlotMapel(firstM);
-                                            setSlotError('');
-                                          }}
-                                          className="w-full text-left px-1.5 py-0.5 rounded border border-dashed border-slate-200 text-[10px] text-slate-400 hover:border-emerald-400 hover:text-emerald-800 hover:bg-emerald-50/40 transition no-print"
-                                        >
-                                          + Jam {jk}
-                                        </button>
-                                      );
                                     })}
                                   </td>
                                 );
@@ -2697,13 +2765,15 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                                           className="text-[11px] text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md inline-flex items-center gap-1"
                                         >
                                           <strong>{s.hari} J{s.jamKe}</strong> · {s.kelas} ({s.mapel})
-                                          <button
-                                            type="button"
-                                            onClick={() => deleteJadwalMengajarSlot(s.id)}
-                                            className="text-rose-500 hover:text-rose-700 font-bold ml-0.5 no-print"
-                                          >
-                                            ×
-                                          </button>
+                                          {canManageMaarif && (
+                                            <button
+                                              type="button"
+                                              onClick={() => deleteJadwalMengajarSlot(s.id)}
+                                              className="text-rose-500 hover:text-rose-700 font-bold ml-0.5 no-print"
+                                            >
+                                              ×
+                                            </button>
+                                          )}
                                         </span>
                                       ))}
                                     </div>
@@ -2768,34 +2838,52 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                               const ok = rule[jam.key];
                               return (
                                 <td key={jam.key} className="py-2 px-3 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      updateGuruAvailability(rule.ustadzId, { [jam.key]: !ok })
-                                    }
-                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
-                                      ok
-                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                        : 'bg-rose-50 text-rose-700 border-rose-300'
-                                    }`}
-                                  >
-                                    {ok ? 'Bisa Mengajar' : 'Tidak Bisa'}
-                                  </button>
+                                  {canManageMaarif ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateGuruAvailability(rule.ustadzId, { [jam.key]: !ok })
+                                      }
+                                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
+                                        ok
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                          : 'bg-rose-50 text-rose-700 border-rose-300'
+                                      }`}
+                                    >
+                                      {ok ? 'Bisa Mengajar' : 'Tidak Bisa'}
+                                    </button>
+                                  ) : (
+                                    <span
+                                      className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                                        ok
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                          : 'bg-rose-50 text-rose-700 border-rose-300'
+                                      }`}
+                                    >
+                                      {ok ? 'Bisa Mengajar' : 'Tidak Bisa'}
+                                    </span>
+                                  )}
                                 </td>
                               );
                             })}
                             <td className="py-2 px-3">
-                              <input
-                                type="text"
-                                value={rule.alasanRequest || ''}
-                                onChange={(e) =>
-                                  updateGuruAvailability(rule.ustadzId, {
-                                    alasanRequest: e.target.value,
-                                  })
-                                }
-                                placeholder="Catatan jam kerja / request guru..."
-                                className="w-full rounded-lg border border-slate-200 px-2.5 py-1 text-xs"
-                              />
+                              {canManageMaarif ? (
+                                <input
+                                  type="text"
+                                  value={rule.alasanRequest || ''}
+                                  onChange={(e) =>
+                                    updateGuruAvailability(rule.ustadzId, {
+                                      alasanRequest: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Catatan jam kerja / request guru..."
+                                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1 text-xs"
+                                />
+                              ) : (
+                                <span className="text-xs text-slate-600">
+                                  {rule.alasanRequest || '-'}
+                                </span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -2950,23 +3038,27 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                     <span>Editor Kalender Pendidikan PP NU Darussalam</span>
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Pilih kode kegiatan di bawah, lalu klik sel tanggal pada kalender untuk mengisi atau menghapus agenda.
+                    {canManageMaarif
+                      ? 'Pilih kode kegiatan di bawah, lalu klik sel tanggal pada kalender untuk mengisi atau menghapus agenda.'
+                      : 'Tampilan resmi Kalender Pendidikan Pondok Pesantren NU Darussalam Karangdadap.'}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <PrintOrientationControl recommended="landscape" />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetKalenderPendidikan();
-                      setSuccessToast('Kalender pendidikan dikembalikan ke jadwal resmi awal.');
-                      setTimeout(() => setSuccessToast(''), 3000);
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reset Standar</span>
-                  </button>
+                  {canManageMaarif && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetKalenderPendidikan();
+                        setSuccessToast('Kalender pendidikan dikembalikan ke jadwal resmi awal.');
+                        setTimeout(() => setSuccessToast(''), 3000);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reset Standar</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() =>
@@ -2984,84 +3076,88 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                 </div>
               </div>
 
-              {/* Quick Meta Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
-                <div>
-                  <label className="block font-bold text-slate-600 mb-0.5">Tahun Ajaran</label>
-                  <input
-                    type="text"
-                    value={kalenderPendidikan.tahunAjaran}
-                    onChange={(e) => updateKalenderMeta({ tahunAjaran: e.target.value })}
-                    className="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-600 mb-0.5">Tempat &amp; Tanggal</label>
-                  <input
-                    type="text"
-                    value={kalenderPendidikan.ditetapkanDi}
-                    onChange={(e) => updateKalenderMeta({ ditetapkanDi: e.target.value })}
-                    className="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-600 mb-0.5">Hari Aktif Imtihan I</label>
-                  <input
-                    type="number"
-                    value={kalenderPendidikan.jmlHariImtihan1}
-                    onChange={(e) =>
-                      updateKalenderMeta({
-                        jmlHariImtihan1: Math.max(0, parseInt(e.target.value, 10) || 0),
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 font-bold tabular-nums"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-600 mb-0.5">Hari Aktif Imtihan II</label>
-                  <input
-                    type="number"
-                    value={kalenderPendidikan.jmlHariImtihan2}
-                    onChange={(e) =>
-                      updateKalenderMeta({
-                        jmlHariImtihan2: Math.max(0, parseInt(e.target.value, 10) || 0),
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 font-bold tabular-nums"
-                  />
-                </div>
-              </div>
+              {canManageMaarif && (
+                <>
+                  {/* Quick Meta Inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-0.5">Tahun Ajaran</label>
+                      <input
+                        type="text"
+                        value={kalenderPendidikan.tahunAjaran}
+                        onChange={(e) => updateKalenderMeta({ tahunAjaran: e.target.value })}
+                        className="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-0.5">Tempat &amp; Tanggal</label>
+                      <input
+                        type="text"
+                        value={kalenderPendidikan.ditetapkanDi}
+                        onChange={(e) => updateKalenderMeta({ ditetapkanDi: e.target.value })}
+                        className="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-0.5">Hari Aktif Imtihan I</label>
+                      <input
+                        type="number"
+                        value={kalenderPendidikan.jmlHariImtihan1}
+                        onChange={(e) =>
+                          updateKalenderMeta({
+                            jmlHariImtihan1: Math.max(0, parseInt(e.target.value, 10) || 0),
+                          })
+                        }
+                        className="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 font-bold tabular-nums"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-0.5">Hari Aktif Imtihan II</label>
+                      <input
+                        type="number"
+                        value={kalenderPendidikan.jmlHariImtihan2}
+                        onChange={(e) =>
+                          updateKalenderMeta({
+                            jmlHariImtihan2: Math.max(0, parseInt(e.target.value, 10) || 0),
+                          })
+                        }
+                        className="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 font-bold tabular-nums"
+                      />
+                    </div>
+                  </div>
 
-              {/* Code Brush Palette */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveKalenderCode('')}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
-                    activeKalenderCode === ''
-                      ? 'ring-2 ring-slate-900 bg-white text-slate-900 border-slate-900'
-                      : 'bg-white text-slate-600 border-slate-300'
-                  }`}
-                >
-                  HAPUS / KOSONGKAN SEL
-                </button>
-                {kalenderPendidikan.legend.map((item) => (
-                  <button
-                    key={item.code}
-                    type="button"
-                    onClick={() => setActiveKalenderCode(item.code)}
-                    style={{ backgroundColor: item.bgColor, color: item.textColor }}
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
-                      activeKalenderCode === item.code
-                        ? 'ring-2 ring-offset-1 ring-slate-900 scale-105'
-                        : 'opacity-90 hover:opacity-100'
-                    }`}
-                    title={item.label}
-                  >
-                    {item.code}
-                  </button>
-                ))}
-              </div>
+                  {/* Code Brush Palette */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveKalenderCode('')}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                        activeKalenderCode === ''
+                          ? 'ring-2 ring-slate-900 bg-white text-slate-900 border-slate-900'
+                          : 'bg-white text-slate-600 border-slate-300'
+                      }`}
+                    >
+                      HAPUS / KOSONGKAN SEL
+                    </button>
+                    {kalenderPendidikan.legend.map((item) => (
+                      <button
+                        key={item.code}
+                        type="button"
+                        onClick={() => setActiveKalenderCode(item.code)}
+                        style={{ backgroundColor: item.bgColor, color: item.textColor }}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+                          activeKalenderCode === item.code
+                            ? 'ring-2 ring-offset-1 ring-slate-900 scale-105'
+                            : 'opacity-90 hover:opacity-100'
+                        }`}
+                        title={item.label}
+                      >
+                        {item.code}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Official Printable Kalender Sheet Matching User Reference Photo */}
@@ -3140,14 +3236,20 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                           return (
                             <td
                               key={day}
-                              onClick={() => setKalenderDayCode(row.bulan, day, activeKalenderCode)}
+                              onClick={
+                                canManageMaarif
+                                  ? () => setKalenderDayCode(row.bulan, day, activeKalenderCode)
+                                  : undefined
+                              }
                               style={
                                 meta
                                   ? { backgroundColor: meta.bgColor, color: meta.textColor }
                                   : undefined
                               }
-                              title={`${row.bulan} tgl ${day}${meta ? `: ${meta.label}` : ' (Klik untuk isi)'}`}
-                              className="border border-slate-800 text-center font-bold text-[8px] leading-tight cursor-pointer select-none px-0.5 py-1 hover:ring-1 hover:ring-inset hover:ring-slate-950"
+                              title={`${row.bulan} tgl ${day}${meta ? `: ${meta.label}` : ''}`}
+                              className={`border border-slate-800 text-center font-bold text-[8px] leading-tight select-none px-0.5 py-1 ${
+                                canManageMaarif ? 'cursor-pointer hover:ring-1 hover:ring-inset hover:ring-slate-950' : ''
+                              }`}
                             >
                               {code}
                             </td>
@@ -3229,7 +3331,7 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
               <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs">
                 {(['Aktif', 'Nonaktif', 'Semua'] as const).map((st) => (
                   <button
@@ -3247,37 +3349,39 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCreatingUstadz(true);
-                  setUstadzModalTab('data');
-                  setDetailUstadz({
-                    id: '',
-                    nip: `2026.01.0${ustadzList.length + 1}`,
-                    nik: '',
-                    nama: '',
-                    namaArab: '',
-                    gender: 'L',
-                    tempatLahir: 'Pekalongan',
-                    tanggalLahir: '1995-01-01',
-                    statusAktif: 'Aktif',
-                    jabatanUtama: 'Guru Madrasah Diniyah',
-                    statusKepegawaian: 'Tetap Yayasan',
-                    tmtMulai: new Date().toISOString().substring(0, 10),
-                    pendidikanFormal: 'S1 Pendidikan Agama Islam',
-                    pendidikanPesantren: 'PP. NU Darussalam',
-                    fanIlmu: ['Fiqih'],
-                    noHP: '',
-                    alamat: 'Karangdadap, Pekalongan',
-                    honorPokok: 2000000,
-                  });
-                }}
-                className="px-3.5 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Tambah Ustadz</span>
-              </button>
+              {canManageMaarif && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingUstadz(true);
+                    setUstadzModalTab('data');
+                    setDetailUstadz({
+                      id: '',
+                      nip: `2026.01.0${ustadzList.length + 1}`,
+                      nik: '',
+                      nama: '',
+                      namaArab: '',
+                      gender: 'L',
+                      tempatLahir: 'Pekalongan',
+                      tanggalLahir: '1995-01-01',
+                      statusAktif: 'Aktif',
+                      jabatanUtama: 'Guru Madrasah Diniyah',
+                      statusKepegawaian: 'Tetap Yayasan',
+                      tmtMulai: new Date().toISOString().substring(0, 10),
+                      pendidikanFormal: 'S1 Pendidikan Agama Islam',
+                      pendidikanPesantren: 'PP. NU Darussalam',
+                      fanIlmu: ['Fiqih'],
+                      noHP: '',
+                      alamat: 'Karangdadap, Pekalongan',
+                      honorPokok: 2000000,
+                    });
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tambah Ustadz</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -3288,7 +3392,7 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                   <th className="py-2.5 px-3">NIP</th>
                   <th className="py-2.5 px-3">Nama Ustadz & Nama Arab</th>
                   <th className="py-2.5 px-3">Jabatan Utama</th>
-                  <th className="py-2.5 px-3">Kepegawaian</th>
+                  <th className="py-2.5 px-3">Akun Login ERP</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3 text-right">Aksi</th>
                 </tr>
@@ -3298,7 +3402,13 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                   .filter(
                     (u) => ustadzStatusFilter === 'Semua' || u.statusAktif === ustadzStatusFilter
                   )
-                  .map((ust) => (
+                  .map((ust) => {
+                    const matchedAccount = userAccounts.find(
+                      (acc) =>
+                        acc.ustadzId === ust.id ||
+                        acc.nama.trim().toLowerCase() === ust.nama.trim().toLowerCase()
+                    );
+                    return (
                     <tr key={ust.id} className="hover:bg-slate-50">
                       <td className="py-2.5 px-3 font-bold tabular-nums text-emerald-800">
                         {ust.nip}
@@ -3310,7 +3420,22 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-slate-700">{ust.jabatanUtama}</td>
-                      <td className="py-2.5 px-3 text-slate-600">{ust.statusKepegawaian}</td>
+                      <td className="py-2.5 px-3">
+                        {matchedAccount ? (
+                          <div>
+                            <span className="font-mono font-bold text-emerald-800">
+                              @{matchedAccount.username}
+                            </span>
+                            <span className="block text-[10px] text-slate-500">
+                              Sandi dikelola di Hak Akses Role
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                            Atur di Hak Akses Role
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2.5 px-3">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -3333,19 +3458,22 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                             }}
                             className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-800 hover:text-white text-slate-700 font-bold transition"
                           >
-                            Detail / Edit
+                            {canManageMaarif ? 'Detail / Edit' : 'Lihat Profil'}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteUstadz(ust.id)}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {canManageMaarif && (
+                            <button
+                              type="button"
+                              onClick={() => deleteUstadz(ust.id)}
+                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -3398,6 +3526,7 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
               ))}
             </div>
 
+            <fieldset disabled={!canManageMaarif} className="contents">
             {ustadzModalTab === 'data' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
@@ -3632,6 +3761,7 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                 </div>
               </div>
             )}
+            </fieldset>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
               <button
@@ -3639,14 +3769,16 @@ export const MaarifanModule: React.FC<MaarifanModuleProps> = ({ onOpenSdmAbsensi
                 onClick={() => setDetailUstadz(null)}
                 className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs"
               >
-                Batal
+                {canManageMaarif ? 'Batal' : 'Tutup'}
               </button>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs"
-              >
-                Simpan Data Asatidz
-              </button>
+              {canManageMaarif && (
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs"
+                >
+                  Simpan Data Asatidz
+                </button>
+              )}
             </div>
           </form>
         </div>

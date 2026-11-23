@@ -101,7 +101,7 @@ export const BendaharaModule: React.FC = () => {
   const [kasKategori, setKasKategori] = useState('Syahriyah Santri');
   const [kasUraian, setKasUraian] = useState('');
   const [kasNominal, setKasNominal] = useState(500000);
-  const [kasPJ, setKasPJ] = useState('M. Abdul Fataah');
+  const [kasPJ, setKasPJ] = useState('Ust. M. Abdul Fatah');
 
   // Monitoring Jajan Search
   const [jajanSearch, setJajanSearch] = useState('');
@@ -507,7 +507,7 @@ export const BendaharaModule: React.FC = () => {
             <div>
               <p className="mb-14 font-semibold">Bendahara Umum</p>
               <p className="font-bold border-t border-slate-400 w-44 mx-auto pt-1">
-                M. Abdul Fataah
+                Ust. M. Abdul Fatah
               </p>
             </div>
           </div>

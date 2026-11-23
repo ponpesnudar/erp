@@ -402,7 +402,7 @@ export const SidangKenaikanSubTab: React.FC = () => {
     doc.setFont('helvetica', 'normal');
     doc.text('Manager Waktu / Kepala Madin', 180, signY);
     doc.setFont('helvetica', 'bold');
-    doc.text('Ust. Syarif Hidayatullah', 180, signY + 15);
+    doc.text('Ust. H Zaenal Arifin', 180, signY + 15);
 
     doc.setFont('helvetica', 'normal');
     doc.text('Administrator Sistem', 245, signY);
@@ -1699,7 +1699,7 @@ export const SidangKenaikanSubTab: React.FC = () => {
               <div>
                 <p>Manager Waktu / Kepala Madin</p>
                 <div className="h-14" />
-                <p className="font-bold underline">Ust. Syarif Hidayatullah</p>
+                <p className="font-bold underline">Ust. H Zaenal Arifin</p>
               </div>
               <div>
                 <p>Administrator Sistem</p>
